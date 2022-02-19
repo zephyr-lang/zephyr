@@ -41,10 +41,17 @@ char* read_file(const char* filename, size_t* size) {
 }
 
 int main(int argc, char const *argv[]) {
-	size_t length;
-	char* source = read_file("./examples/return-0.zpr", &length);
 
-	Lexer lexer = new_lexer("./examples/return-0.zpr", source);
+	//TODO Have actual argument parsing
+	if(argc != 2) {
+		fprintf(stderr, "Usage:\n%s <filename>\n", argv[0]);
+		return 1;
+	}
+
+	size_t length;
+	char* source = read_file(argv[1], &length);
+
+	Lexer lexer = new_lexer(argv[1], source);
 
 	Parser parser = new_parser(&lexer);
 
