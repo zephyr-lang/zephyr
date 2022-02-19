@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "codegen.h"
 #include "lexer.h"
 #include "parser.h"
 
@@ -45,18 +46,16 @@ int main(int argc, char const *argv[]) {
 
 	Lexer lexer = new_lexer("./examples/return-0.zpr", source);
 
-	/*Token token;
-	while((token = lexer_next(&lexer)).type != TOKEN_EOF) {
-		print_token(&token);
-		printf("\n");
-	}*/
-
 	Parser parser = new_parser(&lexer);
 
 	Node* ast = parse_program(&parser);
 
 	if(!parser.error)
 		print_ast(ast);
+
+	FILE* out = fopen("./out.yasm", "w");
+	generate_program(ast, out);
+	fclose(out);
 
 	free(source);
 

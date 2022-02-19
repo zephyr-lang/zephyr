@@ -19,5 +19,8 @@ $(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -Wall -o $@
 
 clean:
+	-rm -f *.out
+	-rm -f *.o
 	-rm -f bin/*.o
+	-rm -f *.yasm
 	-rm -f $(TARGET)
