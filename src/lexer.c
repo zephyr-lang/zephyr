@@ -72,8 +72,10 @@ static TokenType check_keyword(Lexer* lexer, size_t start, size_t length, const 
 
 static TokenType identifier_type(Lexer* lexer) {
 	switch(lexer->start[0]) {
+		case 'i': return check_keyword(lexer, 1, 2, "nt", TOKEN_INT);
 		case 'f': return check_keyword(lexer, 1, 7, "unction", TOKEN_FUNCTION);
 		case 'r': return check_keyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
+		case 'v': return check_keyword(lexer, 1, 3, "oid", TOKEN_VOID);
 		default: break;
 	}
 	return TOKEN_IDENTIFIER;

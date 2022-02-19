@@ -1,4 +1,5 @@
 #pragma once
+#include "token.h"
 
 #define ENUM_AST(F) \
 	F(AST_INT_LITERAL, "int literal") \
@@ -30,7 +31,7 @@ typedef struct Node {
 		Node* unary;
 
 		struct {
-			char* name;
+			Token name;
 			Type returnType;
 			Node* body;
 		} function;

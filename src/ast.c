@@ -3,8 +3,8 @@
 
 char* data_type_to_string(DataType type) {
 	switch(type) {
-		case DATA_TYPE_VOID: "void";
-		case DATA_TYPE_INT: "int";
+		case DATA_TYPE_VOID: return "void";
+		case DATA_TYPE_INT: return "int";
 	}
 	return "<unknown type>";
 }
@@ -15,7 +15,7 @@ void print_ast_depth(Node* node, int depth) {
 	switch(node->type) {
 		case AST_PROGRAM: {
 			for(size_t i = 0; i < node->block.size; i++)
-				print_ast_depth(node->block.children[i], depth + 1);
+				print_ast_depth(node->block.children[i], depth);
 			break;
 		}
 		case AST_BLOCK: {
@@ -27,14 +27,14 @@ void print_ast_depth(Node* node, int depth) {
 		}
 
 		case AST_FUNCTION: {
-			printf("function %s: %s\n", node->function.name, data_type_to_string(node->function.returnType.type));
-			print_ast_depth(node->function.body, depth + 1);
+			printf("function %.*s: %s ", (int)node->function.name.length, node->function.name.start, data_type_to_string(node->function.returnType.type));
+			print_ast_depth(node->function.body, depth);
 			break;
 		}
 
 		case AST_RETURN: {
 			printf("return ");
-			print_ast_depth(node->unary, depth);
+			print_ast_depth(node->unary, 0);
 			printf("\n");
 			break;
 		}

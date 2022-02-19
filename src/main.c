@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "lexer.h"
+#include "parser.h"
 
 char* read_file(const char* filename, size_t* size) {
 	FILE* file;
@@ -44,11 +45,18 @@ int main(int argc, char const *argv[]) {
 
 	Lexer lexer = new_lexer("./examples/return-0.zpr", source);
 
-	Token token;
+	/*Token token;
 	while((token = lexer_next(&lexer)).type != TOKEN_EOF) {
 		print_token(&token);
 		printf("\n");
-	}
+	}*/
+
+	Parser parser = new_parser(&lexer);
+
+	Node* ast = parse_program(&parser);
+
+	if(!parser.error)
+		print_ast(ast);
 
 	free(source);
 
