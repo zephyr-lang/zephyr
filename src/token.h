@@ -9,6 +9,9 @@
 	F(TOKEN_RIGHT_BRACE, "right-brace") \
 	F(TOKEN_COLON, "colon")             \
 	F(TOKEN_SEMICOLON, "semicolon")     \
+	F(TOKEN_TILDE, "tilde")             \
+	F(TOKEN_MINUS, "minus")             \
+	F(TOKEN_BANG, "bang")               \
                                         \
 	F(TOKEN_INT_LITERAL, "int-literal") \
 	F(TOKEN_IDENTIFIER, "identifier")   \

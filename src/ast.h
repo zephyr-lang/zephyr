@@ -2,6 +2,9 @@
 #include "token.h"
 
 #define ENUM_AST(F) \
+	F(OP_BWNOT, "bw not") \
+	F(OP_NEG, "neg") \
+	F(OP_NOT, "not") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_RETURN, "return") \
 	F(AST_FUNCTION, "function") \
@@ -54,3 +57,4 @@ typedef struct Node {
 
 void print_ast(Node* ast);
 char* data_type_to_string(DataType type);
+char* node_type_to_string(NodeType type);

@@ -4,8 +4,22 @@ void generate_expr_rax(Node* expr, FILE* out) {
 	if(expr->type == AST_INT_LITERAL) {
 		fprintf(out, "    mov rax, %d\n", expr->literal.as.integer);
 	}
+	else if(expr->type == OP_BWNOT) {
+		generate_expr_rax(expr->unary, out);
+		fprintf(out, "    not rax\n");
+	}
+	else if(expr->type == OP_NEG) {
+		generate_expr_rax(expr->unary, out);
+		fprintf(out, "    neg rax\n");
+	}
+	else if(expr->type == OP_NOT) {
+		generate_expr_rax(expr->unary, out);
+		fprintf(out, "    test rax, rax\n");
+		fprintf(out, "    sete al\n");
+		fprintf(out, "    movzx rax, al\n");
+	}
 	else {
-		fprintf(stderr, "Unsupported type '%d' in generate_expr_rax", expr->type);
+		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));
 		exit(1);
 	}
 }
@@ -16,7 +30,7 @@ void generate_statement(Node* stmt, FILE* out) {
 		fprintf(out, "    ret\n");
 	}
 	else {
-		fprintf(stderr, "Unsupported type '%d' in generate_statement", stmt->type);
+		fprintf(stderr, "Unsupported type '%s' in generate_statement\n", node_type_to_string(stmt->type));
 		exit(1);
 	}
 }
@@ -40,7 +54,7 @@ void generate_program(Node* ast, FILE* out) {
 			generate_function(ast->block.children[i], out);
 		}
 		else {
-			fprintf(stderr, "Unsupported type '%d' in generate_program", ast->block.children[i]->type);
+			fprintf(stderr, "Unsupported type '%s' in generate_program\n", node_type_to_string(ast->block.children[i]->type));
 			exit(1);
 		}
 	}

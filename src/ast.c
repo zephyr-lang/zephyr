@@ -9,6 +9,15 @@ char* data_type_to_string(DataType type) {
 	return "<unknown type>";
 }
 
+char* node_type_to_string(NodeType type) {
+	switch(type) {
+#define E(name, str) case name: return str;
+	ENUM_AST(E)
+#undef E
+	}
+	return "<unknown node type>";
+}
+
 void print_ast_depth(Node* node, int depth) {
 	for(int i = 0; i < depth; i++) printf("  ");
 
@@ -41,6 +50,14 @@ void print_ast_depth(Node* node, int depth) {
 
 		case AST_INT_LITERAL: {
 			printf("(literal %d)", node->literal.as.integer);
+			break;
+		}
+
+		case OP_BWNOT:
+		case OP_NEG:
+		case OP_NOT: {
+			printf("%s ", node_type_to_string(node->type));
+			print_ast_depth(node->unary, 0);
 			break;
 		}
 	}

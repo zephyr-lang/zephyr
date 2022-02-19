@@ -91,7 +91,7 @@ Type parse_type(Parser* parser) {
 	}
 }
 
-Node* parse_expression(Parser* parser) {
+Node* parse_value(Parser* parser) {
 	Token literal = consume(parser, TOKEN_INT_LITERAL, "Expected value");
 	if(parser->error) return NULL;
 
@@ -100,6 +100,29 @@ Node* parse_expression(Parser* parser) {
 	literalNode->literal.as.integer = (int)strtol(literal.start, NULL, 10);
 	
 	return literalNode;
+}
+
+Node* parse_expression(Parser* parser) {
+	if(match(parser, TOKEN_TILDE)) {
+		Node* expr = parse_expression(parser);
+		Node* bwnot = new_node(OP_BWNOT);
+		bwnot->unary = expr;
+		return bwnot;
+	}
+	else if(match(parser, TOKEN_MINUS)) {
+		Node* expr = parse_expression(parser);
+		Node* neg = new_node(OP_NEG);
+		neg->unary = expr;
+		return neg;
+	}
+	else if(match(parser, TOKEN_BANG)) {
+		Node* expr = parse_expression(parser);
+		Node* not = new_node(OP_NOT);
+		not->unary = expr;
+		return not;
+	}
+
+	return parse_value(parser);
 }
 
 Node* parse_return_statement(Parser* parser) {
