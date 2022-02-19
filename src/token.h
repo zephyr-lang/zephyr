@@ -33,4 +33,5 @@ typedef struct Token {
 	size_t line;
 } Token;
 
+char* token_type_to_string(TokenType type);
 void print_token(Token* token);

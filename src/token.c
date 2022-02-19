@@ -1,7 +1,7 @@
 #include "token.h"
 #include <stdio.h>
 
-static char* token_type_to_string(TokenType type) {
+char* token_type_to_string(TokenType type) {
 	switch(type) {
 #define E(name, str) case name: return str;
 	ENUM_TOKENS(E)
