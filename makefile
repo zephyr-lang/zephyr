@@ -23,4 +23,6 @@ clean:
 	-rm -f *.o
 	-rm -f bin/*.o
 	-rm -f *.yasm
+
+clean-all: clean
 	-rm -f $(TARGET)

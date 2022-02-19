@@ -59,5 +59,19 @@ int main(int argc, char const *argv[]) {
 
 	free(source);
 
+	//TODO This isn't very nice
+	int status = system("yasm -felf64 out.yasm");
+
+	if(status != 0) {
+		fprintf(stderr, "yasm failed (code %d)\n", status);
+		return 1;
+	}
+
+	status = system("ld out.o");
+	if(status != 0) {
+		fprintf(stderr, "ld failed (code %d)\n", status);
+		return 1;
+	}
+
 	return 0;
 }
