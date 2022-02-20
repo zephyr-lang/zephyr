@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+Node* parse_expression(Parser* parser);
+
 Parser new_parser(Lexer* lexer) {
 	Parser parser = {0};
 	parser.lexer = lexer;
@@ -92,14 +94,25 @@ Type parse_type(Parser* parser) {
 }
 
 Node* parse_value(Parser* parser) {
-	Token literal = consume(parser, TOKEN_INT_LITERAL, "Expected value");
-	if(parser->error) return NULL;
+	if(match(parser, TOKEN_INT_LITERAL)) {
+		Token literal = parser->previous;
+		if(parser->error) return NULL;
 
-	Node* literalNode = new_node(AST_INT_LITERAL);
-	literalNode->literal.type = (Type) { .type = DATA_TYPE_INT };
-	literalNode->literal.as.integer = (int)strtol(literal.start, NULL, 10);
-	
-	return literalNode;
+		Node* literalNode = new_node(AST_INT_LITERAL);
+		literalNode->literal.type = (Type) { .type = DATA_TYPE_INT };
+		literalNode->literal.as.integer = (int)strtol(literal.start, NULL, 10);
+		
+		return literalNode;
+	}
+	else if(match(parser, TOKEN_LEFT_PAREN)) {
+		Node* expr = parse_expression(parser);
+		consume(parser, TOKEN_RIGHT_PAREN, "Expected closing ')' after expression");
+		return expr;
+	}
+	else {
+		error_current(parser, "Expected value");
+		return NULL;
+	}
 }
 
 Node* parse_unary(Parser* parser) {
