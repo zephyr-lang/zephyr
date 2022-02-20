@@ -1,5 +1,8 @@
 /.vscode
 
+# Most of the examples are just tiny little programs for quick development
+# Which is inconvenient for git.
+/examples
 zephyr
 /bin
 *.yasm

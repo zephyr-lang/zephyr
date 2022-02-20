@@ -12,6 +12,10 @@
 	F(TOKEN_TILDE, "tilde")             \
 	F(TOKEN_MINUS, "minus")             \
 	F(TOKEN_BANG, "bang")               \
+	F(TOKEN_PLUS, "plus")               \
+	F(TOKEN_STAR, "star")               \
+	F(TOKEN_SLASH, "slash")             \
+	F(TOKEN_PERCENT, "percent")         \
                                         \
 	F(TOKEN_INT_LITERAL, "int-literal") \
 	F(TOKEN_IDENTIFIER, "identifier")   \

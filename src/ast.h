@@ -1,7 +1,13 @@
 #pragma once
 #include "token.h"
+#include <stdbool.h>
 
 #define ENUM_AST(F) \
+	F(OP_ADD, "add") \
+	F(OP_SUB, "sub") \
+	F(OP_MUL, "mul") \
+	F(OP_DIV, "div") \
+	F(OP_MOD, "mod") \
 	F(OP_BWNOT, "bw not") \
 	F(OP_NEG, "neg") \
 	F(OP_NOT, "not") \
@@ -34,6 +40,11 @@ typedef struct Node {
 		Node* unary;
 
 		struct {
+			Node* lhs;
+			Node* rhs;
+		} binary;
+
+		struct {
 			Token name;
 			Type returnType;
 			Node* body;
@@ -58,3 +69,5 @@ typedef struct Node {
 void print_ast(Node* ast);
 char* data_type_to_string(DataType type);
 char* node_type_to_string(NodeType type);
+bool is_unary_op(NodeType type);
+bool is_binary_op(NodeType type);

@@ -1,10 +1,9 @@
 #include "codegen.h"
 
-void generate_expr_rax(Node* expr, FILE* out) {
-	if(expr->type == AST_INT_LITERAL) {
-		fprintf(out, "    mov rax, %d\n", expr->literal.as.integer);
-	}
-	else if(expr->type == OP_BWNOT) {
+void generate_expr_rax(Node* expr, FILE* out);
+
+void generate_unary_rax(Node* expr, FILE* out) {
+	if(expr->type == OP_BWNOT) {
 		generate_expr_rax(expr->unary, out);
 		fprintf(out, "    not rax\n");
 	}
@@ -17,6 +16,64 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    test rax, rax\n");
 		fprintf(out, "    sete al\n");
 		fprintf(out, "    movzx rax, al\n");
+	}
+}
+
+void generate_binary_rax(Node* expr, FILE* out) {
+	if(expr->type == OP_ADD) {
+		generate_expr_rax(expr->binary.lhs, out);
+		fprintf(out, "    push rax\n");
+		generate_expr_rax(expr->binary.rhs, out);
+		fprintf(out, "    mov rbx, rax\n");
+		fprintf(out, "    pop rax\n");
+		fprintf(out, "    add rax, rbx\n");
+	}
+	else if(expr->type == OP_SUB) {
+		generate_expr_rax(expr->binary.lhs, out);
+		fprintf(out, "    push rax\n");
+		generate_expr_rax(expr->binary.rhs, out);
+		fprintf(out, "    mov rbx, rax\n");
+		fprintf(out, "    pop rax\n");
+		fprintf(out, "    sub rax, rbx\n");
+	}
+	else if(expr->type == OP_MUL) {
+		generate_expr_rax(expr->binary.lhs, out);
+		fprintf(out, "    push rax\n");
+		generate_expr_rax(expr->binary.rhs, out);
+		fprintf(out, "    mov rbx, rax\n");
+		fprintf(out, "    pop rax\n");
+		fprintf(out, "    imul rax, rbx\n");
+	}
+	else if(expr->type == OP_DIV) {
+		generate_expr_rax(expr->binary.lhs, out);
+		fprintf(out, "    push rax\n");
+		generate_expr_rax(expr->binary.rhs, out);
+		fprintf(out, "    mov rbx, rax\n");
+		fprintf(out, "    pop rax\n");
+		fprintf(out, "    cqo\n");
+		fprintf(out, "    idiv rbx\n");
+	}
+	else if(expr->type == OP_MOD) {
+		generate_expr_rax(expr->binary.lhs, out);
+		fprintf(out, "    push rax\n");
+		generate_expr_rax(expr->binary.rhs, out);
+		fprintf(out, "    mov rbx, rax\n");
+		fprintf(out, "    pop rax\n");
+		fprintf(out, "    cqo\n");
+		fprintf(out, "    idiv rbx\n");
+		fprintf(out, "    mov rax, rdx\n");
+	}
+}
+
+void generate_expr_rax(Node* expr, FILE* out) {
+	if(is_unary_op(expr->type)) {
+		generate_unary_rax(expr, out);
+	}
+	else if(is_binary_op(expr->type)) {
+		generate_binary_rax(expr, out);
+	}
+	else if(expr->type == AST_INT_LITERAL) {
+		fprintf(out, "    mov rax, %d\n", expr->literal.as.integer);
 	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));

@@ -102,27 +102,76 @@ Node* parse_value(Parser* parser) {
 	return literalNode;
 }
 
-Node* parse_expression(Parser* parser) {
+Node* parse_unary(Parser* parser) {
 	if(match(parser, TOKEN_TILDE)) {
-		Node* expr = parse_expression(parser);
+		Node* expr = parse_unary(parser);
 		Node* bwnot = new_node(OP_BWNOT);
 		bwnot->unary = expr;
 		return bwnot;
 	}
 	else if(match(parser, TOKEN_MINUS)) {
-		Node* expr = parse_expression(parser);
+		Node* expr = parse_unary(parser);
 		Node* neg = new_node(OP_NEG);
 		neg->unary = expr;
 		return neg;
 	}
 	else if(match(parser, TOKEN_BANG)) {
-		Node* expr = parse_expression(parser);
+		Node* expr = parse_unary(parser);
 		Node* not = new_node(OP_NOT);
 		not->unary = expr;
 		return not;
 	}
 
 	return parse_value(parser);
+}
+
+Node* parse_term(Parser* parser) {
+	Node* left = parse_unary(parser);
+
+	while(match(parser, TOKEN_STAR) || match(parser, TOKEN_SLASH) || match(parser, TOKEN_PERCENT)) {
+		TokenType op = parser->previous.type;
+
+		Node* right = parse_unary(parser);
+
+		NodeType type;
+		switch(op) {
+			case TOKEN_STAR: type = OP_MUL; break;
+			case TOKEN_SLASH: type = OP_DIV; break;
+			case TOKEN_PERCENT: type = OP_MOD; break;
+			default: break; // Unreachable
+		}
+
+		Node* binary = new_node(type);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+Node* parse_expression(Parser* parser) {
+	Node* left = parse_term(parser);
+
+	while(match(parser, TOKEN_PLUS) || match(parser, TOKEN_MINUS)) {
+		TokenType op = parser->previous.type;
+
+		Node* right = parse_term(parser);
+
+		NodeType type;
+		switch(op) {
+			case TOKEN_PLUS: type = OP_ADD; break;
+			case TOKEN_MINUS: type = OP_SUB; break;
+			default: break; // Unreachable
+		}
+
+		Node* binary = new_node(type);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
 }
 
 Node* parse_return_statement(Parser* parser) {

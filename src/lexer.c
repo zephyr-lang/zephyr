@@ -139,6 +139,10 @@ Token lexer_next(Lexer* lexer) {
 		case '~': return make_token(lexer, TOKEN_TILDE);
 		case '-': return make_token(lexer, TOKEN_MINUS);
 		case '!': return make_token(lexer, TOKEN_BANG);
+		case '+': return make_token(lexer, TOKEN_PLUS);
+		case '*': return make_token(lexer, TOKEN_STAR);
+		case '/': return make_token(lexer, TOKEN_SLASH);
+		case '%': return make_token(lexer, TOKEN_PERCENT);
 		default: break;
 	}
 

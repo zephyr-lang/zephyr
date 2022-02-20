@@ -18,8 +18,47 @@ char* node_type_to_string(NodeType type) {
 	return "<unknown node type>";
 }
 
+bool is_unary_op(NodeType type) {
+	switch(type) {
+		case OP_BWNOT:
+		case OP_NEG:
+		case OP_NOT:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool is_binary_op(NodeType type) {
+	switch(type) {
+		case OP_ADD:
+		case OP_SUB:
+		case OP_MUL:
+		case OP_DIV:
+		case OP_MOD:
+			return true;
+		default:
+			return false;
+	}
+}
+
 void print_ast_depth(Node* node, int depth) {
 	for(int i = 0; i < depth; i++) printf("  ");
+
+	if(is_unary_op(node->type)) {
+		printf("%s ", node_type_to_string(node->type));
+		print_ast_depth(node->unary, 0);
+		return;
+	}
+
+	else if(is_binary_op(node->type)) {
+		printf("%s (", node_type_to_string(node->type));
+		print_ast_depth(node->binary.lhs, depth);
+		printf(") (");
+		print_ast_depth(node->binary.rhs, depth);
+		printf(")");
+		return;
+	}
 
 	switch(node->type) {
 		case AST_PROGRAM: {
@@ -53,13 +92,7 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
-		case OP_BWNOT:
-		case OP_NEG:
-		case OP_NOT: {
-			printf("%s ", node_type_to_string(node->type));
-			print_ast_depth(node->unary, 0);
-			break;
-		}
+		default: break; // Unreachable
 	}
 }
 
