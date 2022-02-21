@@ -36,6 +36,11 @@ bool is_binary_op(NodeType type) {
 		case OP_MUL:
 		case OP_DIV:
 		case OP_MOD:
+		case OP_BWAND:
+		case OP_BWOR:
+		case OP_XOR:
+		case OP_LSH:
+		case OP_RSH:
 			return true;
 		default:
 			return false;

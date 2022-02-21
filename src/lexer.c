@@ -35,6 +35,13 @@ static char peek_next(Lexer* lexer) {
 	return lexer->current[1];
 }
 
+static bool match(Lexer* lexer, char expected) {
+	if (is_at_end(lexer)) return false;
+	if (*lexer->current != expected) return false;
+	lexer->current++;
+	return true;
+}
+
 static Token make_token(Lexer* lexer, TokenType type) {
 	Token token;
 	token.type = type;
@@ -143,6 +150,11 @@ Token lexer_next(Lexer* lexer) {
 		case '*': return make_token(lexer, TOKEN_STAR);
 		case '/': return make_token(lexer, TOKEN_SLASH);
 		case '%': return make_token(lexer, TOKEN_PERCENT);
+		case '&': return make_token(lexer, match(lexer, '&') ? TOKEN_AMP_AMP : TOKEN_AMP);
+		case '|': return make_token(lexer, match(lexer, '|') ? TOKEN_BAR_BAR : TOKEN_BAR);
+		case '^': return make_token(lexer, TOKEN_XOR);
+		case '<': return make_token(lexer, match(lexer, '<') ? TOKEN_LSH : TOKEN_LESS);
+		case '>': return make_token(lexer, match(lexer, '>') ? TOKEN_RSH : TOKEN_GREATER);
 		default: break;
 	}
 

@@ -163,7 +163,7 @@ Node* parse_term(Parser* parser) {
 	return left;
 }
 
-Node* parse_expression(Parser* parser) {
+Node* parse_arithmetic(Parser* parser) {
 	Node* left = parse_term(parser);
 
 	while(match(parser, TOKEN_PLUS) || match(parser, TOKEN_MINUS)) {
@@ -185,6 +185,79 @@ Node* parse_expression(Parser* parser) {
 	}
 
 	return left;
+}
+
+Node* parse_shift(Parser* parser) {
+	Node* left = parse_arithmetic(parser);
+
+	while(match(parser, TOKEN_LSH) || match(parser, TOKEN_RSH)) {
+		TokenType op = parser->previous.type;
+
+		Node* right = parse_arithmetic(parser);
+
+		NodeType type;
+		switch(op) {
+			case TOKEN_LSH: type = OP_LSH; break;
+			case TOKEN_RSH: type = OP_RSH; break;
+			default: break; // Unreachable
+		}
+
+		Node* binary = new_node(type);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+Node* parse_bwand(Parser* parser) {
+	Node* left = parse_shift(parser);
+
+	while(match(parser, TOKEN_AMP)) {
+		Node* right = parse_shift(parser);
+
+		Node* binary = new_node(OP_BWAND);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+Node* parse_xor(Parser* parser) {
+	Node* left = parse_bwand(parser);
+
+	while(match(parser, TOKEN_XOR)) {
+		Node* right = parse_bwand(parser);
+
+		Node* binary = new_node(OP_XOR);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+Node* parse_bwor(Parser* parser) {
+	Node* left = parse_xor(parser);
+
+	while(match(parser, TOKEN_BAR)) {
+		Node* right = parse_xor(parser);
+
+		Node* binary = new_node(OP_BWOR);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+Node* parse_expression(Parser* parser) {
+	return parse_bwor(parser);
 }
 
 Node* parse_return_statement(Parser* parser) {

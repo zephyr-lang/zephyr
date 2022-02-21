@@ -16,6 +16,15 @@
 	F(TOKEN_STAR, "star")               \
 	F(TOKEN_SLASH, "slash")             \
 	F(TOKEN_PERCENT, "percent")         \
+	F(TOKEN_AMP, "amp")                 \
+	F(TOKEN_AMP_AMP, "amp-amp")         \
+	F(TOKEN_BAR, "bar")                 \
+	F(TOKEN_BAR_BAR, "bar-bar")         \
+	F(TOKEN_XOR, "xor")                 \
+	F(TOKEN_LESS, "less")               \
+	F(TOKEN_LSH, "lsh")                 \
+	F(TOKEN_GREATER, "greater")         \
+	F(TOKEN_RSH, "rsh")                 \
                                         \
 	F(TOKEN_INT_LITERAL, "int-literal") \
 	F(TOKEN_IDENTIFIER, "identifier")   \

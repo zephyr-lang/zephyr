@@ -19,49 +19,66 @@ void generate_unary_rax(Node* expr, FILE* out) {
 	}
 }
 
+void generate_shift_rax(Node* expr, FILE* out) {
+	generate_expr_rax(expr->binary.lhs, out);
+	fprintf(out, "    push rax\n");
+	generate_expr_rax(expr->binary.rhs, out);
+	fprintf(out, "    mov rcx, rax\n");
+	fprintf(out, "    pop rax\n");
+
+	if(expr->type == OP_LSH) {
+		fprintf(out, "    sal rax, cl\n");
+	}
+	else if(expr->type == OP_RSH) {
+		fprintf(out, "    sar rax, cl\n");
+	}
+	else {
+		fprintf(stderr, "Unsupported type '%s' in generate_shift_rax\n", node_type_to_string(expr->type));
+		exit(1);
+	}
+}
+
 void generate_binary_rax(Node* expr, FILE* out) {
+	if(expr->type == OP_LSH || expr->type == OP_RSH) {
+		generate_shift_rax(expr, out);
+		return;
+	}
+
+	generate_expr_rax(expr->binary.lhs, out);
+	fprintf(out, "    push rax\n");
+	generate_expr_rax(expr->binary.rhs, out);
+	fprintf(out, "    mov rbx, rax\n");
+	fprintf(out, "    pop rax\n");
 	if(expr->type == OP_ADD) {
-		generate_expr_rax(expr->binary.lhs, out);
-		fprintf(out, "    push rax\n");
-		generate_expr_rax(expr->binary.rhs, out);
-		fprintf(out, "    mov rbx, rax\n");
-		fprintf(out, "    pop rax\n");
 		fprintf(out, "    add rax, rbx\n");
 	}
 	else if(expr->type == OP_SUB) {
-		generate_expr_rax(expr->binary.lhs, out);
-		fprintf(out, "    push rax\n");
-		generate_expr_rax(expr->binary.rhs, out);
-		fprintf(out, "    mov rbx, rax\n");
-		fprintf(out, "    pop rax\n");
 		fprintf(out, "    sub rax, rbx\n");
 	}
 	else if(expr->type == OP_MUL) {
-		generate_expr_rax(expr->binary.lhs, out);
-		fprintf(out, "    push rax\n");
-		generate_expr_rax(expr->binary.rhs, out);
-		fprintf(out, "    mov rbx, rax\n");
-		fprintf(out, "    pop rax\n");
 		fprintf(out, "    imul rax, rbx\n");
 	}
 	else if(expr->type == OP_DIV) {
-		generate_expr_rax(expr->binary.lhs, out);
-		fprintf(out, "    push rax\n");
-		generate_expr_rax(expr->binary.rhs, out);
-		fprintf(out, "    mov rbx, rax\n");
-		fprintf(out, "    pop rax\n");
 		fprintf(out, "    cqo\n");
 		fprintf(out, "    idiv rbx\n");
 	}
 	else if(expr->type == OP_MOD) {
-		generate_expr_rax(expr->binary.lhs, out);
-		fprintf(out, "    push rax\n");
-		generate_expr_rax(expr->binary.rhs, out);
-		fprintf(out, "    mov rbx, rax\n");
-		fprintf(out, "    pop rax\n");
 		fprintf(out, "    cqo\n");
 		fprintf(out, "    idiv rbx\n");
 		fprintf(out, "    mov rax, rdx\n");
+	}
+	else if(expr->type == OP_BWAND) {
+		fprintf(out, "    and rax, rbx\n");
+	}
+	else if(expr->type == OP_BWOR) {
+		fprintf(out, "    or rax, rbx\n");
+	}
+	else if(expr->type == OP_XOR) {
+		fprintf(out, "    xor rax, rbx\n");
+	}
+	else {
+		fprintf(stderr, "Unsupported type '%s' in generate_binary_rax\n", node_type_to_string(expr->type));
+		exit(1);
 	}
 }
 

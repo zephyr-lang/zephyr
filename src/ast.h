@@ -8,6 +8,11 @@
 	F(OP_MUL, "mul") \
 	F(OP_DIV, "div") \
 	F(OP_MOD, "mod") \
+	F(OP_BWAND, "bw and") \
+	F(OP_BWOR, "bw or") \
+	F(OP_XOR, "xor") \
+	F(OP_LSH, "lsh") \
+	F(OP_RSH, "rsh") \
 	F(OP_BWNOT, "bw not") \
 	F(OP_NEG, "neg") \
 	F(OP_NOT, "not") \

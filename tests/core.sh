@@ -24,3 +24,11 @@ assert_exit_code "function main():int { return 37 % 3; }" 1
 assert_exit_code "function main():int { return 5 + 3 * 5; }" 20
 assert_exit_code "function main():int { return (5 + 3) * 5; }" 40
 echo " Done"
+
+echo -n "Bitwise: "
+assert_exit_code "function main():int { return 15 & 2; }" 2
+assert_exit_code "function main():int { return 26 | 3; }" 27
+assert_exit_code "function main():int { return 16 ^ 5; }" 21
+assert_exit_code "function main():int { return 5 << 3; }" 40
+assert_exit_code "function main():int { return 214 >> 6; }" 3
+echo " Done"
