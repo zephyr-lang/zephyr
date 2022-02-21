@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 #include "codegen.h"
 #include "lexer.h"
 #include "parser.h"
@@ -43,12 +44,14 @@ char* read_file(const char* filename, size_t* size) {
 
 static char* filepath = NULL;
 static char* cli_source = NULL;
+static bool dumpAst = false;
 
 void usage_exit(FILE* out) {
 	fprintf(out, "Possible Arguments:\n");
 	fprintf(out, "zephyr <options> <source>\n");
 	fprintf(out, "    -c => Provide a source string directly on the CLI\n");
 	fprintf(out, "          Cannot specify with a source file\n");
+	fprintf(out, "    -d Display an AST dump\n");
 	fprintf(out, "    -h => Print this help message\n");
 
 	exit(1);
@@ -60,6 +63,9 @@ const char** parse_cli_args(int argc, char const* argv[]) {
 			if(argc - i == 0) usage_exit(stderr);
 			cli_source = (char*)argv[i + 1];
 			i++;
+		}
+		else if(strcmp(argv[i], "-d") == 0) {
+			dumpAst = true;
 		}
 		else if(strcmp(argv[i], "-h") == 0) {
 			usage_exit(stdout);
@@ -98,7 +104,8 @@ int main(int argc, char const *argv[]) {
 	if(parser.error)
 		return 1;
 
-	print_ast(ast);
+	if(dumpAst)
+		print_ast(ast);
 
 	FILE* out = fopen("./out.yasm", "w");
 	generate_program(ast, out);
