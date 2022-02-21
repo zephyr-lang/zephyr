@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 function assert_exit_code() {
-	./zephyr -c "$1"
+	./build/zephyr -c "$1" -o ./build/test
 	set +e
-	./a.out
+	./build/test
 	res=$?
 	set -e
 

@@ -1,4 +1,4 @@
-TARGET = zephyr
+TARGET = ./build/zephyr
 CC = gcc
 CFLAGS = -g -Wall
 
@@ -19,10 +19,9 @@ $(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -Wall -o $@
 
 clean:
-	-rm -f *.out
-	-rm -f *.o
+	-rm -f build/*.o
 	-rm -f bin/*.o
-	-rm -f *.yasm
+	-rm -f build/*.yasm
 
 clean-all: clean
-	-rm -f $(TARGET)
+	-rm -f build/*

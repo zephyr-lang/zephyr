@@ -3,6 +3,9 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include "codegen.h"
 #include "lexer.h"
 #include "parser.h"
@@ -43,6 +46,7 @@ char* read_file(const char* filename, size_t* size) {
 }
 
 static char* filepath = NULL;
+static char* outFile = NULL;
 static char* cli_source = NULL;
 static bool dumpAst = false;
 
@@ -51,8 +55,9 @@ void usage_exit(FILE* out) {
 	fprintf(out, "zephyr <options> <source>\n");
 	fprintf(out, "    -c => Provide a source string directly on the CLI\n");
 	fprintf(out, "          Cannot specify with a source file\n");
-	fprintf(out, "    -d Display an AST dump\n");
+	fprintf(out, "    -d => Display an AST dump\n");
 	fprintf(out, "    -h => Print this help message\n");
+	fprintf(out, "    -o => Specify the output file\n");
 
 	exit(1);
 }
@@ -70,6 +75,14 @@ const char** parse_cli_args(int argc, char const* argv[]) {
 		else if(strcmp(argv[i], "-h") == 0) {
 			usage_exit(stdout);
 		}
+		else if(strcmp(argv[i], "-o") == 0) {
+			if(argc - i == 0) usage_exit(stderr);
+			outFile = (char*)argv[i + 1];
+			i++;
+		}
+		else if(strcmp(argv[i], "--") == 0) {
+			break;
+		}
 		else {
 			if(filepath != NULL || cli_source != NULL)
 				usage_exit(stderr);
@@ -77,6 +90,26 @@ const char** parse_cli_args(int argc, char const* argv[]) {
 		}
 	}
 	return &argv[argc];
+}
+
+int run_command(char** argv) {
+	pid_t process = fork();
+	if(process < 0) {
+		perror("fork");
+		return 1;
+	}
+
+	if(process == 0) {
+		execvp(argv[0], argv);
+		perror("execv");
+		return 1;
+	}
+
+	int status;
+
+ 	wait(&status);
+
+	return status;
 }
 
 int main(int argc, char const *argv[]) {
@@ -90,6 +123,10 @@ int main(int argc, char const *argv[]) {
 	if(filepath != NULL && cli_source != NULL) {
 		fprintf(stderr, "Cannot specify source file and source string\n");
 		usage_exit(stderr);
+	}
+
+	if(outFile == NULL) {
+		outFile = "./a.out";
 	}
 
 	size_t length;
@@ -107,7 +144,11 @@ int main(int argc, char const *argv[]) {
 	if(dumpAst)
 		print_ast(ast);
 
-	FILE* out = fopen("./out.yasm", "w");
+	char asmFile[1024];
+	strcpy(asmFile, outFile);
+	strcat(asmFile, ".yasm");
+
+	FILE* out = fopen(asmFile, "w");
 	generate_program(ast, out);
 	fclose(out);
 
@@ -116,15 +157,22 @@ int main(int argc, char const *argv[]) {
 	if(cli_source == NULL)
 		free(source);
 
-	//TODO This isn't very nice
-	int status = system("yasm -felf64 out.yasm");
+	char objectFile[1024];
+	strcpy(objectFile, outFile);
+	strcat(objectFile, ".o");
+
+	char* yasmArgs[] = { "yasm", "-felf64", "-o", objectFile, asmFile, NULL };
+
+	int status = run_command(yasmArgs);
 
 	if(status != 0) {
 		fprintf(stderr, "yasm failed (code %d)\n", status);
 		return 1;
 	}
 
-	status = system("ld out.o");
+	char* ldArgs[] = { "ld", "-o", outFile, objectFile, NULL };
+
+	status = run_command(ldArgs);
 	if(status != 0) {
 		fprintf(stderr, "ld failed (code %d)\n", status);
 		return 1;
