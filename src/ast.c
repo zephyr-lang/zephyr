@@ -41,6 +41,12 @@ bool is_binary_op(NodeType type) {
 		case OP_XOR:
 		case OP_LSH:
 		case OP_RSH:
+		case OP_EQUAL:
+		case OP_NOT_EQUAL:
+		case OP_LESS:
+		case OP_LESS_EQ:
+		case OP_GREATER:
+		case OP_GREATER_EQ:
 			return true;
 		default:
 			return false;

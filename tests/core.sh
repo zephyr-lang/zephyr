@@ -32,3 +32,12 @@ assert_exit_code "function main():int { return 16 ^ 5; }" 21
 assert_exit_code "function main():int { return 5 << 3; }" 40
 assert_exit_code "function main():int { return 214 >> 6; }" 3
 echo " Done"
+
+echo -n "Relative: "
+assert_exit_code "function main():int { return 15 > 2; }" 1
+assert_exit_code "function main():int { return 16 < 6; }" 0
+assert_exit_code "function main():int { return 15 >= 15; }" 1
+assert_exit_code "function main():int { return 16 <= 2; } " 0
+assert_exit_code "function main():int { return 25 == 25; }" 1
+assert_exit_code "function main():int { return 6 != 6; }" 0
+echo " Done"

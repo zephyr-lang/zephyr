@@ -125,6 +125,30 @@ static Token identifier(Lexer* lexer) {
 	return make_token(lexer, identifier_type(lexer));
 }
 
+TokenType less_than(Lexer* lexer) {
+	TokenType type = TOKEN_LESS;
+	
+	if(match(lexer, '=')) {
+		type = TOKEN_LEQ;
+	}
+	else if(match(lexer, '<')) {
+		type = TOKEN_LSH;
+	}
+	return type;
+}
+
+TokenType greater_than(Lexer* lexer) {
+	TokenType type = TOKEN_GREATER;
+	
+	if(match(lexer, '=')) {
+		type = TOKEN_GEQ;
+	}
+	else if(match(lexer, '>')) {
+		type = TOKEN_RSH;
+	}
+	return type;
+}
+
 Token lexer_next(Lexer* lexer) {
 	skip_whitespace(lexer);
 	lexer->start = lexer->current;
@@ -145,7 +169,7 @@ Token lexer_next(Lexer* lexer) {
 		case ';': return make_token(lexer, TOKEN_SEMICOLON);
 		case '~': return make_token(lexer, TOKEN_TILDE);
 		case '-': return make_token(lexer, TOKEN_MINUS);
-		case '!': return make_token(lexer, TOKEN_BANG);
+		case '!': return make_token(lexer, match(lexer, '=') ? TOKEN_BANG_EQ : TOKEN_BANG);
 		case '+': return make_token(lexer, TOKEN_PLUS);
 		case '*': return make_token(lexer, TOKEN_STAR);
 		case '/': return make_token(lexer, TOKEN_SLASH);
@@ -153,8 +177,9 @@ Token lexer_next(Lexer* lexer) {
 		case '&': return make_token(lexer, match(lexer, '&') ? TOKEN_AMP_AMP : TOKEN_AMP);
 		case '|': return make_token(lexer, match(lexer, '|') ? TOKEN_BAR_BAR : TOKEN_BAR);
 		case '^': return make_token(lexer, TOKEN_XOR);
-		case '<': return make_token(lexer, match(lexer, '<') ? TOKEN_LSH : TOKEN_LESS);
-		case '>': return make_token(lexer, match(lexer, '>') ? TOKEN_RSH : TOKEN_GREATER);
+		case '<': return make_token(lexer, less_than(lexer));
+		case '>': return make_token(lexer, greater_than(lexer));
+		case '=': return make_token(lexer, match(lexer, '=') ? TOKEN_EQEQ : TOKEN_EQ);
 		default: break;
 	}
 

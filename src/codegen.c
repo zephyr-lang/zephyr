@@ -76,6 +76,36 @@ void generate_binary_rax(Node* expr, FILE* out) {
 	else if(expr->type == OP_XOR) {
 		fprintf(out, "    xor rax, rbx\n");
 	}
+	else if(expr->type == OP_EQUAL) {
+		fprintf(out, "    cmp rax, rbx\n");
+		fprintf(out, "    sete al\n");
+		fprintf(out, "    movzx rax, al\n");
+	}
+	else if(expr->type == OP_NOT_EQUAL) {
+		fprintf(out, "    cmp rax, rbx\n");
+		fprintf(out, "    setne al\n");
+		fprintf(out, "    movzx rax, al\n");
+	}
+	else if(expr->type == OP_LESS) {
+		fprintf(out, "    cmp rax, rbx\n");
+		fprintf(out, "    setl al\n");
+		fprintf(out, "    movzx rax, al\n");
+	}
+	else if(expr->type == OP_LESS_EQ) {
+		fprintf(out, "    cmp rax, rbx\n");
+		fprintf(out, "    setle al\n");
+		fprintf(out, "    movzx rax, al\n");
+	}
+	else if(expr->type == OP_GREATER) {
+		fprintf(out, "    cmp rax, rbx\n");
+		fprintf(out, "    setg al\n");
+		fprintf(out, "    movzx rax, al\n");
+	}
+	else if(expr->type == OP_GREATER_EQ) {
+		fprintf(out, "    cmp rax, rbx\n");
+		fprintf(out, "    setge al\n");
+		fprintf(out, "    movzx rax, al\n");
+	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_binary_rax\n", node_type_to_string(expr->type));
 		exit(1);

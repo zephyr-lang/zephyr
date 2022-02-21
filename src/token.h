@@ -25,6 +25,11 @@
 	F(TOKEN_LSH, "lsh")                 \
 	F(TOKEN_GREATER, "greater")         \
 	F(TOKEN_RSH, "rsh")                 \
+	F(TOKEN_EQ, "eq")                   \
+	F(TOKEN_EQEQ, "eq-eq")              \
+	F(TOKEN_BANG_EQ, "bang-eq")         \
+	F(TOKEN_LEQ, "less-eq")             \
+	F(TOKEN_GEQ, "greater-eq")          \
                                         \
 	F(TOKEN_INT_LITERAL, "int-literal") \
 	F(TOKEN_IDENTIFIER, "identifier")   \

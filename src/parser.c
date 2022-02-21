@@ -211,11 +211,62 @@ Node* parse_shift(Parser* parser) {
 	return left;
 }
 
-Node* parse_bwand(Parser* parser) {
+Node* parse_comparison(Parser* parser) {
 	Node* left = parse_shift(parser);
 
-	while(match(parser, TOKEN_AMP)) {
+	while(match(parser, TOKEN_LESS) || match(parser, TOKEN_LEQ)
+		|| match(parser, TOKEN_GREATER) || match(parser, TOKEN_GEQ)) {
+		TokenType op = parser->previous.type;
+
 		Node* right = parse_shift(parser);
+
+		NodeType type;
+		switch(op) {
+			case TOKEN_LESS: type = OP_LESS; break;
+			case TOKEN_LEQ: type = OP_LESS_EQ; break;
+			case TOKEN_GREATER: type = OP_GREATER; break;
+			case TOKEN_GEQ: type = OP_GREATER_EQ; break;
+			default: break; // Unreachable
+		}
+
+		Node* binary = new_node(type);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+Node* parse_equality(Parser* parser) {
+	Node* left = parse_comparison(parser);
+
+	while(match(parser, TOKEN_EQEQ) || match(parser, TOKEN_BANG_EQ)) {
+		TokenType op = parser->previous.type;
+
+		Node* right = parse_comparison(parser);
+
+		NodeType type;
+		switch(op) {
+			case TOKEN_EQEQ: type = OP_EQUAL; break;
+			case TOKEN_BANG_EQ: type = OP_NOT_EQUAL; break;
+			default: break; // Unreachable
+		}
+
+		Node* binary = new_node(type);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+Node* parse_bwand(Parser* parser) {
+	Node* left = parse_equality(parser);
+
+	while(match(parser, TOKEN_AMP)) {
+		Node* right = parse_equality(parser);
 
 		Node* binary = new_node(OP_BWAND);
 		binary->binary.lhs = left;
@@ -331,7 +382,7 @@ Node* parse_program(Parser* parser) {
 			node_add_child(program, function);
 		}
 		else {
-			error(parser, "Expected function definition");
+			error_current(parser, "Expected function definition");
 			break;
 		}
 	}

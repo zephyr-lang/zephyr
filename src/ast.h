@@ -13,6 +13,12 @@
 	F(OP_XOR, "xor") \
 	F(OP_LSH, "lsh") \
 	F(OP_RSH, "rsh") \
+	F(OP_EQUAL, "equal") \
+	F(OP_NOT_EQUAL, "not equal") \
+	F(OP_LESS, "less") \
+	F(OP_LESS_EQ, "less-equal") \
+	F(OP_GREATER, "greater") \
+	F(OP_GREATER_EQ, "greater-equal") \
 	F(OP_BWNOT, "bw not") \
 	F(OP_NEG, "neg") \
 	F(OP_NOT, "not") \
