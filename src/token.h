@@ -38,6 +38,7 @@
 	F(TOKEN_FUNCTION, "function")       \
 	F(TOKEN_RETURN, "return")           \
 	F(TOKEN_VOID, "void")               \
+	F(TOKEN_VAR, "var")                 \
                                         \
 	F(TOKEN_ERROR, "error")             \
 	F(TOKEN_EOF, "eof")

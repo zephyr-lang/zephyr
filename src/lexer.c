@@ -82,7 +82,15 @@ static TokenType identifier_type(Lexer* lexer) {
 		case 'i': return check_keyword(lexer, 1, 2, "nt", TOKEN_INT);
 		case 'f': return check_keyword(lexer, 1, 7, "unction", TOKEN_FUNCTION);
 		case 'r': return check_keyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
-		case 'v': return check_keyword(lexer, 1, 3, "oid", TOKEN_VOID);
+		case 'v': {
+			if(lexer->current - lexer->start > 1) {
+				switch(lexer->start[1]) {
+					case 'a': return check_keyword(lexer, 2, 1, "r", TOKEN_VAR);
+					case 'o': return check_keyword(lexer, 2, 2, "id", TOKEN_VOID);
+				}
+			}
+			break;
+		}
 		default: break;
 	}
 	return TOKEN_IDENTIFIER;

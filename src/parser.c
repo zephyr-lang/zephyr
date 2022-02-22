@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 Node* parse_expression(Parser* parser);
 
@@ -86,11 +87,47 @@ Type parse_type(Parser* parser) {
 
 	switch (parser->previous.type) {
 		case TOKEN_INT: return (Type) { .type = DATA_TYPE_INT };
-		case TOKEN_VOID: return (Type) { .type = DATA_TYPE_VOID };
 		default: 
 			error(parser, "Expected type");
 			return (Type) { .type = DATA_TYPE_VOID };
 	}
+}
+
+Node* lookup_variable(Parser* parser, Token name) {
+	for(int i = 0; i < parser->currentFunction->function.variableCount; i++) {
+		Token varName = parser->currentFunction->function.variables[i]->variable.name;
+		if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
+			return parser->currentFunction->function.variables[i];
+		}
+	}
+	return NULL;
+}
+
+Node* parse_identifier(Parser* parser) {
+	Token name = parser->previous;
+	Node* variable = lookup_variable(parser, name);
+
+	if(variable == NULL) {
+		error(parser, "Unknown variable in current scope");
+		return NULL;
+	}
+
+	if(match(parser, TOKEN_EQ)) {
+		Node* value = parse_expression(parser);
+
+		Node* assign = new_node(AST_ASSIGN_VAR);
+		assign->variable.name = name;
+		assign->variable.stackOffset = variable->variable.stackOffset;
+		assign->variable.type = variable->variable.type;
+		assign->variable.value = value;
+		return assign;
+	}
+
+	Node* access = new_node(AST_ACCESS_VAR);
+	access->variable.name = name;
+	access->variable.stackOffset = variable->variable.stackOffset;
+	access->variable.type = variable->variable.type;
+	return access;
 }
 
 Node* parse_value(Parser* parser) {
@@ -103,6 +140,9 @@ Node* parse_value(Parser* parser) {
 		literalNode->literal.as.integer = (int)strtol(literal.start, NULL, 10);
 		
 		return literalNode;
+	}
+	else if(match(parser, TOKEN_IDENTIFIER)) {
+		return parse_identifier(parser);
 	}
 	else if(match(parser, TOKEN_LEFT_PAREN)) {
 		Node* expr = parse_expression(parser);
@@ -320,9 +360,54 @@ Node* parse_return_statement(Parser* parser) {
 	return returnStmt;
 }
 
+Node* parse_var_declaration(Parser* parser) {
+	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected variable name");
+
+	// TODO: Type inference
+	consume(parser, TOKEN_COLON, "Expected ':' after variable name");
+
+	Type type = parse_type(parser);
+
+	Node* value = NULL;
+	if(match(parser, TOKEN_EQ)) {
+		value = parse_expression(parser);
+	}
+
+	consume(parser, TOKEN_SEMICOLON, "Expected ';' after variable declaration");
+
+	Node* var = new_node(AST_DEFINE_VAR);
+	var->variable.name = name;
+	// TODO: Get type size
+	var->variable.stackOffset = parser->currentFunction->function.currentStackOffset += 8;
+	var->variable.type = type;
+	var->variable.value = value;
+
+	parser->currentFunction->function.variables = realloc(parser->currentFunction->function.variables, ++parser->currentFunction->function.variableCount);
+	parser->currentFunction->function.variables[parser->currentFunction->function.variableCount - 1] = var;
+
+	return var;
+}
+
 Node* parse_statement(Parser* parser) {
 	if(match(parser, TOKEN_RETURN)) {
 		return parse_return_statement(parser);
+	}
+	else if(match(parser, TOKEN_VAR)) {
+		return parse_var_declaration(parser);
+	}
+	else if(match(parser, TOKEN_IDENTIFIER)) {
+		Node* expr = parse_identifier(parser);
+		
+		// Disallow just having a variable name as a statement
+		if(expr->type == AST_ACCESS_VAR) {
+			error_current(parser, "Expected statement");
+		}
+
+		consume(parser, TOKEN_SEMICOLON, "Expected ';' after expression");
+		
+		Node* exprStmt = new_node(AST_EXPR_STMT);
+		exprStmt->unary = expr;
+		return exprStmt;
 	}
 
 	error_current(parser, "Expected statement");
@@ -352,7 +437,7 @@ Node* parse_function(Parser* parser) {
 
 	Type type;
 	if(match(parser, TOKEN_COLON)) {
-		type = parse_type(parser);
+		type = match(parser, TOKEN_VOID) ? (Type) { .type = DATA_TYPE_VOID } : parse_type(parser);
 	}
 	else {
 		// Functions return void by default
@@ -361,11 +446,17 @@ Node* parse_function(Parser* parser) {
 
 	consume(parser, TOKEN_LEFT_BRACE, "Expected '{' before function body");
 
-	Node* body = parse_block(parser);
-
 	Node* function = new_node(AST_FUNCTION);
 	function->function.name = name;
 	function->function.returnType = type;
+	function->function.currentStackOffset = 0;
+	function->function.variables = NULL;
+	function->function.variableCount = 0;
+
+	parser->currentFunction = function;
+
+	Node* body = parse_block(parser);
+
 	function->function.body = body;
 
 	return function;

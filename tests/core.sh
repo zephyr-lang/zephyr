@@ -41,3 +41,11 @@ assert_exit_code "function main():int { return 16 <= 2; } " 0
 assert_exit_code "function main():int { return 25 == 25; }" 1
 assert_exit_code "function main():int { return 6 != 6; }" 0
 echo " Done"
+
+echo -n "Local Variables: "
+assert_exit_code "function main():int { var a:int = 5; return a; }" 5
+assert_exit_code "function main():int { var a:int = 6; var b:int = 10; return a + b; }" 16
+assert_exit_code "function main():int { var a: int; var b:int = 7; return b; }" 7
+assert_exit_code "function main():int { var a: int; a = 12; return a; }" 12
+assert_exit_code "function main():int { var a:int = 6; var b:int = 10; a = b = 12; return a + b; }" 24
+echo " Done"

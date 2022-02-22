@@ -18,6 +18,10 @@ char* node_type_to_string(NodeType type) {
 	return "<unknown node type>";
 }
 
+char* type_to_string(Type type) {
+	return data_type_to_string(type.type);
+}
+
 bool is_unary_op(NodeType type) {
 	switch(type) {
 		case OP_BWNOT:
@@ -85,8 +89,14 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_EXPR_STMT: {
+			print_ast_depth(node->unary, 0);
+			printf("\n");
+			break;
+		}
+
 		case AST_FUNCTION: {
-			printf("function %.*s: %s ", (int)node->function.name.length, node->function.name.start, data_type_to_string(node->function.returnType.type));
+			printf("function %.*s: %s ", (int)node->function.name.length, node->function.name.start, type_to_string(node->function.returnType));
 			print_ast_depth(node->function.body, depth);
 			break;
 		}
@@ -103,7 +113,31 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
-		default: break; // Unreachable
+		case AST_DEFINE_VAR: {
+			printf("var %.*s: %s ", (int)node->variable.name.length, node->variable.name.start, type_to_string(node->variable.type));
+			if(node->variable.value != NULL) {
+				print_ast_depth(node->variable.value, 0);
+			}
+			printf("\n");
+			break;
+		}
+
+		case AST_ACCESS_VAR: {
+			printf("(var %.*s)", (int)node->variable.name.length, node->variable.name.start);
+			break;
+		}
+
+		case AST_ASSIGN_VAR: {
+			printf("(%.*s = ", (int)node->variable.name.length, node->variable.name.start);
+			print_ast_depth(node->variable.value, 0);
+			printf(")");
+			break;
+		}
+
+		default: {
+			fprintf(stderr, "Cannot handle type '%s' in print_ast_depth\n", node_type_to_string(node->type));
+			break;
+		}
 	}
 }
 

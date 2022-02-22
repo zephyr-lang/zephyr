@@ -122,6 +122,15 @@ void generate_expr_rax(Node* expr, FILE* out) {
 	else if(expr->type == AST_INT_LITERAL) {
 		fprintf(out, "    mov rax, %d\n", expr->literal.as.integer);
 	}
+	else if(expr->type == AST_ACCESS_VAR) {
+		//TODO get word based on size
+		fprintf(out, "    mov rax, QWORD [rbp-%d]\n", expr->variable.stackOffset);
+	}
+	else if(expr->type == AST_ASSIGN_VAR) {
+		generate_expr_rax(expr->variable.value, out);
+		//TODO get word based on size
+		fprintf(out, "    mov QWORD [rbp-%d], rax\n", expr->variable.stackOffset);
+	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));
 		exit(1);
@@ -131,7 +140,18 @@ void generate_expr_rax(Node* expr, FILE* out) {
 void generate_statement(Node* stmt, FILE* out) {
 	if(stmt->type == AST_RETURN) {
 		generate_expr_rax(stmt->unary, out);
+		fprintf(out, "    pop rbp\n");
 		fprintf(out, "    ret\n");
+	}
+	else if(stmt->type == AST_DEFINE_VAR) {
+		if(stmt->variable.value != NULL) {
+			generate_expr_rax(stmt->variable.value, out);
+			//TODO get word based on size
+			fprintf(out, "    mov QWORD [rbp-%d], rax\n", stmt->variable.stackOffset);
+		}
+	}
+	else if(stmt->type == AST_EXPR_STMT) {
+		generate_expr_rax(stmt->unary, out);
 	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_statement\n", node_type_to_string(stmt->type));
@@ -149,6 +169,8 @@ void generate_function(Node* function, FILE* out) {
 	fprintf(out, "global %.*s\n", (int)function->function.name.length, function->function.name.start);
 	fprintf(out, "%.*s:\n", (int)function->function.name.length, function->function.name.start);
 
+	fprintf(out, "    push rbp\n");
+	fprintf(out, "    mov rbp, rsp\n");
 	generate_block(function->function.body, out);
 }
 

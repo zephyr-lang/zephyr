@@ -23,6 +23,10 @@
 	F(OP_NEG, "neg") \
 	F(OP_NOT, "not") \
 	F(AST_INT_LITERAL, "int literal") \
+	F(AST_DEFINE_VAR, "define var") \
+	F(AST_ACCESS_VAR, "access var") \
+	F(AST_ASSIGN_VAR, "assign var") \
+	F(AST_EXPR_STMT, "expression statement") \
 	F(AST_RETURN, "return") \
 	F(AST_FUNCTION, "function") \
 	F(AST_BLOCK, "block") \
@@ -59,6 +63,10 @@ typedef struct Node {
 			Token name;
 			Type returnType;
 			Node* body;
+
+			int variableCount;
+			Node** variables;
+			int currentStackOffset;
 		} function;
 
 		struct {
@@ -74,11 +82,20 @@ typedef struct Node {
 			} as;
 		} literal;
 
+		struct {
+			Token name;
+			Type type;
+			Node* value;
+
+			int stackOffset;
+		} variable;
+
 	};
 } Node;
 
 void print_ast(Node* ast);
 char* data_type_to_string(DataType type);
 char* node_type_to_string(NodeType type);
+char* type_to_string(Type type);
 bool is_unary_op(NodeType type);
 bool is_binary_op(NodeType type);

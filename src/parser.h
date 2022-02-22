@@ -8,6 +8,8 @@ typedef struct Parser {
 	Token current;
 	Token previous;
 
+	Node* currentFunction;
+
 	bool error;
 	bool panic;
 } Parser;
