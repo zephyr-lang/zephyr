@@ -96,7 +96,11 @@ void print_ast_depth(Node* node, int depth) {
 		}
 
 		case AST_FUNCTION: {
-			printf("function %.*s: %s ", (int)node->function.name.length, node->function.name.start, type_to_string(node->function.returnType));
+			printf("function %.*s: %s\n", (int)node->function.name.length, node->function.name.start, type_to_string(node->function.returnType));
+			for(int i = 0; i < node->function.argumentCount; i++) {
+				Node* arg = node->function.arguments[i];
+				printf("(%.*s: %s) ", (int)arg->variable.name.length, arg->variable.name.start, type_to_string(arg->variable.type));
+			}
 			print_ast_depth(node->function.body, depth);
 			break;
 		}

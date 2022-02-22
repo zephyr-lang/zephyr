@@ -65,6 +65,9 @@ typedef struct Node {
 			Type returnType;
 			Node* body;
 
+			Node** arguments;
+			int argumentCount;
+
 			int variableCount;
 			Node** variables;
 			int currentStackOffset;

@@ -2,6 +2,10 @@
 
 void generate_expr_rax(Node* expr, FILE* out);
 
+int ceil_multiple(int num, int n) {
+	return ((num + n - 1) / n) * n;
+}
+
 void generate_unary_rax(Node* expr, FILE* out) {
 	if(expr->type == OP_BWNOT) {
 		generate_expr_rax(expr->unary, out);
@@ -168,12 +172,28 @@ void generate_block(Node* block, FILE* out) {
 	}
 }
 
+static const char* ARG_REGISTERS[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
+
 void generate_function(Node* function, FILE* out) {
 	fprintf(out, "global %.*s\n", (int)function->function.name.length, function->function.name.start);
 	fprintf(out, "%.*s:\n", (int)function->function.name.length, function->function.name.start);
 
 	fprintf(out, "    push rbp\n");
 	fprintf(out, "    mov rbp, rsp\n");
+	//TODO: This may have to become the *deepest* stack depth
+	int stackDepth = ceil_multiple(function->function.currentStackOffset, 16);
+	if(stackDepth != 0)
+		fprintf(out, "    sub rsp, %d\n", stackDepth);
+
+	if(function->function.argumentCount > 6) {
+		fprintf(stderr, "Functions cannot have more than 6 arguments (func '%.*s')\n", (int)function->function.name.length, function->function.name.start);
+		exit(1);
+	}
+
+	for(int i = 0; i < function->function.argumentCount; i++) {
+		fprintf(out, "    mov QWORD [rbp-%d], %s\n", function->function.arguments[i]->variable.stackOffset, ARG_REGISTERS[i]);
+	}
+
 	generate_block(function->function.body, out);
 }
 

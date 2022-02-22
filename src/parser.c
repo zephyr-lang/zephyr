@@ -96,6 +96,13 @@ Type parse_type(Parser* parser) {
 }
 
 Node* lookup_variable(Parser* parser, Token name) {
+	for(int i = 0; i < parser->currentFunction->function.argumentCount; i++) {
+		Token argName = parser->currentFunction->function.arguments[i]->variable.name;
+		if(name.length == argName.length && memcmp(name.start, argName.start, name.length) == 0) {
+			return parser->currentFunction->function.arguments[i];
+		}
+	}
+
 	for(int i = 0; i < parser->currentFunction->function.variableCount; i++) {
 		Token varName = parser->currentFunction->function.variables[i]->variable.name;
 		if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
@@ -461,7 +468,33 @@ Node* parse_block(Parser* parser) {
 Node* parse_function(Parser* parser) {
 	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected function name");
 
+	Node* function = new_node(AST_FUNCTION);
+	function->function.name = name;
+	function->function.currentStackOffset = 0;
+	function->function.variables = NULL;
+	function->function.variableCount = 0;
+	function->function.arguments = NULL;
+	function->function.argumentCount = 0;
+
 	consume(parser, TOKEN_LEFT_PAREN, "Expected '(' after function name");
+
+	if(!check(parser, TOKEN_RIGHT_PAREN)) {
+		do {
+			Token argName = consume(parser, TOKEN_IDENTIFIER, "Expected parameter name");
+			consume(parser, TOKEN_COLON, "Expected ':' after parameter name");
+			Type type = parse_type(parser);
+
+			Node* arg = new_node(AST_DEFINE_VAR);
+			arg->variable.name = argName;
+			arg->variable.type = type;
+			//TODO Get size from type
+			arg->variable.stackOffset = function->function.currentStackOffset += 8;
+
+			function->function.arguments = realloc(function->function.arguments, ++function->function.argumentCount);
+			function->function.arguments[function->function.argumentCount - 1] = arg;
+		} while(match(parser, TOKEN_COMMA));
+	}
+
 	consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after function parameters");
 
 	Type type;
@@ -473,14 +506,10 @@ Node* parse_function(Parser* parser) {
 		type = (Type) {.type = DATA_TYPE_VOID };
 	}
 
+	function->function.returnType = type;
+
 	consume(parser, TOKEN_LEFT_BRACE, "Expected '{' before function body");
 
-	Node* function = new_node(AST_FUNCTION);
-	function->function.name = name;
-	function->function.returnType = type;
-	function->function.currentStackOffset = 0;
-	function->function.variables = NULL;
-	function->function.variableCount = 0;
 
 	parser->currentFunction = function;
 
