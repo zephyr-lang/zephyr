@@ -9,6 +9,8 @@ Node* parse_expression(Parser* parser);
 Parser new_parser(Lexer* lexer) {
 	Parser parser = {0};
 	parser.lexer = lexer;
+	parser.currentFunction = NULL;
+	parser.functions = NULL;
 	return parser;
 }
 
@@ -100,6 +102,14 @@ Node* lookup_variable(Parser* parser, Token name) {
 			return parser->currentFunction->function.variables[i];
 		}
 	}
+
+	for(int i = 0; i < parser->functionCount; i++) {
+		Token funcName = parser->functions[i]->function.name;
+		if(name.length == funcName.length && memcmp(name.start, funcName.start, name.length) == 0) {
+			return parser->functions[i];
+		}
+	}
+
 	return NULL;
 }
 
@@ -113,6 +123,11 @@ Node* parse_identifier(Parser* parser) {
 	}
 
 	if(match(parser, TOKEN_EQ)) {
+		if(variable->type != AST_DEFINE_VAR) {
+			error(parser, "Can only assign to variables");
+			return NULL;
+		}
+
 		Node* value = parse_expression(parser);
 
 		Node* assign = new_node(AST_ASSIGN_VAR);
@@ -121,6 +136,18 @@ Node* parse_identifier(Parser* parser) {
 		assign->variable.type = variable->variable.type;
 		assign->variable.value = value;
 		return assign;
+	}
+	else if(match(parser, TOKEN_LEFT_PAREN)) {
+		consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
+
+		Node* call = new_node(AST_CALL);
+		call->function.name = name;
+		return call;
+	}
+
+	if(variable->type != AST_DEFINE_VAR) {
+		error(parser, "Can only access variables");
+		return NULL;
 	}
 
 	Node* access = new_node(AST_ACCESS_VAR);
@@ -398,6 +425,8 @@ Node* parse_statement(Parser* parser) {
 	else if(match(parser, TOKEN_IDENTIFIER)) {
 		Node* expr = parse_identifier(parser);
 		
+		if(expr == NULL) return NULL;
+
 		// Disallow just having a variable name as a statement
 		if(expr->type == AST_ACCESS_VAR) {
 			error_current(parser, "Expected statement");
@@ -454,6 +483,9 @@ Node* parse_function(Parser* parser) {
 	function->function.variableCount = 0;
 
 	parser->currentFunction = function;
+
+	parser->functions = realloc(parser->functions, ++parser->functionCount);
+	parser->functions[parser->functionCount - 1] = function;
 
 	Node* body = parse_block(parser);
 

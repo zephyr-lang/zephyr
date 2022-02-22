@@ -49,3 +49,7 @@ assert_exit_code "function main():int { var a: int; var b:int = 7; return b; }" 
 assert_exit_code "function main():int { var a: int; a = 12; return a; }" 12
 assert_exit_code "function main():int { var a:int = 6; var b:int = 10; a = b = 12; return a + b; }" 24
 echo " Done"
+
+echo -n "Functions: "
+assert_exit_code "function x():int { return 12; } function main():int { return x(); }" 12
+echo " Done"

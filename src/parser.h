@@ -10,6 +10,9 @@ typedef struct Parser {
 
 	Node* currentFunction;
 
+	Node** functions;
+	size_t functionCount;
+
 	bool error;
 	bool panic;
 } Parser;

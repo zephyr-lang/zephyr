@@ -131,6 +131,9 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		//TODO get word based on size
 		fprintf(out, "    mov QWORD [rbp-%d], rax\n", expr->variable.stackOffset);
 	}
+	else if(expr->type == AST_CALL) {
+		fprintf(out, "    call %.*s\n", (int)expr->function.name.length, expr->function.name.start);
+	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));
 		exit(1);

@@ -23,6 +23,7 @@
 	F(OP_NEG, "neg") \
 	F(OP_NOT, "not") \
 	F(AST_INT_LITERAL, "int literal") \
+	F(AST_CALL, "call") \
 	F(AST_DEFINE_VAR, "define var") \
 	F(AST_ACCESS_VAR, "access var") \
 	F(AST_ASSIGN_VAR, "assign var") \
