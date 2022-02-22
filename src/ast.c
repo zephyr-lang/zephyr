@@ -138,6 +138,17 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_CALL: {
+			printf("(call %.*s", (int)node->function.name.length, node->function.name.start);
+			for(int i = 0; i < node->function.argumentCount; i++) {
+				Node* arg = node->function.arguments[i];
+				printf(" ");
+				print_ast_depth(arg, 0);
+			}
+			printf(")");
+			break;
+		}
+
 		default: {
 			fprintf(stderr, "Cannot handle type '%s' in print_ast_depth\n", node_type_to_string(node->type));
 			break;

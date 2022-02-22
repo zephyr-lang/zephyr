@@ -2,6 +2,8 @@
 
 void generate_expr_rax(Node* expr, FILE* out);
 
+static const char* ARG_REGISTERS[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
+
 int ceil_multiple(int num, int n) {
 	return ((num + n - 1) / n) * n;
 }
@@ -136,6 +138,16 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    mov QWORD [rbp-%d], rax\n", expr->variable.stackOffset);
 	}
 	else if(expr->type == AST_CALL) {
+		if(expr->function.argumentCount > 6) {
+			fprintf(stderr, "Functions cannot have more than 6 arguments (func '%.*s')\n", (int)expr->function.name.length, expr->function.name.start);
+			exit(1);
+		}
+
+		for(int i = 0; i < expr->function.argumentCount; i++) {
+			generate_expr_rax(expr->function.arguments[i], out);
+			fprintf(out, "    mov %s, rax\n", ARG_REGISTERS[i]);
+		}
+
 		fprintf(out, "    call %.*s\n", (int)expr->function.name.length, expr->function.name.start);
 	}
 	else {
@@ -147,7 +159,7 @@ void generate_expr_rax(Node* expr, FILE* out) {
 void generate_statement(Node* stmt, FILE* out) {
 	if(stmt->type == AST_RETURN) {
 		generate_expr_rax(stmt->unary, out);
-		fprintf(out, "    pop rbp\n");
+		fprintf(out, "    leave\n");
 		fprintf(out, "    ret\n");
 	}
 	else if(stmt->type == AST_DEFINE_VAR) {
@@ -171,8 +183,6 @@ void generate_block(Node* block, FILE* out) {
 		generate_statement(block->block.children[i], out);
 	}
 }
-
-static const char* ARG_REGISTERS[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 
 void generate_function(Node* function, FILE* out) {
 	fprintf(out, "global %.*s\n", (int)function->function.name.length, function->function.name.start);

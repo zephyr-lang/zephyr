@@ -145,10 +145,24 @@ Node* parse_identifier(Parser* parser) {
 		return assign;
 	}
 	else if(match(parser, TOKEN_LEFT_PAREN)) {
-		consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
-
 		Node* call = new_node(AST_CALL);
 		call->function.name = name;
+		if(!check(parser, TOKEN_RIGHT_PAREN)) {
+			do {
+				Node* arg = parse_expression(parser);
+
+				call->function.arguments = realloc(call->function.arguments, ++call->function.argumentCount);
+				call->function.arguments[call->function.argumentCount - 1] = arg;
+			} while(match(parser, TOKEN_COMMA));
+		}
+
+		consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
+
+		if(call->function.argumentCount != variable->function.argumentCount) {
+			//TODO: move this to typechecking
+			error(parser, "Argument count mismatch");
+		}
+		
 		return call;
 	}
 
