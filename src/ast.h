@@ -3,25 +3,25 @@
 #include <stdbool.h>
 
 #define ENUM_AST(F) \
-	F(OP_ADD, "add") \
-	F(OP_SUB, "sub") \
-	F(OP_MUL, "mul") \
-	F(OP_DIV, "div") \
-	F(OP_MOD, "mod") \
-	F(OP_BWAND, "bw and") \
-	F(OP_BWOR, "bw or") \
-	F(OP_XOR, "xor") \
-	F(OP_LSH, "lsh") \
-	F(OP_RSH, "rsh") \
-	F(OP_EQUAL, "equal") \
-	F(OP_NOT_EQUAL, "not equal") \
-	F(OP_LESS, "less") \
-	F(OP_LESS_EQ, "less-equal") \
-	F(OP_GREATER, "greater") \
-	F(OP_GREATER_EQ, "greater-equal") \
-	F(OP_BWNOT, "bw not") \
-	F(OP_NEG, "neg") \
-	F(OP_NOT, "not") \
+	F(OP_ADD, "+") \
+	F(OP_SUB, "-") \
+	F(OP_MUL, "*") \
+	F(OP_DIV, "/") \
+	F(OP_MOD, "%") \
+	F(OP_BWAND, "&") \
+	F(OP_BWOR, "|") \
+	F(OP_XOR, "^") \
+	F(OP_LSH, "<<") \
+	F(OP_RSH, ">>") \
+	F(OP_EQUAL, "==") \
+	F(OP_NOT_EQUAL, "!=") \
+	F(OP_LESS, "<") \
+	F(OP_LESS_EQ, "<=") \
+	F(OP_GREATER, ">") \
+	F(OP_GREATER_EQ, ">=") \
+	F(OP_BWNOT, "~") \
+	F(OP_NEG, "-") \
+	F(OP_NOT, "!") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CALL, "call") \
 	F(AST_DEFINE_VAR, "define var") \

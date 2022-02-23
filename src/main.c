@@ -9,6 +9,7 @@
 #include "codegen.h"
 #include "lexer.h"
 #include "parser.h"
+#include "typecheck.h"
 
 char* read_file(const char* filename, size_t* size) {
 	FILE* file;
@@ -143,6 +144,8 @@ int main(int argc, char const *argv[]) {
 
 	if(dumpAst)
 		print_ast(ast);
+
+	type_check(&parser, ast);
 
 	char asmFile[1024];
 	strcpy(asmFile, outFile);

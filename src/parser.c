@@ -95,52 +95,14 @@ Type parse_type(Parser* parser) {
 	}
 }
 
-Node* lookup_variable(Parser* parser, Token name) {
-	for(int i = 0; i < parser->currentFunction->function.argumentCount; i++) {
-		Token argName = parser->currentFunction->function.arguments[i]->variable.name;
-		if(name.length == argName.length && memcmp(name.start, argName.start, name.length) == 0) {
-			return parser->currentFunction->function.arguments[i];
-		}
-	}
-
-	for(int i = 0; i < parser->currentFunction->function.variableCount; i++) {
-		Token varName = parser->currentFunction->function.variables[i]->variable.name;
-		if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
-			return parser->currentFunction->function.variables[i];
-		}
-	}
-
-	for(int i = 0; i < parser->functionCount; i++) {
-		Token funcName = parser->functions[i]->function.name;
-		if(name.length == funcName.length && memcmp(name.start, funcName.start, name.length) == 0) {
-			return parser->functions[i];
-		}
-	}
-
-	return NULL;
-}
-
 Node* parse_identifier(Parser* parser) {
 	Token name = parser->previous;
-	Node* variable = lookup_variable(parser, name);
-
-	if(variable == NULL) {
-		error(parser, "Unknown variable in current scope");
-		return NULL;
-	}
 
 	if(match(parser, TOKEN_EQ)) {
-		if(variable->type != AST_DEFINE_VAR) {
-			error(parser, "Can only assign to variables");
-			return NULL;
-		}
-
 		Node* value = parse_expression(parser);
 
 		Node* assign = new_node(AST_ASSIGN_VAR);
 		assign->variable.name = name;
-		assign->variable.stackOffset = variable->variable.stackOffset;
-		assign->variable.type = variable->variable.type;
 		assign->variable.value = value;
 		return assign;
 	}
@@ -157,24 +119,12 @@ Node* parse_identifier(Parser* parser) {
 		}
 
 		consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
-
-		if(call->function.argumentCount != variable->function.argumentCount) {
-			//TODO: move this to typechecking
-			error(parser, "Argument count mismatch");
-		}
 		
 		return call;
 	}
 
-	if(variable->type != AST_DEFINE_VAR) {
-		error(parser, "Can only access variables");
-		return NULL;
-	}
-
 	Node* access = new_node(AST_ACCESS_VAR);
 	access->variable.name = name;
-	access->variable.stackOffset = variable->variable.stackOffset;
-	access->variable.type = variable->variable.type;
 	return access;
 }
 
@@ -425,13 +375,8 @@ Node* parse_var_declaration(Parser* parser) {
 
 	Node* var = new_node(AST_DEFINE_VAR);
 	var->variable.name = name;
-	// TODO: Get type size
-	var->variable.stackOffset = parser->currentFunction->function.currentStackOffset += 8;
 	var->variable.type = type;
 	var->variable.value = value;
-
-	parser->currentFunction->function.variables = realloc(parser->currentFunction->function.variables, ++parser->currentFunction->function.variableCount);
-	parser->currentFunction->function.variables[parser->currentFunction->function.variableCount - 1] = var;
 
 	return var;
 }
@@ -501,8 +446,6 @@ Node* parse_function(Parser* parser) {
 			Node* arg = new_node(AST_DEFINE_VAR);
 			arg->variable.name = argName;
 			arg->variable.type = type;
-			//TODO Get size from type
-			arg->variable.stackOffset = function->function.currentStackOffset += 8;
 
 			function->function.arguments = realloc(function->function.arguments, ++function->function.argumentCount);
 			function->function.arguments[function->function.argumentCount - 1] = arg;

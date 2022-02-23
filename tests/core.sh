@@ -53,4 +53,10 @@ echo " Done"
 echo -n "Functions: "
 assert_exit_code "function x():int { return 12; } function main():int { return x(); }" 12
 assert_exit_code "function x(y: int, z: int): int { return y + z; } function main(): int { return x(5, 6); }" 11
+assert_compilation_error "function x():int {} function main():int { return x(1); }"
+assert_compilation_error "function x(){} function main():int { return x(); }"
+echo " Done"
+
+echo -n "Typing: "
+assert_compilation_error "function x() {} function main():int { return 12 ^ x(); }"
 echo " Done"
