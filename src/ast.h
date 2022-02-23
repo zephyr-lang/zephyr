@@ -51,6 +51,7 @@ typedef struct Type {
 typedef struct Node Node;
 typedef struct Node {
 	NodeType type;
+	Token position;
 
 	union {
 		Node* unary;

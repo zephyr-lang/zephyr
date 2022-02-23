@@ -12,6 +12,18 @@ static int typeStackDepth = 0;
 
 static Type* intType = &(Type) { .type = DATA_TYPE_INT };
 
+void print_position(Token position) {
+	fprintf(stderr, "[%zu] Error ", position.line);
+
+	if(position.type == TOKEN_EOF) {
+		fprintf(stderr, "@ EOF");
+	}
+	else {
+		fprintf(stderr, "@ '%.*s'", (int)position.length, position.start);
+	}
+	fprintf(stderr, ": ");
+}
+
 void push_type_stack(Type* type) {
 	assert(typeStackDepth < 128);
 	typeStack[typeStackDepth++] = *type;
@@ -65,6 +77,7 @@ void type_check_unary(Parser* parser, Node* expr) {
 	Type type = pop_type_stack();
 
 	if(!types_assignable(&type, intType)) {
+		print_position(expr->position);
 		fprintf(stderr, "Cannot perform operation '%s' on type %s\n", node_type_to_string(expr->type), type_to_string(type));
 		exit(1);
 	}
@@ -79,6 +92,7 @@ void type_check_binary(Parser* parser, Node* expr) {
 	Type right = pop_type_stack();
 
 	if(!types_assignable(&left, intType) || !types_assignable(&right, intType)) {
+		print_position(expr->position);
 		fprintf(stderr, "Cannot perform operation '%s' on types %s and %s\n", node_type_to_string(expr->type), type_to_string(left), type_to_string(right));
 		exit(1);
 	}
@@ -90,8 +104,16 @@ void type_check_binary(Parser* parser, Node* expr) {
 void type_check_access_var(Parser* parser, Node* expr) {
 	Node* variable = lookup_variable(parser, expr->variable.name);
 
+	if(variable == NULL) {
+		print_position(expr->position);
+		fprintf(stderr, "Unknown variable '%.*s' in current scope\n", (int)expr->variable.name.length, expr->variable.name.start);
+		exit(1);
+	}
+
 	if(variable->type != AST_DEFINE_VAR) {
+		print_position(expr->position);
 		fprintf(stderr, "Can only access variables\n");
+		exit(1);
 	}
 
 	expr->variable.type = variable->variable.type;
@@ -103,7 +125,14 @@ void type_check_access_var(Parser* parser, Node* expr) {
 void type_check_assign_var(Parser* parser, Node* expr) {
 	Node* variable = lookup_variable(parser, expr->variable.name);
 
+	if(variable == NULL) {
+		print_position(expr->position);
+		fprintf(stderr, "Unknown variable '%.*s' in current scope\n", (int)expr->variable.name.length, expr->variable.name.start);
+		exit(1);
+	}
+
 	if(variable->type != AST_DEFINE_VAR) {
+		print_position(expr->position);
 		fprintf(stderr, "Can only assign to variables\n");
 		exit(1);
 	}
@@ -112,6 +141,7 @@ void type_check_assign_var(Parser* parser, Node* expr) {
 	Type valueType = pop_type_stack();
 
 	if(!types_assignable(&valueType, &variable->variable.type)) {
+		print_position(expr->position);
 		fprintf(stderr, "Cannot assign type %s to variable of type %s\n", type_to_string(valueType), type_to_string(variable->variable.type));
 		exit(1);
 	}
@@ -125,12 +155,20 @@ void type_check_assign_var(Parser* parser, Node* expr) {
 void type_check_call(Parser* parser, Node* expr) {
 	Node* function = lookup_variable(parser, expr->function.name);
 
+	if(function == NULL) {
+		print_position(expr->position);
+		fprintf(stderr, "Unknown function '%.*s' in current scope\n", (int)expr->variable.name.length, expr->variable.name.start);
+		exit(1);
+	}
+
 	if(function->type != AST_FUNCTION) {
+		print_position(expr->position);
 		fprintf(stderr, "Can only call functions\n");
 		exit(1);
 	}
 
 	if(function->function.argumentCount != expr->function.argumentCount) {
+		print_position(expr->position);
 		fprintf(stderr, "Call expected %d arguments but got %d\n", function->function.argumentCount, expr->function.argumentCount);
 		exit(1);
 	}
@@ -143,6 +181,7 @@ void type_check_call(Parser* parser, Node* expr) {
 		Type* paramType = &function->function.arguments[i]->variable.type;
 
 		if(!types_assignable(&argType, paramType)) {
+			print_position(expr->position);
 			fprintf(stderr, "Function argument %d expected type %s but got %s\n", i, type_to_string(argType), type_to_string(*paramType));
 			exit(1);
 		}
@@ -182,6 +221,7 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		Type returnType = pop_type_stack();
 		Type* expectedType = &parser->currentFunction->function.returnType;
 		if(!types_assignable(&returnType, expectedType)) {
+			print_position(stmt->position);
 			fprintf(stderr, "Cannot return type %s from function expecting %s\n", type_to_string(returnType), type_to_string(*expectedType));
 			exit(1);
 		}
@@ -197,6 +237,7 @@ void type_check_statement(Parser* parser, Node* stmt) {
 			Type valueType = pop_type_stack();
 
 			if(!types_assignable(&valueType, declType)) {
+				print_position(stmt->position);
 				fprintf(stderr, "Cannot assign type %s to variable expecting %s\n", type_to_string(valueType), type_to_string(*declType));
 				exit(1);
 			}

@@ -14,9 +14,10 @@ Parser new_parser(Lexer* lexer) {
 	return parser;
 }
 
-static Node* new_node(NodeType type) {
+static Node* new_node(NodeType type, Token position) {
 	Node* node = calloc(1, sizeof(Node));
 	node->type = type;
+	node->position = position;
 	return node;
 }
 
@@ -101,13 +102,13 @@ Node* parse_identifier(Parser* parser) {
 	if(match(parser, TOKEN_EQ)) {
 		Node* value = parse_expression(parser);
 
-		Node* assign = new_node(AST_ASSIGN_VAR);
+		Node* assign = new_node(AST_ASSIGN_VAR, name);
 		assign->variable.name = name;
 		assign->variable.value = value;
 		return assign;
 	}
 	else if(match(parser, TOKEN_LEFT_PAREN)) {
-		Node* call = new_node(AST_CALL);
+		Node* call = new_node(AST_CALL, name);
 		call->function.name = name;
 		if(!check(parser, TOKEN_RIGHT_PAREN)) {
 			do {
@@ -123,7 +124,7 @@ Node* parse_identifier(Parser* parser) {
 		return call;
 	}
 
-	Node* access = new_node(AST_ACCESS_VAR);
+	Node* access = new_node(AST_ACCESS_VAR, name);
 	access->variable.name = name;
 	return access;
 }
@@ -133,7 +134,7 @@ Node* parse_value(Parser* parser) {
 		Token literal = parser->previous;
 		if(parser->error) return NULL;
 
-		Node* literalNode = new_node(AST_INT_LITERAL);
+		Node* literalNode = new_node(AST_INT_LITERAL, literal);
 		literalNode->literal.type = (Type) { .type = DATA_TYPE_INT };
 		literalNode->literal.as.integer = (int)strtol(literal.start, NULL, 10);
 		
@@ -155,20 +156,23 @@ Node* parse_value(Parser* parser) {
 
 Node* parse_unary(Parser* parser) {
 	if(match(parser, TOKEN_TILDE)) {
+		Token op = parser->previous;
 		Node* expr = parse_unary(parser);
-		Node* bwnot = new_node(OP_BWNOT);
+		Node* bwnot = new_node(OP_BWNOT ,op);
 		bwnot->unary = expr;
 		return bwnot;
 	}
 	else if(match(parser, TOKEN_MINUS)) {
+		Token op = parser->previous;
 		Node* expr = parse_unary(parser);
-		Node* neg = new_node(OP_NEG);
+		Node* neg = new_node(OP_NEG, op);
 		neg->unary = expr;
 		return neg;
 	}
 	else if(match(parser, TOKEN_BANG)) {
+		Token op = parser->previous;
 		Node* expr = parse_unary(parser);
-		Node* not = new_node(OP_NOT);
+		Node* not = new_node(OP_NOT, op);
 		not->unary = expr;
 		return not;
 	}
@@ -180,19 +184,19 @@ Node* parse_term(Parser* parser) {
 	Node* left = parse_unary(parser);
 
 	while(match(parser, TOKEN_STAR) || match(parser, TOKEN_SLASH) || match(parser, TOKEN_PERCENT)) {
-		TokenType op = parser->previous.type;
+		Token op = parser->previous;
 
 		Node* right = parse_unary(parser);
 
 		NodeType type;
-		switch(op) {
+		switch(op.type) {
 			case TOKEN_STAR: type = OP_MUL; break;
 			case TOKEN_SLASH: type = OP_DIV; break;
 			case TOKEN_PERCENT: type = OP_MOD; break;
 			default: break; // Unreachable
 		}
 
-		Node* binary = new_node(type);
+		Node* binary = new_node(type, op);
 		binary->binary.lhs = left;
 		binary->binary.rhs = right;
 		left = binary;
@@ -205,18 +209,18 @@ Node* parse_arithmetic(Parser* parser) {
 	Node* left = parse_term(parser);
 
 	while(match(parser, TOKEN_PLUS) || match(parser, TOKEN_MINUS)) {
-		TokenType op = parser->previous.type;
+		Token op = parser->previous;
 
 		Node* right = parse_term(parser);
 
 		NodeType type;
-		switch(op) {
+		switch(op.type) {
 			case TOKEN_PLUS: type = OP_ADD; break;
 			case TOKEN_MINUS: type = OP_SUB; break;
 			default: break; // Unreachable
 		}
 
-		Node* binary = new_node(type);
+		Node* binary = new_node(type, op);
 		binary->binary.lhs = left;
 		binary->binary.rhs = right;
 		left = binary;
@@ -229,18 +233,18 @@ Node* parse_shift(Parser* parser) {
 	Node* left = parse_arithmetic(parser);
 
 	while(match(parser, TOKEN_LSH) || match(parser, TOKEN_RSH)) {
-		TokenType op = parser->previous.type;
+		Token op = parser->previous;
 
 		Node* right = parse_arithmetic(parser);
 
 		NodeType type;
-		switch(op) {
+		switch(op.type) {
 			case TOKEN_LSH: type = OP_LSH; break;
 			case TOKEN_RSH: type = OP_RSH; break;
 			default: break; // Unreachable
 		}
 
-		Node* binary = new_node(type);
+		Node* binary = new_node(type, op);
 		binary->binary.lhs = left;
 		binary->binary.rhs = right;
 		left = binary;
@@ -254,12 +258,12 @@ Node* parse_comparison(Parser* parser) {
 
 	while(match(parser, TOKEN_LESS) || match(parser, TOKEN_LEQ)
 		|| match(parser, TOKEN_GREATER) || match(parser, TOKEN_GEQ)) {
-		TokenType op = parser->previous.type;
+		Token op = parser->previous;
 
 		Node* right = parse_shift(parser);
 
 		NodeType type;
-		switch(op) {
+		switch(op.type) {
 			case TOKEN_LESS: type = OP_LESS; break;
 			case TOKEN_LEQ: type = OP_LESS_EQ; break;
 			case TOKEN_GREATER: type = OP_GREATER; break;
@@ -267,7 +271,7 @@ Node* parse_comparison(Parser* parser) {
 			default: break; // Unreachable
 		}
 
-		Node* binary = new_node(type);
+		Node* binary = new_node(type, op);
 		binary->binary.lhs = left;
 		binary->binary.rhs = right;
 		left = binary;
@@ -280,18 +284,18 @@ Node* parse_equality(Parser* parser) {
 	Node* left = parse_comparison(parser);
 
 	while(match(parser, TOKEN_EQEQ) || match(parser, TOKEN_BANG_EQ)) {
-		TokenType op = parser->previous.type;
+		Token op = parser->previous;
 
 		Node* right = parse_comparison(parser);
 
 		NodeType type;
-		switch(op) {
+		switch(op.type) {
 			case TOKEN_EQEQ: type = OP_EQUAL; break;
 			case TOKEN_BANG_EQ: type = OP_NOT_EQUAL; break;
 			default: break; // Unreachable
 		}
 
-		Node* binary = new_node(type);
+		Node* binary = new_node(type, op);
 		binary->binary.lhs = left;
 		binary->binary.rhs = right;
 		left = binary;
@@ -304,9 +308,10 @@ Node* parse_bwand(Parser* parser) {
 	Node* left = parse_equality(parser);
 
 	while(match(parser, TOKEN_AMP)) {
+		Token op = parser->previous;
 		Node* right = parse_equality(parser);
 
-		Node* binary = new_node(OP_BWAND);
+		Node* binary = new_node(OP_BWAND, op);
 		binary->binary.lhs = left;
 		binary->binary.rhs = right;
 		left = binary;
@@ -319,9 +324,10 @@ Node* parse_xor(Parser* parser) {
 	Node* left = parse_bwand(parser);
 
 	while(match(parser, TOKEN_XOR)) {
+		Token op = parser->previous;
 		Node* right = parse_bwand(parser);
 
-		Node* binary = new_node(OP_XOR);
+		Node* binary = new_node(OP_XOR, op);
 		binary->binary.lhs = left;
 		binary->binary.rhs = right;
 		left = binary;
@@ -334,9 +340,10 @@ Node* parse_bwor(Parser* parser) {
 	Node* left = parse_xor(parser);
 
 	while(match(parser, TOKEN_BAR)) {
+		Token op = parser->previous;
 		Node* right = parse_xor(parser);
 
-		Node* binary = new_node(OP_BWOR);
+		Node* binary = new_node(OP_BWOR, op);
 		binary->binary.lhs = left;
 		binary->binary.rhs = right;
 		left = binary;
@@ -350,7 +357,7 @@ Node* parse_expression(Parser* parser) {
 }
 
 Node* parse_return_statement(Parser* parser) {
-	Node* returnStmt = new_node(AST_RETURN);
+	Node* returnStmt = new_node(AST_RETURN, parser->previous);
 	returnStmt->unary = parse_expression(parser);
 
 	consume(parser, TOKEN_SEMICOLON, "Expected ';' after return statement");
@@ -373,7 +380,7 @@ Node* parse_var_declaration(Parser* parser) {
 
 	consume(parser, TOKEN_SEMICOLON, "Expected ';' after variable declaration");
 
-	Node* var = new_node(AST_DEFINE_VAR);
+	Node* var = new_node(AST_DEFINE_VAR, name);
 	var->variable.name = name;
 	var->variable.type = type;
 	var->variable.value = value;
@@ -400,7 +407,7 @@ Node* parse_statement(Parser* parser) {
 
 		consume(parser, TOKEN_SEMICOLON, "Expected ';' after expression");
 		
-		Node* exprStmt = new_node(AST_EXPR_STMT);
+		Node* exprStmt = new_node(AST_EXPR_STMT, expr->position);
 		exprStmt->unary = expr;
 		return exprStmt;
 	}
@@ -411,7 +418,7 @@ Node* parse_statement(Parser* parser) {
 }
 
 Node* parse_block(Parser* parser) {
-	Node* block = new_node(AST_BLOCK);
+	Node* block = new_node(AST_BLOCK, parser->previous);
 
 	while(!check(parser, TOKEN_RIGHT_BRACE)) {
 		Node* stmt = parse_statement(parser);
@@ -427,7 +434,7 @@ Node* parse_block(Parser* parser) {
 Node* parse_function(Parser* parser) {
 	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected function name");
 
-	Node* function = new_node(AST_FUNCTION);
+	Node* function = new_node(AST_FUNCTION, name);
 	function->function.name = name;
 	function->function.currentStackOffset = 0;
 	function->function.variables = NULL;
@@ -443,7 +450,7 @@ Node* parse_function(Parser* parser) {
 			consume(parser, TOKEN_COLON, "Expected ':' after parameter name");
 			Type type = parse_type(parser);
 
-			Node* arg = new_node(AST_DEFINE_VAR);
+			Node* arg = new_node(AST_DEFINE_VAR, argName);
 			arg->variable.name = argName;
 			arg->variable.type = type;
 
@@ -481,9 +488,8 @@ Node* parse_function(Parser* parser) {
 }
 
 Node* parse_program(Parser* parser) {
-	Node* program = new_node(AST_PROGRAM);
-
 	advance(parser);
+	Node* program = new_node(AST_PROGRAM, parser->current);
 
 	while(!match(parser, TOKEN_EOF)) {
 		if(match(parser, TOKEN_FUNCTION)) {
