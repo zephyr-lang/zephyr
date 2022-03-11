@@ -352,8 +352,29 @@ Node* parse_bwor(Parser* parser) {
 	return left;
 }
 
+Node* parse_ternary_expression(Parser* parser) {
+	Node* condition = parse_bwor(parser);
+
+	if(match(parser, TOKEN_QUESTION)) {
+		Token op = parser->previous;
+		Node* doTrue = parse_expression(parser);
+
+		consume(parser, TOKEN_COLON, "Expected ':' after true branch of ternary condition");
+
+		Node* doFalse = parse_expression(parser);
+
+		Node* ternary = new_node(OP_TERNARY, op);
+		ternary->conditional.condition = condition;
+		ternary->conditional.doTrue = doTrue;
+		ternary->conditional.doFalse = doFalse;
+		return ternary;
+	}
+
+	return condition;
+}
+
 Node* parse_expression(Parser* parser) {
-	return parse_bwor(parser);
+	return parse_ternary_expression(parser);
 }
 
 Node* parse_return_statement(Parser* parser) {

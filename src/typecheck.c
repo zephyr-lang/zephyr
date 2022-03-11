@@ -190,6 +190,31 @@ void type_check_call(Parser* parser, Node* expr) {
 	push_type_stack(&function->function.returnType);
 }
 
+void type_check_ternary_expr(Parser* parser, Node* expr) {
+	type_check_expr(parser, expr->conditional.condition);
+	Type condition = pop_type_stack();
+
+	if(!types_assignable(&condition, intType)) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot use type '%s' as condition", type_to_string(condition));
+		exit(1);
+	}
+
+	type_check_expr(parser, expr->conditional.doTrue);
+	Type doTrue = pop_type_stack();
+
+	type_check_expr(parser, expr->conditional.doFalse);
+	Type doFalse = pop_type_stack();
+
+	if(!types_assignable(&doTrue, &doFalse)) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot conditionally return differing types '%s' and '%s'", type_to_string(doTrue), type_to_string(doFalse));
+		exit(1);
+	}
+
+	push_type_stack(&doTrue);
+}
+
 void type_check_expr(Parser* parser, Node* expr) {
 	if(is_unary_op(expr->type)) {
 		type_check_unary(parser, expr);
@@ -208,6 +233,9 @@ void type_check_expr(Parser* parser, Node* expr) {
 	}
 	else if(expr->type == AST_CALL) {
 		type_check_call(parser, expr);
+	}
+	else if(expr->type == OP_TERNARY) {
+		type_check_ternary_expr(parser, expr);
 	}
 	else {
 		assert(0 && "Unreachable - type_check_expr");

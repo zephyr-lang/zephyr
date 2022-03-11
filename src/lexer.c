@@ -176,6 +176,7 @@ Token lexer_next(Lexer* lexer) {
 		case ':': return make_token(lexer, TOKEN_COLON);
 		case ';': return make_token(lexer, TOKEN_SEMICOLON);
 		case ',': return make_token(lexer, TOKEN_COMMA);
+		case '?': return make_token(lexer, TOKEN_QUESTION);
 		case '~': return make_token(lexer, TOKEN_TILDE);
 		case '-': return make_token(lexer, TOKEN_MINUS);
 		case '!': return make_token(lexer, match(lexer, '=') ? TOKEN_BANG_EQ : TOKEN_BANG);

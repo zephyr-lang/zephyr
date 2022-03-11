@@ -22,6 +22,7 @@
 	F(OP_BWNOT, "~") \
 	F(OP_NEG, "-") \
 	F(OP_NOT, "!") \
+	F(OP_TERNARY, "?") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CALL, "call") \
 	F(AST_DEFINE_VAR, "define var") \
@@ -60,6 +61,12 @@ typedef struct Node {
 			Node* lhs;
 			Node* rhs;
 		} binary;
+
+		struct {
+			Node* condition;
+			Node* doTrue;
+			Node* doFalse;
+		} conditional;
 
 		struct {
 			Token name;

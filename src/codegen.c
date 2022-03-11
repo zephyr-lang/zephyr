@@ -3,6 +3,7 @@
 void generate_expr_rax(Node* expr, FILE* out);
 
 static const char* ARG_REGISTERS[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
+static int labelCount = 0;
 
 int ceil_multiple(int num, int n) {
 	return ((num + n - 1) / n) * n;
@@ -149,6 +150,21 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		}
 
 		fprintf(out, "    call %.*s\n", (int)expr->function.name.length, expr->function.name.start);
+	}
+	else if(expr->type == OP_TERNARY) {
+		generate_expr_rax(expr->conditional.condition, out);
+		fprintf(out, "    test rax, rax\n");
+		int fLabel = labelCount++;
+		int endLabel = labelCount++;
+
+		fprintf(out, "    je .l%d\n", fLabel);
+		generate_expr_rax(expr->conditional.doTrue, out);
+		fprintf(out, "    jmp .l%d\n", endLabel);
+
+		fprintf(out, ".l%d:\n", fLabel);
+		generate_expr_rax(expr->conditional.doFalse, out);
+
+		fprintf(out, ".l%d:\n", endLabel);
 	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));
