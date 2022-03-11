@@ -61,17 +61,16 @@ void print_ast_depth(Node* node, int depth) {
 	for(int i = 0; i < depth; i++) printf("  ");
 
 	if(is_unary_op(node->type)) {
-		printf("%s ", node_type_to_string(node->type));
-		print_ast_depth(node->unary, 0);
+		printf("%s\n", node_type_to_string(node->type));
+		print_ast_depth(node->unary, depth + 1);
 		return;
 	}
 
 	else if(is_binary_op(node->type)) {
-		printf("%s (", node_type_to_string(node->type));
-		print_ast_depth(node->binary.lhs, depth);
-		printf(") (");
-		print_ast_depth(node->binary.rhs, depth);
-		printf(")");
+		printf("%s\n", node_type_to_string(node->type));
+		print_ast_depth(node->binary.lhs, depth + 1);
+		printf("\n");
+		print_ast_depth(node->binary.rhs, depth + 1);
 		return;
 	}
 
@@ -106,8 +105,8 @@ void print_ast_depth(Node* node, int depth) {
 		}
 
 		case AST_RETURN: {
-			printf("return ");
-			print_ast_depth(node->unary, 0);
+			printf("return\n");
+			print_ast_depth(node->unary, depth + 1);
 			printf("\n");
 			break;
 		}
@@ -146,6 +145,16 @@ void print_ast_depth(Node* node, int depth) {
 				print_ast_depth(arg, 0);
 			}
 			printf(")");
+			break;
+		}
+
+		case OP_TERNARY: {
+			printf("(");
+			print_ast_depth(node->conditional.condition, 0);
+			printf(") ?\n");
+			print_ast_depth(node->conditional.doTrue, depth + 1);
+			printf("\n");
+			print_ast_depth(node->conditional.doFalse, depth + 1);
 			break;
 		}
 
