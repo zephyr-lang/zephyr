@@ -75,15 +75,15 @@ typedef struct Node {
 
 			Node** arguments;
 			int argumentCount;
-
-			int variableCount;
-			Node** variables;
-			int currentStackOffset;
 		} function;
 
 		struct {
 			Node** children;
 			size_t size;
+
+			int variableCount;
+			Node** variables;
+			int currentStackOffset;
 		} block;
 
 		struct {

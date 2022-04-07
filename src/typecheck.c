@@ -54,10 +54,10 @@ Node* lookup_variable(Parser* parser, Token name) {
 		}
 	}
 
-	for(int i = 0; i < parser->currentFunction->function.variableCount; i++) {
-		Token varName = parser->currentFunction->function.variables[i]->variable.name;
+	for(int i = 0; i < parser->currentFunction->function.body->block.variableCount; i++) {
+		Token varName = parser->currentFunction->function.body->block.variables[i]->variable.name;
 		if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
-			return parser->currentFunction->function.variables[i];
+			return parser->currentFunction->function.body->block.variables[i];
 		}
 	}
 
@@ -257,7 +257,7 @@ void type_check_statement(Parser* parser, Node* stmt) {
 	else if(stmt->type == AST_DEFINE_VAR) {
 		Type* declType = &stmt->variable.type;
 
-		stmt->variable.stackOffset = parser->currentFunction->function.currentStackOffset += sizeof_type(declType);
+		stmt->variable.stackOffset = parser->currentFunction->function.body->block.currentStackOffset += sizeof_type(declType);
 
 		if(stmt->variable.value) {
 			type_check_expr(parser, stmt->variable.value);
@@ -271,8 +271,8 @@ void type_check_statement(Parser* parser, Node* stmt) {
 			}
 		}
 
-		parser->currentFunction->function.variables = realloc(parser->currentFunction->function.variables, ++parser->currentFunction->function.variableCount);
-		parser->currentFunction->function.variables[parser->currentFunction->function.variableCount - 1] = stmt;
+		parser->currentFunction->function.body->block.variables = realloc(parser->currentFunction->function.body->block.variables, ++parser->currentFunction->function.body->block.variableCount);
+		parser->currentFunction->function.body->block.variables[parser->currentFunction->function.body->block.variableCount - 1] = stmt;
 	}
 	else if(stmt->type == AST_EXPR_STMT) {
 		type_check_expr(parser, stmt->unary);
@@ -301,6 +301,8 @@ void type_check_function(Parser* parser, Node* function) {
 
 		arg->variable.stackOffset = stackOffset;
 	}
+
+	function->function.body->block.currentStackOffset = stackOffset;
 
 	parser->currentFunction = function;
 

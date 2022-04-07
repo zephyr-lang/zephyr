@@ -207,7 +207,7 @@ void generate_function(Node* function, FILE* out) {
 	fprintf(out, "    push rbp\n");
 	fprintf(out, "    mov rbp, rsp\n");
 	//TODO: This may have to become the *deepest* stack depth
-	int stackDepth = ceil_multiple(function->function.currentStackOffset, 16);
+	int stackDepth = ceil_multiple(function->function.body->block.currentStackOffset, 16);
 	if(stackDepth != 0)
 		fprintf(out, "    sub rsp, %d\n", stackDepth);
 

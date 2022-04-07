@@ -440,6 +440,9 @@ Node* parse_statement(Parser* parser) {
 
 Node* parse_block(Parser* parser) {
 	Node* block = new_node(AST_BLOCK, parser->previous);
+	block->block.currentStackOffset = 0;
+	block->block.variables = 0;
+	block->block.variableCount = 0;
 
 	while(!check(parser, TOKEN_RIGHT_BRACE)) {
 		Node* stmt = parse_statement(parser);
@@ -457,9 +460,6 @@ Node* parse_function(Parser* parser) {
 
 	Node* function = new_node(AST_FUNCTION, name);
 	function->function.name = name;
-	function->function.currentStackOffset = 0;
-	function->function.variables = NULL;
-	function->function.variableCount = 0;
 	function->function.arguments = NULL;
 	function->function.argumentCount = 0;
 
