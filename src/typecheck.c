@@ -6,6 +6,7 @@
 #include <string.h>
 
 void type_check_expr(Parser* parser, Node* expr);
+void type_check_block(Parser* parser, Node* block);
 
 static Type typeStack[128];
 static int typeStackDepth = 0;
@@ -257,7 +258,11 @@ void type_check_statement(Parser* parser, Node* stmt) {
 	else if(stmt->type == AST_DEFINE_VAR) {
 		Type* declType = &stmt->variable.type;
 
-		stmt->variable.stackOffset = parser->currentFunction->function.body->block.currentStackOffset += sizeof_type(declType);
+		stmt->variable.stackOffset = parser->currentBlock->block.currentStackOffset += sizeof_type(declType);
+
+		if(stmt->variable.stackOffset > parser->currentFunction->function.localVariableStackOffset) {
+			parser->currentFunction->function.localVariableStackOffset = stmt->variable.stackOffset;
+		}
 
 		if(stmt->variable.value) {
 			type_check_expr(parser, stmt->variable.value);
@@ -271,12 +276,15 @@ void type_check_statement(Parser* parser, Node* stmt) {
 			}
 		}
 
-		parser->currentFunction->function.body->block.variables = realloc(parser->currentFunction->function.body->block.variables, ++parser->currentFunction->function.body->block.variableCount);
-		parser->currentFunction->function.body->block.variables[parser->currentFunction->function.body->block.variableCount - 1] = stmt;
+		parser->currentBlock->block.variables = realloc(parser->currentBlock->block.variables, ++parser->currentBlock->block.variableCount);
+		parser->currentBlock->block.variables[parser->currentBlock->block.variableCount - 1] = stmt;
 	}
 	else if(stmt->type == AST_EXPR_STMT) {
 		type_check_expr(parser, stmt->unary);
 		pop_type_stack();
+	}
+	else if(stmt->type == AST_BLOCK) {
+		type_check_block(parser, stmt);
 	}
 	else {
 		assert(0 && "Unreachable");
@@ -284,9 +292,12 @@ void type_check_statement(Parser* parser, Node* stmt) {
 }
 
 void type_check_block(Parser* parser, Node* block) {
+	block->block.currentStackOffset = parser->currentBlock->block.currentStackOffset;
+	parser->currentBlock = block;
 	for(int i = 0; i < block->block.size; i++) {
 		type_check_statement(parser, block->block.children[i]);
 	}
+	parser->currentBlock = block->block.parent;
 }
 
 void type_check_function(Parser* parser, Node* function) {
@@ -303,9 +314,11 @@ void type_check_function(Parser* parser, Node* function) {
 	}
 
 	function->function.body->block.currentStackOffset = stackOffset;
+	function->function.localVariableStackOffset = stackOffset;
 
 	parser->currentFunction = function;
 
+	parser->currentBlock = function->function.body;
 	type_check_block(parser, function->function.body);
 }
 

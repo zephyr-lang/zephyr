@@ -5,11 +5,13 @@
 #include <string.h>
 
 Node* parse_expression(Parser* parser);
+Node* parse_block(Parser* parser);
 
 Parser new_parser(Lexer* lexer) {
 	Parser parser = {0};
 	parser.lexer = lexer;
 	parser.currentFunction = NULL;
+	parser.currentBlock = NULL;
 	parser.functions = NULL;
 	return parser;
 }
@@ -432,6 +434,9 @@ Node* parse_statement(Parser* parser) {
 		exprStmt->unary = expr;
 		return exprStmt;
 	}
+	else if(match(parser, TOKEN_LEFT_BRACE)) {
+		return parse_block(parser);
+	}
 
 	error_current(parser, "Expected statement");
 
@@ -443,6 +448,8 @@ Node* parse_block(Parser* parser) {
 	block->block.currentStackOffset = 0;
 	block->block.variables = 0;
 	block->block.variableCount = 0;
+	block->block.parent = parser->currentBlock;
+	parser->currentBlock = block;
 
 	while(!check(parser, TOKEN_RIGHT_BRACE)) {
 		Node* stmt = parse_statement(parser);
@@ -451,6 +458,8 @@ Node* parse_block(Parser* parser) {
 	}
 
 	consume(parser, TOKEN_RIGHT_BRACE, "Expected '}' after block");
+
+	parser->currentBlock = block->block.parent;
 
 	return block;
 }

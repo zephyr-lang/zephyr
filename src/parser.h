@@ -9,6 +9,7 @@ typedef struct Parser {
 	Token previous;
 
 	Node* currentFunction;
+	Node* currentBlock;
 
 	Node** functions;
 	size_t functionCount;

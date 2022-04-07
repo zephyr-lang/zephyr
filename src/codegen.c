@@ -1,6 +1,7 @@
 #include "codegen.h"
 
 void generate_expr_rax(Node* expr, FILE* out);
+void generate_block(Node* block, FILE* out);
 
 static const char* ARG_REGISTERS[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 static int labelCount = 0;
@@ -188,6 +189,9 @@ void generate_statement(Node* stmt, FILE* out) {
 	else if(stmt->type == AST_EXPR_STMT) {
 		generate_expr_rax(stmt->unary, out);
 	}
+	else if(stmt->type == AST_BLOCK) {
+		generate_block(stmt, out);
+	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_statement\n", node_type_to_string(stmt->type));
 		exit(1);
@@ -206,8 +210,8 @@ void generate_function(Node* function, FILE* out) {
 
 	fprintf(out, "    push rbp\n");
 	fprintf(out, "    mov rbp, rsp\n");
-	//TODO: This may have to become the *deepest* stack depth
-	int stackDepth = ceil_multiple(function->function.body->block.currentStackOffset, 16);
+	
+	int stackDepth = ceil_multiple(function->function.localVariableStackOffset, 16);
 	if(stackDepth != 0)
 		fprintf(out, "    sub rsp, %d\n", stackDepth);
 

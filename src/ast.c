@@ -84,6 +84,7 @@ void print_ast_depth(Node* node, int depth) {
 			printf("{\n");
 			for(size_t i = 0; i < node->block.size; i++)
 				print_ast_depth(node->block.children[i], depth + 1);
+			for(int i = 0; i < depth; i++) printf("  ");
 			printf("}\n");
 			break;
 		}

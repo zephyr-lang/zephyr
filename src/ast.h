@@ -75,12 +75,14 @@ typedef struct Node {
 
 			Node** arguments;
 			int argumentCount;
+			int localVariableStackOffset;
 		} function;
 
 		struct {
 			Node** children;
 			size_t size;
 
+			Node* parent;
 			int variableCount;
 			Node** variables;
 			int currentStackOffset;
