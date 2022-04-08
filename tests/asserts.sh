@@ -22,7 +22,7 @@ function assert_compilation_error() {
 
 function assert_exit_code() {
 	set +e
-	./build/zephyr -c "$1" -o ./build/test
+	./build/zephyr -c "$2" -o ./build/test
 	res=$?
 	set -e
 
@@ -30,7 +30,7 @@ function assert_exit_code() {
 	then
 		echo "======================================="
 		echo "              Test failed              "
-		echo $1
+		echo $2
 		echo "        Failure while compiling        "
 		echo "======================================="
 		return
@@ -41,13 +41,13 @@ function assert_exit_code() {
 	res=$?
 	set -e
 
-	if [ $res -ne $2 ]
+	if [ $res -ne $1 ]
 	then
 		echo ""
 		echo "======================================="
 		echo "              Test failed              "
-		echo $1
-		echo "Expected exit code" $2 "but got" $res
+		echo $2
+		echo "Expected exit code" $1 "but got" $res
 		echo "======================================="
 		return
 	fi
