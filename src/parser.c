@@ -24,8 +24,11 @@ static Node* new_node(NodeType type, Token position) {
 }
 
 static void node_add_child(Node* parent, Node* child) {
-	parent->block.children = realloc(parent->block.children, ++parent->block.size);
-	parent->block.children[parent->block.size - 1] = child;
+	if(parent->block.size + 1 > parent->block.capacity) {
+		parent->block.capacity = parent->block.capacity < 8 ? 8 : parent->block.capacity * 2;
+		parent->block.children = realloc(parent->block.children, parent->block.capacity * sizeof(Node));
+	}
+	parent->block.children[parent->block.size++] = child;
 }
 
 static void error_at_token(Parser* parser, Token* token, const char* message) {
@@ -445,11 +448,6 @@ Node* parse_statement(Parser* parser) {
 
 Node* parse_block(Parser* parser) {
 	Node* block = new_node(AST_BLOCK, parser->previous);
-	block->block.currentStackOffset = 0;
-	block->block.variables = 0;
-	block->block.variableCount = 0;
-	block->block.parent = parser->currentBlock;
-	parser->currentBlock = block;
 
 	while(!check(parser, TOKEN_RIGHT_BRACE)) {
 		Node* stmt = parse_statement(parser);
@@ -458,8 +456,6 @@ Node* parse_block(Parser* parser) {
 	}
 
 	consume(parser, TOKEN_RIGHT_BRACE, "Expected '}' after block");
-
-	parser->currentBlock = block->block.parent;
 
 	return block;
 }

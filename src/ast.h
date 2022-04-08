@@ -81,6 +81,7 @@ typedef struct Node {
 		struct {
 			Node** children;
 			size_t size;
+			size_t capacity;
 
 			Node* parent;
 			int variableCount;
