@@ -5,6 +5,7 @@
 #include <string.h>
 
 Node* parse_expression(Parser* parser);
+Node* parse_statement(Parser* parser);
 Node* parse_block(Parser* parser);
 
 Parser new_parser(Lexer* lexer) {
@@ -382,6 +383,23 @@ Node* parse_expression(Parser* parser) {
 	return parse_ternary_expression(parser);
 }
 
+Node* parse_if_statement(Parser* parser) {
+	Node* ifStmt = new_node(AST_IF, parser->previous);
+
+	consume(parser, TOKEN_LEFT_PAREN, "Expected '(' after if");
+
+	Node* condition = parse_expression(parser);
+
+	consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after if condition");
+
+	Node* trueBranch = parse_statement(parser);
+
+	ifStmt->conditional.condition = condition;
+	ifStmt->conditional.doTrue = trueBranch;
+
+	return ifStmt;
+}
+
 Node* parse_return_statement(Parser* parser) {
 	Node* returnStmt = new_node(AST_RETURN, parser->previous);
 	returnStmt->unary = parse_expression(parser);
@@ -415,7 +433,10 @@ Node* parse_var_declaration(Parser* parser) {
 }
 
 Node* parse_statement(Parser* parser) {
-	if(match(parser, TOKEN_RETURN)) {
+	if(match(parser, TOKEN_IF)) {
+		return parse_if_statement(parser);
+	}
+	else if(match(parser, TOKEN_RETURN)) {
 		return parse_return_statement(parser);
 	}
 	else if(match(parser, TOKEN_VAR)) {

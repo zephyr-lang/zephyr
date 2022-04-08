@@ -1,6 +1,7 @@
 #include "codegen.h"
 
 void generate_expr_rax(Node* expr, FILE* out);
+void generate_statement(Node* stmt, FILE* out);
 void generate_block(Node* block, FILE* out);
 
 static const char* ARG_REGISTERS[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
@@ -173,8 +174,22 @@ void generate_expr_rax(Node* expr, FILE* out) {
 	}
 }
 
+void generate_if_statement(Node* ifStmt, FILE* out) {
+	generate_expr_rax(ifStmt->conditional.condition, out);
+	fprintf(out, "    test rax, rax\n");
+	int falseLabel = labelCount++;
+
+	fprintf(out, "    je .l%d\n", falseLabel);
+	generate_statement(ifStmt->conditional.doTrue, out);
+
+	fprintf(out, ".l%d:\n", falseLabel);
+}
+
 void generate_statement(Node* stmt, FILE* out) {
-	if(stmt->type == AST_RETURN) {
+	if(stmt->type == AST_IF) {
+		generate_if_statement(stmt, out);
+	}
+	else if(stmt->type == AST_RETURN) {
 		generate_expr_rax(stmt->unary, out);
 		fprintf(out, "    leave\n");
 		fprintf(out, "    ret\n");

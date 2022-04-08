@@ -105,6 +105,22 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_IF: {
+			printf("if\n");
+			print_ast_depth(node->conditional.condition, depth + 1);
+			printf("\n");
+			print_ast_depth(node->conditional.doTrue, depth + 1);
+			printf("\n");
+
+			if(node->conditional.doFalse != NULL) {
+				for(int i = 0; i < depth; i++) printf("  ");
+				printf("else\n");
+				print_ast_depth(node->conditional.doFalse, depth + 1);
+				printf("\n");
+			}
+			break;
+		}
+
 		case AST_RETURN: {
 			printf("return\n");
 			print_ast_depth(node->unary, depth + 1);

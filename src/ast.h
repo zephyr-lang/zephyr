@@ -29,6 +29,7 @@
 	F(AST_ACCESS_VAR, "access var") \
 	F(AST_ASSIGN_VAR, "assign var") \
 	F(AST_EXPR_STMT, "expression statement") \
+	F(AST_IF, "if") \
 	F(AST_RETURN, "return") \
 	F(AST_FUNCTION, "function") \
 	F(AST_BLOCK, "block") \

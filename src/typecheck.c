@@ -249,14 +249,30 @@ void type_check_expr(Parser* parser, Node* expr) {
 }
 
 void type_check_statement(Parser* parser, Node* stmt) {
-	if(stmt->type == AST_RETURN) {
+	if(stmt->type == AST_IF) {
+		type_check_expr(parser, stmt->conditional.condition);
+
+		Type conditionType = pop_type_stack();
+
+		if(!types_assignable(&conditionType, intType)) {
+			print_position(stmt->position);
+			fprintf(stderr, "Expected condition to be type 'int' but got '%s'\n", type_to_string(conditionType));
+			exit(1);
+		}
+
+		type_check_statement(parser, stmt->conditional.doTrue);
+
+		if(stmt->conditional.doFalse != NULL)
+			type_check_statement(parser, stmt->conditional.doFalse);
+	}
+	else if(stmt->type == AST_RETURN) {
 		type_check_expr(parser, stmt->unary);
 
 		Type returnType = pop_type_stack();
 		Type* expectedType = &parser->currentFunction->function.returnType;
 		if(!types_assignable(&returnType, expectedType)) {
 			print_position(stmt->position);
-			fprintf(stderr, "Cannot return type %s from function expecting %s\n", type_to_string(returnType), type_to_string(*expectedType));
+			fprintf(stderr, "Cannot return type '%s' from function expecting '%s'\n", type_to_string(returnType), type_to_string(*expectedType));
 			exit(1);
 		}
 	}
@@ -286,7 +302,7 @@ void type_check_statement(Parser* parser, Node* stmt) {
 
 			if(!types_assignable(&valueType, declType)) {
 				print_position(stmt->position);
-				fprintf(stderr, "Cannot assign type %s to variable expecting %s\n", type_to_string(valueType), type_to_string(*declType));
+				fprintf(stderr, "Cannot assign type '%s' to variable expecting '%s'\n", type_to_string(valueType), type_to_string(*declType));
 				exit(1);
 			}
 		}
