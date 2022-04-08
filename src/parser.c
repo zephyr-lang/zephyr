@@ -26,7 +26,7 @@ static Node* new_node(NodeType type, Token position) {
 static void node_add_child(Node* parent, Node* child) {
 	if(parent->block.size + 1 > parent->block.capacity) {
 		parent->block.capacity = parent->block.capacity < 8 ? 8 : parent->block.capacity * 2;
-		parent->block.children = realloc(parent->block.children, parent->block.capacity * sizeof(Node));
+		parent->block.children = realloc(parent->block.children, parent->block.capacity * sizeof(Node*));
 	}
 	parent->block.children[parent->block.size++] = child;
 }

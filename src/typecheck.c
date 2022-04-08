@@ -262,6 +262,16 @@ void type_check_statement(Parser* parser, Node* stmt) {
 	}
 	else if(stmt->type == AST_DEFINE_VAR) {
 		Type* declType = &stmt->variable.type;
+		Token name = stmt->variable.name;
+
+		for(int i = 0; i < parser->currentBlock->block.variableCount; i++) {
+			Token varName = parser->currentBlock->block.variables[i]->variable.name;
+			if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
+				print_position(stmt->position);
+				fprintf(stderr, "Redeclaration of variable '%.*s' in current scope\n", (int)name.length, name.start);
+				exit(1);
+			}
+		}
 
 		stmt->variable.stackOffset = parser->currentBlock->block.currentStackOffset += sizeof_type(declType);
 
