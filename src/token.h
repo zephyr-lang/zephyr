@@ -36,6 +36,8 @@
 	F(TOKEN_INT_LITERAL, "int-literal") \
 	F(TOKEN_IDENTIFIER, "identifier")   \
                                         \
+	F(TOKEN_ELSE, "else")               \
+	F(TOKEN_IF, "if")                   \
 	F(TOKEN_INT, "int")                 \
 	F(TOKEN_FUNCTION, "function")       \
 	F(TOKEN_RETURN, "return")           \
