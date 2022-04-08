@@ -73,6 +73,7 @@ typedef struct Node {
 			Token name;
 			Type returnType;
 			Node* body;
+			bool hasImplicitBody;
 
 			Node** arguments;
 			int argumentCount;

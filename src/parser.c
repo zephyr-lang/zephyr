@@ -506,7 +506,7 @@ Node* parse_function(Parser* parser) {
 			arg->variable.name = argName;
 			arg->variable.type = type;
 
-			function->function.arguments = realloc(function->function.arguments, ++function->function.argumentCount);
+			function->function.arguments = realloc(function->function.arguments, ++function->function.argumentCount * sizeof(Node*));
 			function->function.arguments[function->function.argumentCount - 1] = arg;
 		} while(match(parser, TOKEN_COMMA));
 	}
@@ -539,9 +539,33 @@ Node* parse_function(Parser* parser) {
 	return function;
 }
 
+void add_implicit_printu_function(Parser* parser) {
+	Token name = (Token) { .type = TOKEN_IDENTIFIER, .start = "printu", .length = 6, .line = 0 };
+	Node* function = new_node(AST_FUNCTION, name);
+	function->function.name = name;
+
+	function->function.arguments = malloc(1 * sizeof(Node*));
+	function->function.argumentCount = 1;
+
+	Token arg0Name = (Token) { .type = TOKEN_IDENTIFIER, .start = "value", .length = 5, .line = 0 };
+	Node* arg0 = new_node(AST_DEFINE_VAR, arg0Name);
+	arg0->variable.name = arg0Name;
+	arg0->variable.type = (Type) { .type = DATA_TYPE_INT };
+	function->function.arguments[0] = arg0;
+
+	function->function.returnType = (Type) {.type = DATA_TYPE_VOID };
+
+	function->function.hasImplicitBody = true;
+
+	parser->functions = realloc(parser->functions, ++parser->functionCount);
+	parser->functions[parser->functionCount - 1] = function;
+}
+
 Node* parse_program(Parser* parser) {
 	advance(parser);
 	Node* program = new_node(AST_PROGRAM, parser->current);
+
+	add_implicit_printu_function(parser);
 
 	while(!match(parser, TOKEN_EOF)) {
 		if(match(parser, TOKEN_FUNCTION)) {

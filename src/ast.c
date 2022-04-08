@@ -101,7 +101,8 @@ void print_ast_depth(Node* node, int depth) {
 				Node* arg = node->function.arguments[i];
 				printf("(%.*s: %s) ", (int)arg->variable.name.length, arg->variable.name.start, type_to_string(arg->variable.type));
 			}
-			print_ast_depth(node->function.body, depth);
+			if(!node->function.hasImplicitBody)
+				print_ast_depth(node->function.body, depth);
 			break;
 		}
 

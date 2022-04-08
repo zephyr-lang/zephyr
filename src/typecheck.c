@@ -188,7 +188,7 @@ void type_check_call(Parser* parser, Node* expr) {
 
 		if(!types_assignable(&argType, paramType)) {
 			print_position(expr->position);
-			fprintf(stderr, "Function argument %d expected type %s but got %s\n", i, type_to_string(argType), type_to_string(*paramType));
+			fprintf(stderr, "Function argument %d expected type %s but got %s\n", i, type_to_string(*paramType), type_to_string(argType));
 			exit(1);
 		}
 	}
@@ -357,6 +357,7 @@ void type_check(Parser* parser, Node* program) {
 	assert(program->type == AST_PROGRAM);
 
 	for(int i = 0; i < parser->functionCount; i++) {
-		type_check_function(parser, parser->functions[i]);
+		if(!parser->functions[i]->function.hasImplicitBody)
+			type_check_function(parser, parser->functions[i]);
 	}
 }

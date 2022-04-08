@@ -251,10 +251,55 @@ void generate_function(Node* function, FILE* out) {
 	generate_block(function->function.body, out);
 }
 
+void generate_implicit_printu_impl(FILE* out) {
+	fprintf(out, "printu:\n");
+	fprintf(out, "		sub     rsp, 40\n");
+	fprintf(out, "		mov     eax, 10\n");
+	fprintf(out, "		mov     WORD [rsp+20], ax\n");
+	fprintf(out, "		test    rdi, rdi\n");
+	fprintf(out, "		je      .L4\n");
+	fprintf(out, "		lea     r8, [rsp+19]\n");
+	fprintf(out, "		mov     esi, 19\n");
+	fprintf(out, "		mov  r10, -3689348814741910323\n");
+	fprintf(out, ".L3:\n");
+	fprintf(out, "		mov     rax, rdi\n");
+	fprintf(out, "		movsxd  r9, esi\n");
+	fprintf(out, "		sub     r8, 1\n");
+	fprintf(out, "		sub     esi, 1\n");
+	fprintf(out, "		mul     r10\n");
+	fprintf(out, "		mov     rax, rdi\n");
+	fprintf(out, "		shr     rdx, 3\n");
+	fprintf(out, "		lea     rcx, [rdx+rdx*4]\n");
+	fprintf(out, "		add     rcx, rcx\n");
+	fprintf(out, "		sub     rax, rcx\n");
+	fprintf(out, "		mov     rcx, rdi\n");
+	fprintf(out, "		mov     rdi, rdx\n");
+	fprintf(out, "		add     eax, 48\n");
+	fprintf(out, "		mov     BYTE [r8+1], al\n");
+	fprintf(out, "		cmp     rcx, 9\n");
+	fprintf(out, "		ja      .L3\n");
+	fprintf(out, "		mov     edx, 20\n");
+	fprintf(out, "		sub     edx, esi\n");
+	fprintf(out, ".L2:\n");
+	fprintf(out, "		mov     rdi, 1\n");
+	fprintf(out, "		lea     rsi, [rsp+r9]\n");
+	fprintf(out, "		mov     rax, 1\n");
+	fprintf(out, "		syscall\n");
+	fprintf(out, "		add     rsp, 40\n");
+	fprintf(out, "		ret\n");
+	fprintf(out, ".L4:\n");
+	fprintf(out, "		mov     r9d, 20\n");
+	fprintf(out, "		mov     edx, 1\n");
+	fprintf(out, "		jmp     .L2\n");
+}
+
 void generate_program(Node* ast, FILE* out) {
+	generate_implicit_printu_impl(out);
+
 	for(size_t i = 0; i < ast->block.size; i++) {
 		if(ast->block.children[i]->type == AST_FUNCTION) {
-			generate_function(ast->block.children[i], out);
+			if(!ast->block.children[i]->function.hasImplicitBody)
+				generate_function(ast->block.children[i], out);
 		}
 		else {
 			fprintf(stderr, "Unsupported type '%s' in generate_program\n", node_type_to_string(ast->block.children[i]->type));
