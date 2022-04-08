@@ -388,14 +388,15 @@ Node* parse_if_statement(Parser* parser) {
 
 	consume(parser, TOKEN_LEFT_PAREN, "Expected '(' after if");
 
-	Node* condition = parse_expression(parser);
+	ifStmt->conditional.condition = parse_expression(parser);
 
 	consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after if condition");
 
-	Node* trueBranch = parse_statement(parser);
+	ifStmt->conditional.doTrue = parse_statement(parser);
 
-	ifStmt->conditional.condition = condition;
-	ifStmt->conditional.doTrue = trueBranch;
+	if(match(parser, TOKEN_ELSE)) {
+		ifStmt->conditional.doFalse = parse_statement(parser);
+	}
 
 	return ifStmt;
 }

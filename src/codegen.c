@@ -178,11 +178,20 @@ void generate_if_statement(Node* ifStmt, FILE* out) {
 	generate_expr_rax(ifStmt->conditional.condition, out);
 	fprintf(out, "    test rax, rax\n");
 	int falseLabel = labelCount++;
+	int endLabel = labelCount++;
 
 	fprintf(out, "    je .l%d\n", falseLabel);
 	generate_statement(ifStmt->conditional.doTrue, out);
 
+	if(ifStmt->conditional.doFalse != NULL)
+		fprintf(out, "    jmp .l%d\n", endLabel);
+
 	fprintf(out, ".l%d:\n", falseLabel);
+
+	if(ifStmt->conditional.doFalse != NULL) {
+		generate_statement(ifStmt->conditional.doFalse, out);
+		fprintf(out, ".l%d:\n", endLabel);
+	}
 }
 
 void generate_statement(Node* stmt, FILE* out) {
