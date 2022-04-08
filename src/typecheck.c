@@ -48,17 +48,22 @@ int sizeof_type(Type* type) {
 }
 
 Node* lookup_variable(Parser* parser, Token name) {
+	Node* block = parser->currentBlock;
+
+	while(block != NULL) {
+		for(int i = 0; i < block->block.variableCount; i++) {
+			Token varName = block->block.variables[i]->variable.name;
+			if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
+				return block->block.variables[i];
+			}
+		}
+		block = block->block.parent;
+	}
+
 	for(int i = 0; i < parser->currentFunction->function.argumentCount; i++) {
 		Token argName = parser->currentFunction->function.arguments[i]->variable.name;
 		if(name.length == argName.length && memcmp(name.start, argName.start, name.length) == 0) {
 			return parser->currentFunction->function.arguments[i];
-		}
-	}
-
-	for(int i = 0; i < parser->currentFunction->function.body->block.variableCount; i++) {
-		Token varName = parser->currentFunction->function.body->block.variables[i]->variable.name;
-		if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
-			return parser->currentFunction->function.body->block.variables[i];
 		}
 	}
 

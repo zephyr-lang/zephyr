@@ -448,6 +448,8 @@ Node* parse_statement(Parser* parser) {
 
 Node* parse_block(Parser* parser) {
 	Node* block = new_node(AST_BLOCK, parser->previous);
+	block->block.parent = parser->currentBlock;
+	parser->currentBlock = block;
 
 	while(!check(parser, TOKEN_RIGHT_BRACE)) {
 		Node* stmt = parse_statement(parser);
@@ -456,6 +458,8 @@ Node* parse_block(Parser* parser) {
 	}
 
 	consume(parser, TOKEN_RIGHT_BRACE, "Expected '}' after block");
+
+	parser->currentBlock = block->block.parent;
 
 	return block;
 }
