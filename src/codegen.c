@@ -273,13 +273,11 @@ void generate_implicit_printu_impl(FILE* out) {
 	fprintf(out, "printu:\n");
 	fprintf(out, "		sub     rsp, 40\n");
 	fprintf(out, "		mov     eax, 10\n");
-	fprintf(out, "		mov     WORD [rsp+20], ax\n");
-	fprintf(out, "		test    rdi, rdi\n");
-	fprintf(out, "		je      .L4\n");
-	fprintf(out, "		lea     r8, [rsp+19]\n");
 	fprintf(out, "		mov     esi, 19\n");
 	fprintf(out, "		mov  r10, -3689348814741910323\n");
-	fprintf(out, ".L3:\n");
+	fprintf(out, "		mov     WORD [rsp+20], ax\n");
+	fprintf(out, "		lea     r8, [rsp+19]\n");
+	fprintf(out, ".L2:\n");
 	fprintf(out, "		mov     rax, rdi\n");
 	fprintf(out, "		movsxd  r9, esi\n");
 	fprintf(out, "		sub     r8, 1\n");
@@ -295,20 +293,15 @@ void generate_implicit_printu_impl(FILE* out) {
 	fprintf(out, "		add     eax, 48\n");
 	fprintf(out, "		mov     BYTE [r8+1], al\n");
 	fprintf(out, "		cmp     rcx, 9\n");
-	fprintf(out, "		ja      .L3\n");
-	fprintf(out, "		mov     edx, 20\n");
-	fprintf(out, "		sub     edx, esi\n");
-	fprintf(out, ".L2:\n");
+	fprintf(out, "		ja      .L2\n");
 	fprintf(out, "		mov     rdi, 1\n");
-	fprintf(out, "		lea     rsi, [rsp+r9]\n");
+	fprintf(out, "		mov     edx, 20\n");
 	fprintf(out, "		mov     rax, 1\n");
+	fprintf(out, "		sub     edx, esi\n");
+	fprintf(out, "		lea     rsi, [rsp+r9]\n");
 	fprintf(out, "		syscall\n");
 	fprintf(out, "		add     rsp, 40\n");
 	fprintf(out, "		ret\n");
-	fprintf(out, ".L4:\n");
-	fprintf(out, "		mov     r9d, 20\n");
-	fprintf(out, "		mov     edx, 1\n");
-	fprintf(out, "		jmp     .L2\n");
 }
 
 void generate_program(Node* ast, FILE* out) {

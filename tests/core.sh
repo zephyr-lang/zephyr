@@ -132,4 +132,11 @@ function main(): int {
 }
 "
 
+assert_stdout "0" "
+function main(): int {
+	printu(0);
+	return 0;
+}
+"
+
 echo " Done"
