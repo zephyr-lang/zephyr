@@ -61,3 +61,40 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "While Statements: "
+assert_stdout "0
+1
+2
+3
+4
+5
+6
+7
+8
+9" "
+function main(): int {
+	var i: int = 0;
+
+	while(i < 10) {
+		printu(i);
+		i = i + 1;
+	}
+
+	return i - 10;
+}
+"
+
+assert_compilation_error "function x() {} function main():int { while(x()) {} }"
+
+assert_exit_code 5 "
+function main(): int {
+	var a: int = 5;
+
+	while(0) a = 12;
+
+	return a;
+}
+"
+
+echo " Done"
