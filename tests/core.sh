@@ -112,3 +112,24 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Print: "
+assert_stdout "42" "
+function main(): int {
+	printu(42);
+	
+	return 0;
+}
+"
+
+assert_stdout "5
+6" "
+function main(): int {
+	printu(5);
+	printu(6);
+	
+	return 0;
+}
+"
+
+echo " Done"
