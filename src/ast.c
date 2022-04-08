@@ -122,6 +122,15 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_WHILE: {
+			printf("while\n");
+			print_ast_depth(node->conditional.condition, depth + 1);
+			printf("\n");
+			print_ast_depth(node->conditional.doTrue, depth + 1);
+			printf("\n");
+			break;
+		}
+
 		case AST_RETURN: {
 			printf("return\n");
 			print_ast_depth(node->unary, depth + 1);

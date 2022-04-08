@@ -194,9 +194,27 @@ void generate_if_statement(Node* ifStmt, FILE* out) {
 	}
 }
 
+void generate_while_statement(Node* whileStmt, FILE* out) {
+	int condLabel = labelCount++;
+	int bodyLabel = labelCount++;
+
+	fprintf(out, "    jmp .l%d\n", condLabel);
+	fprintf(out, ".l%d:\n", bodyLabel);
+
+	generate_statement(whileStmt->conditional.doTrue, out);
+
+	fprintf(out, ".l%d:\n", condLabel);
+	generate_expr_rax(whileStmt->conditional.condition, out);
+	fprintf(out, "    test rax, rax\n");
+	fprintf(out, "    jne .l%d\n", bodyLabel);
+}
+
 void generate_statement(Node* stmt, FILE* out) {
 	if(stmt->type == AST_IF) {
 		generate_if_statement(stmt, out);
+	}
+	else if(stmt->type == AST_WHILE) {
+		generate_while_statement(stmt, out);
 	}
 	else if(stmt->type == AST_RETURN) {
 		generate_expr_rax(stmt->unary, out);

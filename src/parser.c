@@ -433,6 +433,20 @@ Node* parse_var_declaration(Parser* parser) {
 	return var;
 }
 
+Node* parse_while_statement(Parser* parser) {
+	Node* whileStmt = new_node(AST_WHILE, parser->previous);
+
+	consume(parser, TOKEN_LEFT_PAREN, "Expected '(' after while");
+
+	whileStmt->conditional.condition = parse_expression(parser);
+
+	consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after while condition");
+
+	whileStmt->conditional.doTrue = parse_statement(parser);
+
+	return whileStmt;
+}
+
 Node* parse_statement(Parser* parser) {
 	if(match(parser, TOKEN_IF)) {
 		return parse_if_statement(parser);
@@ -442,6 +456,9 @@ Node* parse_statement(Parser* parser) {
 	}
 	else if(match(parser, TOKEN_VAR)) {
 		return parse_var_declaration(parser);
+	}
+	else if(match(parser, TOKEN_WHILE)) {
+		return parse_while_statement(parser);
 	}
 	else if(match(parser, TOKEN_IDENTIFIER)) {
 		Node* expr = parse_identifier(parser);

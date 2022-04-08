@@ -100,6 +100,7 @@ static TokenType identifier_type(Lexer* lexer) {
 			}
 			break;
 		}
+		case 'w': return check_keyword(lexer, 1, 4, "hile", TOKEN_WHILE);
 		default: break;
 	}
 	return TOKEN_IDENTIFIER;
