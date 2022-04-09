@@ -36,13 +36,14 @@ Type pop_type_stack() {
 }
 
 bool types_assignable(Type* a, Type* b) {
-	return a->type == b->type;
+	return a->type == b->type && a->indirection == b->indirection;
 }
 
 int sizeof_type(Type* type) {
 	switch(type->type) {
 		case DATA_TYPE_INT: return 8;
 		case DATA_TYPE_VOID: assert(0 && "Not reached - sizeof_type(void)");
+		default: assert(0 && "Unreachable - sizeof_type");
 	}
 	return 0;
 }
@@ -78,6 +79,22 @@ Node* lookup_variable(Parser* parser, Token name) {
 }
 
 void type_check_unary(Parser* parser, Node* expr) {
+	if(expr->type == OP_ADDROF) {
+		if(!expr->unary->lvalue) {
+			print_position(expr->position);
+			fprintf(stderr, "Expected lvalue as operand for unary '&'\n");
+			exit(1);
+		}
+		
+		type_check_expr(parser, expr->unary);
+		Type type = pop_type_stack();
+
+		type.indirection++;
+
+		push_type_stack(&type);
+		return;
+	}
+
 	type_check_expr(parser, expr->unary);
 
 	Type type = pop_type_stack();

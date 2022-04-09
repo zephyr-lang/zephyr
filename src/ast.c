@@ -1,5 +1,7 @@
 #include "ast.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 char* data_type_to_string(DataType type) {
 	switch(type) {
@@ -19,7 +21,14 @@ char* node_type_to_string(NodeType type) {
 }
 
 char* type_to_string(Type type) {
-	return data_type_to_string(type.type);
+	char* str = malloc(128); // Should be enough for now
+	char* baseType = data_type_to_string(type.type);
+	strcpy(str, baseType);
+	
+	for(int i = 0; i < type.indirection; i++) {
+		strcat(str, "*");
+	}
+	return str;
 }
 
 bool is_unary_op(NodeType type) {
@@ -27,6 +36,8 @@ bool is_unary_op(NodeType type) {
 		case OP_BWNOT:
 		case OP_NEG:
 		case OP_NOT:
+		case OP_ADDROF:
+		case OP_DEREF:
 			return true;
 		default:
 			return false;

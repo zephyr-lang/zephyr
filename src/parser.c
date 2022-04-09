@@ -94,12 +94,23 @@ static bool match(Parser* parser, TokenType type) {
 Type parse_type(Parser* parser) {
 	advance(parser);
 
+	Type type;
+
 	switch (parser->previous.type) {
-		case TOKEN_INT: return (Type) { .type = DATA_TYPE_INT };
+		case TOKEN_INT: {
+			type = (Type) { .type = DATA_TYPE_INT };
+			break;
+		}
 		default: 
 			error(parser, "Expected type");
 			return (Type) { .type = DATA_TYPE_VOID };
 	}
+
+	while(match(parser, TOKEN_STAR)) {
+		type.indirection++;
+	}
+	
+	return type;
 }
 
 Node* parse_identifier(Parser* parser) {
@@ -132,6 +143,7 @@ Node* parse_identifier(Parser* parser) {
 
 	Node* access = new_node(AST_ACCESS_VAR, name);
 	access->variable.name = name;
+	access->lvalue = LVALUE_IDENTIFIER;
 	return access;
 }
 
@@ -181,6 +193,13 @@ Node* parse_unary(Parser* parser) {
 		Node* not = new_node(OP_NOT, op);
 		not->unary = expr;
 		return not;
+	}
+	else if(match(parser, TOKEN_AMP)) {
+		Token op = parser->previous;
+		Node* expr = parse_unary(parser);
+		Node* addrOf = new_node(OP_ADDROF, op);
+		addrOf->unary = expr;
+		return addrOf;
 	}
 
 	return parse_value(parser);

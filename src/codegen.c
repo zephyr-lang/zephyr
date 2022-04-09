@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include <assert.h>
 
 void generate_expr_rax(Node* expr, FILE* out);
 void generate_statement(Node* stmt, FILE* out);
@@ -25,6 +26,18 @@ void generate_unary_rax(Node* expr, FILE* out) {
 		fprintf(out, "    test rax, rax\n");
 		fprintf(out, "    sete al\n");
 		fprintf(out, "    movzx rax, al\n");
+	}
+	else if(expr->type == OP_ADDROF) {
+		if(expr->unary->lvalue == LVALUE_IDENTIFIER) {
+			fprintf(out, "    lea rax, [rbp-%d]\n", expr->unary->variable.stackOffset);
+		}
+		else {
+			assert(0 && "Unreachable - unknown lvalue type");
+		}
+	}
+	else {
+		fprintf(stderr, "Unsupported type '%s' in generate_unary_rax\n", node_type_to_string(expr->type));
+		exit(1);
 	}
 }
 

@@ -23,6 +23,8 @@
 	F(OP_NEG, "-") \
 	F(OP_NOT, "!") \
 	F(OP_TERNARY, "?") \
+	F(OP_DEREF, "*") \
+	F(OP_ADDROF, "&") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CALL, "call") \
 	F(AST_DEFINE_VAR, "define var") \
@@ -50,12 +52,19 @@ typedef enum DataType {
 
 typedef struct Type {
 	DataType type;
+	int indirection; // 0 = int, 1 = int*, 2 = int**, etc.
 } Type;
+
+typedef enum LValueType {
+	LVALUE_NONE = 0,
+	LVALUE_IDENTIFIER
+} LValueType;
 
 typedef struct Node Node;
 typedef struct Node {
 	NodeType type;
 	Token position;
+	LValueType lvalue;
 
 	union {
 		Node* unary;
