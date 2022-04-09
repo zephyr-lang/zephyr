@@ -201,6 +201,13 @@ Node* parse_unary(Parser* parser) {
 		addrOf->unary = expr;
 		return addrOf;
 	}
+	else if(match(parser, TOKEN_STAR)) {
+		Token op = parser->previous;
+		Node* expr = parse_unary(parser);
+		Node* deref = new_node(OP_DEREF, op);
+		deref->unary = expr;
+		return deref;
+	}
 
 	return parse_value(parser);
 }

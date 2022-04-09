@@ -94,6 +94,21 @@ void type_check_unary(Parser* parser, Node* expr) {
 		push_type_stack(&type);
 		return;
 	}
+	else if(expr->type == OP_DEREF) {
+		type_check_expr(parser, expr->unary);
+		Type type = pop_type_stack();
+
+		if(type.indirection == 0) {
+			print_position(expr->position);
+			fprintf(stderr, "Cannot dereference non-pointer type '%s'\n", type_to_string(type));
+			exit(1);
+		}
+
+		type.indirection--;
+		
+		push_type_stack(&type);
+		return;
+	}
 
 	type_check_expr(parser, expr->unary);
 

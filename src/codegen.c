@@ -35,6 +35,11 @@ void generate_unary_rax(Node* expr, FILE* out) {
 			assert(0 && "Unreachable - unknown lvalue type");
 		}
 	}
+	else if(expr->type == OP_DEREF) {
+		generate_expr_rax(expr->unary, out);
+		//TODO get word based on size
+		fprintf(out, "    mov rax, QWORD [rax]\n");
+	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_unary_rax\n", node_type_to_string(expr->type));
 		exit(1);

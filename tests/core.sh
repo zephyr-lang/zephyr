@@ -175,4 +175,30 @@ function main(): int {
 }
 "
 
+assert_compilation_error "
+function main(): int {
+	var i: int = *10;
+	return 0;
+}
+"
+
+assert_compilation_error "
+function main(): int {
+	var i: int = 10;
+	var ip: int* = &i;
+	var j: int = **ip;
+	return 0;
+}
+"
+
+assert_stdout "10" "
+function main(): int {
+	var i: int = 10;
+	var ip: int* = &i;
+	var j: int = *ip;
+	printu(j);
+	return 0;
+}
+"
+
 echo " Done"
