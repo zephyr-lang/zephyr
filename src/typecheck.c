@@ -265,6 +265,25 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		if(stmt->conditional.doFalse != NULL)
 			type_check_statement(parser, stmt->conditional.doFalse);
 	}
+	else if(stmt->type == AST_FOR) {
+		if(stmt->loop.initial != NULL) type_check_statement(parser, stmt->loop.initial);
+		if(stmt->loop.condition != NULL) {
+			type_check_expr(parser, stmt->loop.condition);
+			Type conditionType = pop_type_stack();
+
+			if(!types_assignable(&conditionType, intType)) {
+				print_position(stmt->position);
+				fprintf(stderr, "Expected condition to be type 'int' but got '%s'\n", type_to_string(conditionType));
+				exit(1);
+			}
+		}
+		if(stmt->loop.iteration != NULL) {
+			type_check_expr(parser, stmt->loop.iteration);
+			pop_type_stack();
+		}
+
+		type_check_statement(parser, stmt->loop.body);
+	}
 	else if(stmt->type == AST_WHILE) {
 		type_check_expr(parser, stmt->conditional.condition);
 

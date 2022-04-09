@@ -194,6 +194,34 @@ void generate_if_statement(Node* ifStmt, FILE* out) {
 	}
 }
 
+void generate_for_statement(Node* forStmt, FILE* out) {
+	if(forStmt->loop.initial != NULL)
+		generate_statement(forStmt->loop.initial, out);
+
+	bool hasCondition = forStmt->loop.condition != NULL;
+	int condLabel = labelCount++;
+	int bodyLabel = labelCount++;
+
+	if(hasCondition)
+		fprintf(out, "    jmp .l%d\n", condLabel);
+	
+	fprintf(out, ".l%d:\n", bodyLabel);
+
+	generate_statement(forStmt->loop.body, out);
+
+	generate_expr_rax(forStmt->loop.iteration, out);
+
+	if(hasCondition) {
+		fprintf(out, ".l%d:\n", condLabel);
+		generate_expr_rax(forStmt->loop.condition, out);
+		fprintf(out, "    test rax, rax\n");
+		fprintf(out, "    jne .l%d\n", bodyLabel);
+	}
+	else {
+		fprintf(out, "   jmp .l%d\n", bodyLabel);
+	}
+}
+
 void generate_while_statement(Node* whileStmt, FILE* out) {
 	int condLabel = labelCount++;
 	int bodyLabel = labelCount++;
@@ -212,6 +240,9 @@ void generate_while_statement(Node* whileStmt, FILE* out) {
 void generate_statement(Node* stmt, FILE* out) {
 	if(stmt->type == AST_IF) {
 		generate_if_statement(stmt, out);
+	}
+	else if(stmt->type == AST_FOR) {
+		generate_for_statement(stmt, out);
 	}
 	else if(stmt->type == AST_WHILE) {
 		generate_while_statement(stmt, out);
