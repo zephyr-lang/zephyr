@@ -140,3 +140,39 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Pointers: "
+
+assert_compilation_error "
+function main(): int {
+	var ip: int* = &10;
+	return 0;
+}
+"
+
+assert_compilation_error "
+function main(): int {
+	var i: int = 10;
+	var ip: int* = i;
+	return 0;
+}
+"
+
+assert_compilation_error "
+function main(): int {
+	var i: int = 10;
+	var ip: int** = &(&i);
+	return 0;
+}
+"
+
+assert_compilation_error "
+function main(): int {
+	var i: int = 10;
+	var ip: int* = &i;
+	var ipp: int** = ip;
+	return 0;
+}
+"
+
+echo " Done"
