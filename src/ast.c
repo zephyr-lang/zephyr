@@ -122,6 +122,35 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_FOR: {
+			printf("for\n");
+			if(node->loop.initial != NULL)
+				print_ast_depth(node->loop.initial, depth + 1);
+			else {
+				for(int i = 0; i < depth + 1; i++) printf("  ");
+				printf("(no initializer)\n");
+			}
+
+			if(node->loop.condition != NULL) {
+				print_ast_depth(node->loop.condition, depth + 1);
+				printf("\n");
+			} else {
+				for(int i = 0; i < depth + 1; i++) printf("  ");
+				printf("(no condition)\n");
+			}
+
+			if(node->loop.iteration != NULL) {
+				print_ast_depth(node->loop.iteration, depth + 1);
+				printf("\n");
+			} else {
+				for(int i = 0; i < depth + 1; i++) printf("  ");
+				printf("(no iteration)\n");
+			}
+
+			print_ast_depth(node->loop.body, depth + 1);
+			break;
+		}
+
 		case AST_WHILE: {
 			printf("while\n");
 			print_ast_depth(node->conditional.condition, depth + 1);

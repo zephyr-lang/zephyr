@@ -30,6 +30,7 @@
 	F(AST_ASSIGN_VAR, "assign var") \
 	F(AST_EXPR_STMT, "expression statement") \
 	F(AST_IF, "if") \
+	F(AST_FOR, "for") \
 	F(AST_WHILE, "while") \
 	F(AST_RETURN, "return") \
 	F(AST_FUNCTION, "function") \
@@ -69,6 +70,13 @@ typedef struct Node {
 			Node* doTrue;
 			Node* doFalse;
 		} conditional;
+
+		struct {
+			Node* initial;
+			Node* condition;
+			Node* iteration;
+			Node* body;
+		} loop;
 
 		struct {
 			Token name;

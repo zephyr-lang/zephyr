@@ -447,9 +447,45 @@ Node* parse_while_statement(Parser* parser) {
 	return whileStmt;
 }
 
+Node* parse_for_statement(Parser* parser) {
+	Node* forStmt = new_node(AST_FOR, parser->previous);
+
+	consume(parser, TOKEN_LEFT_PAREN, "Expected '(' after for");
+
+	if(match(parser, TOKEN_SEMICOLON)) {
+		// No initialiser clause
+	}
+	else if(match(parser, TOKEN_VAR)) {
+		forStmt->loop.initial = parse_var_declaration(parser);
+	}
+	else if(check(parser, TOKEN_IDENTIFIER)) {
+		forStmt->loop.initial = parse_statement(parser);
+	}
+	else {
+		error_current(parser, "Expected for initializer clause");
+	}
+
+	if(!match(parser, TOKEN_SEMICOLON)) {
+		forStmt->loop.condition = parse_expression(parser);
+		consume(parser, TOKEN_SEMICOLON, "Expected ';' after condition");
+	}
+
+	if(!match(parser, TOKEN_RIGHT_PAREN)) {
+		forStmt->loop.iteration = parse_expression(parser);
+		consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after for clauses");
+	}
+
+	forStmt->loop.body = parse_statement(parser);
+
+	return forStmt;
+}
+
 Node* parse_statement(Parser* parser) {
 	if(match(parser, TOKEN_IF)) {
 		return parse_if_statement(parser);
+	}
+	else if(match(parser, TOKEN_FOR)) {
+		return parse_for_statement(parser);
 	}
 	else if(match(parser, TOKEN_RETURN)) {
 		return parse_return_statement(parser);
