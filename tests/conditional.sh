@@ -98,3 +98,69 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "For Statements: "
+
+assert_stdout "0
+1
+2
+3
+4
+5
+6
+7
+8
+9" "
+function main(): int {
+	for(var i: int = 0; i < 10; i = i + 1) {
+		printu(i);
+	}
+	return 0;
+}
+"
+
+assert_exit_code 45 "
+function main(): int {
+	var k: int = 0;
+	var i: int = 0;
+	for(;i < 10; i = i + 1) k = k + i;
+	return k;
+}
+"
+
+assert_exit_code 45 "
+function main(): int {
+	var k: int = 0;
+	var i: int = 0;
+	for(;i < 10;) {
+		k = k + i;
+		i = i + 1;
+	}
+	return k;
+}
+"
+
+assert_stdout "0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10" "
+function main(): int {
+	for(var i: int = 0;; i = i + 1) {
+		printu(i);
+
+		if(i == 10) {
+			return 0;
+		}
+	}
+	return 0;
+}
+"
+
+echo " Done"

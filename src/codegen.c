@@ -209,7 +209,8 @@ void generate_for_statement(Node* forStmt, FILE* out) {
 
 	generate_statement(forStmt->loop.body, out);
 
-	generate_expr_rax(forStmt->loop.iteration, out);
+	if(forStmt->loop.iteration != NULL)
+		generate_expr_rax(forStmt->loop.iteration, out);
 
 	if(hasCondition) {
 		fprintf(out, ".l%d:\n", condLabel);
