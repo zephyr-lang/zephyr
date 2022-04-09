@@ -219,7 +219,7 @@ void generate_for_statement(Node* forStmt, FILE* out) {
 		fprintf(out, "    jne .l%d\n", bodyLabel);
 	}
 	else {
-		fprintf(out, "   jmp .l%d\n", bodyLabel);
+		fprintf(out, "    jmp .l%d\n", bodyLabel);
 	}
 }
 
