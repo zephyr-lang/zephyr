@@ -144,7 +144,7 @@ Node* parse_identifier(Parser* parser) {
 			do {
 				Node* arg = parse_expression(parser);
 
-				call->function.arguments = realloc(call->function.arguments, ++call->function.argumentCount);
+				call->function.arguments = realloc(call->function.arguments, ++call->function.argumentCount * sizeof(Node*));
 				call->function.arguments[call->function.argumentCount - 1] = arg;
 			} while(match(parser, TOKEN_COMMA));
 		}

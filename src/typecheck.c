@@ -527,7 +527,7 @@ void type_check(Parser* parser, Node* program) {
 		Node* node = program->block.children[i];
 
 		if(node->type == AST_FUNCTION) {
-			if(!parser->functions[i]->function.hasImplicitBody)
+			if(!node->function.hasImplicitBody)
 				type_check_function(parser, node);
 		}
 		else if(node->type == AST_DEFINE_GLOBAL_VAR) {

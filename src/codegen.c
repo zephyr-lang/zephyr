@@ -73,7 +73,15 @@ void generate_unary_rax(Node* expr, FILE* out) {
 	}
 	else if(expr->type == OP_ADDROF) {
 		if(expr->unary->lvalue == LVALUE_IDENTIFIER) {
-			fprintf(out, "    lea rax, [rbp-%d]\n", expr->unary->variable.stackOffset);
+			if(expr->unary->type == AST_ACCESS_VAR) {
+				fprintf(out, "    lea rax, [rbp-%d]\n", expr->unary->variable.stackOffset);
+			}
+			else if(expr->unary->type == AST_ACCESS_GLOBAL_VAR) {
+				fprintf(out, "    lea rax, [_g_%.*s]\n", (int)expr->unary->variable.name.length, expr->unary->variable.name.start);
+			}
+			else {
+				assert(0 && "Unreachable - unhandled node type");
+			}
 		}
 		else {
 			assert(0 && "Unreachable - unknown lvalue type");
@@ -429,9 +437,11 @@ void generate_program(Parser* parser, Node* ast, FILE* out) {
 	for(int i = 0; i < parser->globalVarCount; i++) {
 		Node* var = parser->globalVars[i];
 
-		generate_expr_rax(var->variable.value, out);
+		if(var->variable.value != NULL) {
+			generate_expr_rax(var->variable.value, out);
 
-		fprintf(out, "    mov %s [_g_%.*s], %s\n", type_to_qualifier(&var->variable.type), (int)var->variable.name.length, var->variable.name.start, type_to_rax_subregister(&var->variable.type));
+			fprintf(out, "    mov %s [_g_%.*s], %s\n", type_to_qualifier(&var->variable.type), (int)var->variable.name.length, var->variable.name.start, type_to_rax_subregister(&var->variable.type));
+		}
 	}
 
 	fprintf(out, "    call main\n");
