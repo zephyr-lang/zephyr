@@ -98,12 +98,12 @@ Type parse_type(Parser* parser) {
 
 	switch (parser->previous.type) {
 		case TOKEN_INT: {
-			type = (Type) { .type = DATA_TYPE_INT };
+			type = (Type) { .type = DATA_TYPE_INT, .indirection = 0 };
 			break;
 		}
 		default: 
 			error(parser, "Expected type");
-			return (Type) { .type = DATA_TYPE_VOID };
+			return (Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
 	}
 
 	while(match(parser, TOKEN_STAR)) {
@@ -153,7 +153,7 @@ Node* parse_value(Parser* parser) {
 		if(parser->error) return NULL;
 
 		Node* literalNode = new_node(AST_INT_LITERAL, literal);
-		literalNode->literal.type = (Type) { .type = DATA_TYPE_INT };
+		literalNode->literal.type = (Type) { .type = DATA_TYPE_INT, .indirection = 0 };
 		literalNode->literal.as.integer = (int)strtol(literal.start, NULL, 10);
 		
 		return literalNode;
@@ -440,9 +440,11 @@ Node* parse_var_declaration(Parser* parser) {
 	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected variable name");
 
 	// TODO: Type inference
-	consume(parser, TOKEN_COLON, "Expected ':' after variable name");
-
-	Type type = parse_type(parser);
+	Type type = (Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
+	
+	if(match(parser, TOKEN_COLON)) {
+		type = parse_type(parser);
+	}
 
 	Node* value = NULL;
 	if(match(parser, TOKEN_EQ)) {
@@ -594,7 +596,7 @@ Node* parse_function(Parser* parser) {
 
 	Type type;
 	if(match(parser, TOKEN_COLON)) {
-		type = match(parser, TOKEN_VOID) ? (Type) { .type = DATA_TYPE_VOID } : parse_type(parser);
+		type = match(parser, TOKEN_VOID) ? (Type) { .type = DATA_TYPE_VOID, .indirection = 0 } : parse_type(parser);
 	}
 	else {
 		// Functions return void by default
@@ -608,7 +610,7 @@ Node* parse_function(Parser* parser) {
 
 	parser->currentFunction = function;
 
-	parser->functions = realloc(parser->functions, ++parser->functionCount);
+	parser->functions = realloc(parser->functions, ++parser->functionCount * sizeof(Node*));
 	parser->functions[parser->functionCount - 1] = function;
 
 	Node* body = parse_block(parser);
@@ -629,14 +631,14 @@ void add_implicit_printu_function(Parser* parser) {
 	Token arg0Name = (Token) { .type = TOKEN_IDENTIFIER, .start = "value", .length = 5, .line = 0 };
 	Node* arg0 = new_node(AST_DEFINE_VAR, arg0Name);
 	arg0->variable.name = arg0Name;
-	arg0->variable.type = (Type) { .type = DATA_TYPE_INT };
+	arg0->variable.type = (Type) { .type = DATA_TYPE_INT, .indirection = 0 };
 	function->function.arguments[0] = arg0;
 
-	function->function.returnType = (Type) {.type = DATA_TYPE_VOID };
+	function->function.returnType = (Type) {.type = DATA_TYPE_VOID, .indirection = 0 };
 
 	function->function.hasImplicitBody = true;
 
-	parser->functions = realloc(parser->functions, ++parser->functionCount);
+	parser->functions = realloc(parser->functions, ++parser->functionCount * sizeof(Node*));
 	parser->functions[parser->functionCount - 1] = function;
 }
 

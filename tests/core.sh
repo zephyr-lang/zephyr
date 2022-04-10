@@ -59,6 +59,19 @@ echo " Done"
 
 echo -n "Typing: "
 assert_compilation_error "function x() {} function main():int { return 12 ^ x(); }"
+assert_compilation_error "function main(): int { var x; return 0; }"
+assert_exit_code 10 "function main(): int { var x: int; x = 10; return x; }"
+assert_exit_code 0 "
+function main(): int {
+	var i = 10;
+	var ip = &i;
+
+	var it: int = i;
+	var ipt: int* = ip;
+
+	return 0;
+}
+"
 echo " Done"
 
 echo -n "Scoping: "

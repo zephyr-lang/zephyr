@@ -11,7 +11,7 @@ void type_check_block(Parser* parser, Node* block);
 static Type typeStack[128];
 static int typeStackDepth = 0;
 
-static Type* intType = &(Type) { .type = DATA_TYPE_INT };
+static Type* intType = &(Type) { .type = DATA_TYPE_INT, .indirection = 0 };
 
 void print_position(Token position) {
 	fprintf(stderr, "[%zu] Error ", position.line);
@@ -344,6 +344,18 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		Type* declType = &stmt->variable.type;
 		Token name = stmt->variable.name;
 
+		if(declType->type == DATA_TYPE_VOID && stmt->variable.value == NULL) {
+			print_position(stmt->position);
+			fprintf(stderr, "Cannot infer type to variable without initial value\n");
+			exit(1);
+		}
+
+		if(declType->type == DATA_TYPE_VOID) {
+			type_check_expr(parser, stmt->variable.value);
+			stmt->variable.type = pop_type_stack();
+			declType = &stmt->variable.type;
+		}
+
 		for(int i = 0; i < parser->currentBlock->block.variableCount; i++) {
 			Token varName = parser->currentBlock->block.variables[i]->variable.name;
 			if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
@@ -371,7 +383,7 @@ void type_check_statement(Parser* parser, Node* stmt) {
 			}
 		}
 
-		parser->currentBlock->block.variables = realloc(parser->currentBlock->block.variables, ++parser->currentBlock->block.variableCount);
+		parser->currentBlock->block.variables = realloc(parser->currentBlock->block.variables, ++parser->currentBlock->block.variableCount * sizeof(Node*));
 		parser->currentBlock->block.variables[parser->currentBlock->block.variableCount - 1] = stmt;
 	}
 	else if(stmt->type == AST_EXPR_STMT) {
