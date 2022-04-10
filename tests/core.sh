@@ -295,3 +295,23 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Sizeof: "
+
+assert_stdout "1
+2
+4
+8
+8" "
+function main(): int {
+	printu(sizeof(i8));
+	printu(sizeof(i16));
+	printu(sizeof(i32));
+	printu(sizeof(i64));
+	printu(sizeof(int));
+
+	return 0;
+}
+"
+
+echo " Done"

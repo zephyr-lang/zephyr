@@ -103,6 +103,7 @@ static TokenType identifier_type(Lexer* lexer) {
 			break;
 		}
 		case 'r': return check_keyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
+		case 's': return check_keyword(lexer, 1, 5, "izeof", TOKEN_SIZEOF);
 		case 'v': {
 			if(lexer->current - lexer->start > 1) {
 				switch(lexer->start[1]) {

@@ -25,6 +25,7 @@
 	F(OP_TERNARY, "?") \
 	F(OP_DEREF, "*") \
 	F(OP_ADDROF, "&") \
+	F(OP_SIZEOF, "sizeof") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CALL, "call") \
 	F(AST_DEFINE_VAR, "define var") \

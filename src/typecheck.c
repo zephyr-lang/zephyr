@@ -325,6 +325,9 @@ void type_check_expr(Parser* parser, Node* expr) {
 	else if(expr->type == OP_TERNARY) {
 		type_check_ternary_expr(parser, expr);
 	}
+	else if(expr->type == OP_SIZEOF) {
+		push_type_stack(intType);
+	}
 	else {
 		assert(0 && "Unreachable - type_check_expr");
 	}

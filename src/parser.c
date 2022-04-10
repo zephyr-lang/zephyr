@@ -174,6 +174,14 @@ Node* parse_value(Parser* parser) {
 	else if(match(parser, TOKEN_IDENTIFIER)) {
 		return parse_identifier(parser);
 	}
+	else if(match(parser, TOKEN_SIZEOF)) {
+		Node* expr = new_node(OP_SIZEOF, parser->previous);
+		consume(parser, TOKEN_LEFT_PAREN, "Expected '(' after sizeof");
+		Type type = parse_type(parser);
+		consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after sizeof type");
+		expr->computedType = type;
+		return expr;
+	}
 	else if(match(parser, TOKEN_LEFT_PAREN)) {
 		Node* expr = parse_expression(parser);
 		consume(parser, TOKEN_RIGHT_PAREN, "Expected closing ')' after expression");

@@ -46,6 +46,7 @@
 	F(TOKEN_FOR, "for")                 \
 	F(TOKEN_FUNCTION, "function")       \
 	F(TOKEN_RETURN, "return")           \
+	F(TOKEN_SIZEOF, "sizeof")           \
 	F(TOKEN_VOID, "void")               \
 	F(TOKEN_VAR, "var")                 \
 	F(TOKEN_WHILE, "while")             \

@@ -244,6 +244,9 @@ void generate_expr_rax(Node* expr, FILE* out) {
 
 		fprintf(out, ".l%d:\n", endLabel);
 	}
+	else if(expr->type == OP_SIZEOF) {
+		fprintf(out, "    mov rax, %d\n", sizeof_type(&expr->computedType));
+	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));
 		exit(1);
