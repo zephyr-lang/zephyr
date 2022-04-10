@@ -3,3 +3,4 @@
 #include "parser.h"
 
 void type_check(Parser* parser, Node* program);
+int sizeof_type(Type* type);

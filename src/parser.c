@@ -101,6 +101,22 @@ Type parse_type(Parser* parser) {
 			type = (Type) { .type = DATA_TYPE_INT, .indirection = 0 };
 			break;
 		}
+		case TOKEN_I8: {
+			type = (Type) { .type = DATA_TYPE_I8, .indirection = 0 };
+			break;
+		}
+		case TOKEN_I16: {
+			type = (Type) { .type = DATA_TYPE_I16, .indirection = 0 };
+			break;
+		}
+		case TOKEN_I32: {
+			type = (Type) { .type = DATA_TYPE_I32, .indirection = 0 };
+			break;
+		}
+		case TOKEN_I64: {
+			type = (Type) { .type = DATA_TYPE_I64, .indirection = 0 };
+			break;
+		}
 		default: 
 			error(parser, "Expected type");
 			return (Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
@@ -154,7 +170,7 @@ Node* parse_value(Parser* parser) {
 
 		Node* literalNode = new_node(AST_INT_LITERAL, literal);
 		literalNode->literal.type = (Type) { .type = DATA_TYPE_INT, .indirection = 0 };
-		literalNode->literal.as.integer = (int)strtol(literal.start, NULL, 10);
+		literalNode->literal.as.integer = strtol(literal.start, NULL, 10);
 		
 		return literalNode;
 	}

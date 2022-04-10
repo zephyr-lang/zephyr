@@ -47,7 +47,11 @@ typedef enum NodeType {
 
 typedef enum DataType {
 	DATA_TYPE_VOID,
-	DATA_TYPE_INT
+	DATA_TYPE_INT,
+	DATA_TYPE_I8,
+	DATA_TYPE_I16,
+	DATA_TYPE_I32,
+	DATA_TYPE_I64
 } DataType;
 
 typedef struct Type {
@@ -65,6 +69,7 @@ typedef struct Node {
 	NodeType type;
 	Token position;
 	LValueType lvalue;
+	Type computedType;
 
 	union {
 		Node* unary;
@@ -113,7 +118,7 @@ typedef struct Node {
 			Type type;
 
 			union {
-				int integer;
+				int64_t integer;
 			} as;
 		} literal;
 

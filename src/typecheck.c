@@ -35,13 +35,32 @@ Type pop_type_stack() {
 	return typeStack[--typeStackDepth];
 }
 
+bool type_is_integral(Type* a) {
+	return a->indirection == 0 && (
+		a->type == DATA_TYPE_INT ||
+		a->type == DATA_TYPE_I8 ||
+		a->type == DATA_TYPE_I16 ||
+		a->type == DATA_TYPE_I32 ||
+		a->type == DATA_TYPE_I64
+	);
+}
+
 bool types_assignable(Type* a, Type* b) {
+	if(type_is_integral(a) && type_is_integral(b)) {
+		return true;
+	}
+
 	return a->type == b->type && a->indirection == b->indirection;
 }
 
 int sizeof_type(Type* type) {
+	if(type->indirection != 0) return 8;
 	switch(type->type) {
 		case DATA_TYPE_INT: return 8;
+		case DATA_TYPE_I8: return 1;
+		case DATA_TYPE_I16: return 2;
+		case DATA_TYPE_I32: return 4;
+		case DATA_TYPE_I64: return 8;
 		case DATA_TYPE_VOID: assert(0 && "Not reached - sizeof_type(void)");
 		default: assert(0 && "Unreachable - sizeof_type");
 	}
@@ -106,6 +125,7 @@ void type_check_unary(Parser* parser, Node* expr) {
 
 		type.indirection--;
 		
+		expr->computedType = type;
 		push_type_stack(&type);
 		return;
 	}
@@ -341,6 +361,8 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		}
 	}
 	else if(stmt->type == AST_DEFINE_VAR) {
+		//TODO: A warning against things such as assigning i64 to i8 without a cast would perhaps be nice
+		//      Although it may pose annoying for literals and the such
 		Type* declType = &stmt->variable.type;
 		Token name = stmt->variable.name;
 

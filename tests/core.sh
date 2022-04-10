@@ -74,6 +74,30 @@ function main(): int {
 "
 echo " Done"
 
+assert_stdout "16
+46868
+388569403
+49859385950595" "
+function main(): int {
+	var c: i8 = 16;
+	var s: i16 = 46868;
+	var i: i32 = 388569403;
+	var l: i64 = 49859385950595;
+
+	var cp: i8* = &c;
+	var sp: i16* = &s;
+	var ip: i32* = &i;
+	var lp: i64* = &l;
+
+	printu(*cp);
+	printu(*sp);
+	printu(*ip);
+	printu(*lp);
+
+	return 0;
+}
+"
+
 echo -n "Scoping: "
 assert_exit_code 150 "
 function main(): int {

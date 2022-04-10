@@ -39,6 +39,10 @@
 	F(TOKEN_ELSE, "else")               \
 	F(TOKEN_IF, "if")                   \
 	F(TOKEN_INT, "int")                 \
+	F(TOKEN_I8, "i8")                   \
+	F(TOKEN_I16, "i16")                 \
+	F(TOKEN_I32, "i32")                 \
+	F(TOKEN_I64, "i64")                 \
 	F(TOKEN_FOR, "for")                 \
 	F(TOKEN_FUNCTION, "function")       \
 	F(TOKEN_RETURN, "return")           \

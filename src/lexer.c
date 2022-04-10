@@ -85,6 +85,10 @@ static TokenType identifier_type(Lexer* lexer) {
 				switch(lexer->start[1]) {
 					case 'f': return check_keyword(lexer, 2, 0, "", TOKEN_IF);
 					case 'n': return check_keyword(lexer, 2, 1, "t", TOKEN_INT);
+					case '8': return check_keyword(lexer, 2, 0, "", TOKEN_I8);
+					case '1': return check_keyword(lexer, 2, 1, "6", TOKEN_I16);
+					case '3': return check_keyword(lexer, 2, 1, "2", TOKEN_I32);
+					case '6': return check_keyword(lexer, 2, 1, "4", TOKEN_I64);
 				}
 			}
 			break;

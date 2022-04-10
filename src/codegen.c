@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "typecheck.h"
 #include <assert.h>
 
 void generate_expr_rax(Node* expr, FILE* out);
@@ -10,6 +11,39 @@ static int labelCount = 0;
 
 int ceil_multiple(int num, int n) {
 	return ((num + n - 1) / n) * n;
+}
+
+char* type_to_qualifier(Type* type) {
+	switch(sizeof_type(type)) {
+		case 1: return "BYTE";
+		case 2: return "WORD";
+		case 4: return "DWORD";
+		case 8: return "QWORD";
+	}
+	assert(0 && "Unreachable - invalid size of type");
+}
+
+char* type_to_rax_subregister(Type* type) {
+	switch(sizeof_type(type)) {
+		case 1: return "al";
+		case 2: return "ax";
+		case 4: return "eax";
+		case 8: return "rax";
+	}
+	assert(0 && "Unreachable - invalid size of type");
+}
+
+char* type_movzx(Type* type) {
+	int size = sizeof_type(type);
+	if(size == 1 || size == 2) {
+		return "movzx";
+	}
+	return "mov";
+}
+
+char* type_movzx_rax_subregister(Type* type) {
+	if(sizeof_type(type) == 4) return "eax";
+	return "rax";
 }
 
 void generate_unary_rax(Node* expr, FILE* out) {
@@ -38,7 +72,7 @@ void generate_unary_rax(Node* expr, FILE* out) {
 	else if(expr->type == OP_DEREF) {
 		generate_expr_rax(expr->unary, out);
 		//TODO get word based on size
-		fprintf(out, "    mov rax, QWORD [rax]\n");
+		fprintf(out, "    %s %s, %s [rax]\n", type_movzx(&expr->computedType), type_movzx_rax_subregister(&expr->computedType), type_to_qualifier(&expr->computedType));
 	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_unary_rax\n", node_type_to_string(expr->type));
@@ -147,16 +181,14 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		generate_binary_rax(expr, out);
 	}
 	else if(expr->type == AST_INT_LITERAL) {
-		fprintf(out, "    mov rax, %d\n", expr->literal.as.integer);
+		fprintf(out, "    mov rax, %ld\n", expr->literal.as.integer);
 	}
 	else if(expr->type == AST_ACCESS_VAR) {
-		//TODO get word based on size
-		fprintf(out, "    mov rax, QWORD [rbp-%d]\n", expr->variable.stackOffset);
+		fprintf(out, "    %s %s, %s [rbp-%d]\n", type_movzx(&expr->variable.type), type_movzx_rax_subregister(&expr->variable.type), type_to_qualifier(&expr->variable.type), expr->variable.stackOffset);
 	}
 	else if(expr->type == AST_ASSIGN_VAR) {
 		generate_expr_rax(expr->variable.value, out);
-		//TODO get word based on size
-		fprintf(out, "    mov QWORD [rbp-%d], rax\n", expr->variable.stackOffset);
+		fprintf(out, "    mov %s [rbp-%d], %s\n", type_to_qualifier(&expr->variable.type), expr->variable.stackOffset, type_to_rax_subregister(&expr->variable.type));
 	}
 	else if(expr->type == AST_CALL) {
 		if(expr->function.argumentCount > 6) {
@@ -274,8 +306,7 @@ void generate_statement(Node* stmt, FILE* out) {
 	else if(stmt->type == AST_DEFINE_VAR) {
 		if(stmt->variable.value != NULL) {
 			generate_expr_rax(stmt->variable.value, out);
-			//TODO get word based on size
-			fprintf(out, "    mov QWORD [rbp-%d], rax\n", stmt->variable.stackOffset);
+			fprintf(out, "    mov %s [rbp-%d], %s\n", type_to_qualifier(&stmt->variable.type), stmt->variable.stackOffset, type_to_rax_subregister(&stmt->variable.type));
 		}
 	}
 	else if(stmt->type == AST_EXPR_STMT) {

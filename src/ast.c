@@ -7,6 +7,10 @@ char* data_type_to_string(DataType type) {
 	switch(type) {
 		case DATA_TYPE_VOID: return "void";
 		case DATA_TYPE_INT: return "int";
+		case DATA_TYPE_I8: return "i8";
+		case DATA_TYPE_I16: return "i16";
+		case DATA_TYPE_I32: return "i32";
+		case DATA_TYPE_I64: return "i64";
 	}
 	return "<unknown type>";
 }
@@ -179,7 +183,7 @@ void print_ast_depth(Node* node, int depth) {
 		}
 
 		case AST_INT_LITERAL: {
-			printf("(literal %d)", node->literal.as.integer);
+			printf("(literal %ld)", node->literal.as.integer);
 			break;
 		}
 
