@@ -72,31 +72,8 @@ function main(): int {
 	return 0;
 }
 "
+
 echo " Done"
-
-assert_stdout "16
-46868
-388569403
-49859385950595" "
-function main(): int {
-	var c: i8 = 16;
-	var s: i16 = 46868;
-	var i: i32 = 388569403;
-	var l: i64 = 49859385950595;
-
-	var cp: i8* = &c;
-	var sp: i16* = &s;
-	var ip: i32* = &i;
-	var lp: i64* = &l;
-
-	printu(*cp);
-	printu(*sp);
-	printu(*ip);
-	printu(*lp);
-
-	return 0;
-}
-"
 
 echo -n "Scoping: "
 assert_exit_code 150 "
@@ -234,6 +211,85 @@ function main(): int {
 	var ip: int* = &i;
 	var j: int = *ip;
 	printu(j);
+	return 0;
+}
+"
+
+assert_stdout "16
+46868
+388569403
+49859385950595" "
+function main(): int {
+	var c: i8 = 16;
+	var s: i16 = 46868;
+	var i: i32 = 388569403;
+	var l: i64 = 49859385950595;
+
+	var cp: i8* = &c;
+	var sp: i16* = &s;
+	var ip: i32* = &i;
+	var lp: i64* = &l;
+
+	printu(*cp);
+	printu(*sp);
+	printu(*ip);
+	printu(*lp);
+
+	return 0;
+}
+"
+
+echo " Done"
+
+echo -n "Global Variables: "
+
+assert_compilation_error "
+var x: int = 10;
+var x: i16;
+
+function main(): int {
+	return 0;
+}
+"
+
+assert_exit_code 16 "
+var x = 16;
+
+function main(): int {
+	return x;
+}
+"
+
+assert_exit_code 56 "
+var x: int;
+
+function main(): int {
+	x = 56;
+
+	return x;
+}
+"
+
+assert_stdout "16
+46868
+388569403
+49859385950595" "
+var c: i8 = 16;
+var s: i16 = 46868;
+var i: i32 = 388569403;
+var l: i64 = 49859385950595;
+
+function main(): int {
+	var cp: i8* = &c;
+	var sp: i16* = &s;
+	var ip: i32* = &i;
+	var lp: i64* = &l;
+
+	printu(*cp);
+	printu(*sp);
+	printu(*ip);
+	printu(*lp);
+
 	return 0;
 }
 "
