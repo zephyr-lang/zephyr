@@ -26,6 +26,8 @@
 	F(OP_DEREF, "*") \
 	F(OP_ADDROF, "&") \
 	F(OP_SIZEOF, "sizeof") \
+	F(OP_ACCESS_SUBSCRIPT, "access subscript") \
+	F(AST_ARRAY_INIT, "array initialization") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CALL, "call") \
 	F(AST_DEFINE_VAR, "define var") \

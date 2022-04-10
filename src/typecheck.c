@@ -189,7 +189,11 @@ void type_check_access_var(Parser* parser, Node* expr) {
 		expr->variable.type = variable->variable.type;
 		expr->variable.stackOffset = variable->variable.stackOffset;
 
-		push_type_stack(&expr->variable.type);
+		Type decay = {};
+		decay.type = expr->variable.type.type;
+		decay.indirection = expr->variable.type.indirection;
+
+		push_type_stack(&decay);
 	}
 	else if(variable->type == AST_DEFINE_GLOBAL_VAR) {
 		expr->variable.type = variable->variable.type;
@@ -313,6 +317,34 @@ void type_check_ternary_expr(Parser* parser, Node* expr) {
 	push_type_stack(&doTrue);
 }
 
+void type_check_access_subscript(Parser* parser, Node* expr) {
+	type_check_expr(parser, expr->binary.lhs);
+	Type lhs = pop_type_stack();
+
+	if(lhs.indirection == 0) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot subscript value type '%s'", type_to_string(lhs));
+		exit(1);
+	}
+
+	type_check_expr(parser, expr->binary.rhs);
+	Type rhs = pop_type_stack();
+
+	if(!types_assignable(&rhs, intType)) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot subscript with index of type '%s'\n", type_to_string(rhs));
+		exit(1);
+	}
+
+	Type itemType = {};
+	itemType.type = lhs.type;
+	itemType.indirection = lhs.indirection - 1;
+
+	expr->computedType = itemType;
+
+	push_type_stack(&itemType);
+}
+
 void type_check_expr(Parser* parser, Node* expr) {
 	if(is_unary_op(expr->type)) {
 		type_check_unary(parser, expr);
@@ -338,9 +370,37 @@ void type_check_expr(Parser* parser, Node* expr) {
 	else if(expr->type == OP_SIZEOF) {
 		push_type_stack(intType);
 	}
+	else if(expr->type == OP_ACCESS_SUBSCRIPT) {
+		type_check_access_subscript(parser, expr);
+	}
 	else {
 		assert(0 && "Unreachable - type_check_expr");
 	}
+}
+
+void type_check_array_init(Parser* parser, Node* array, Type* arrayType) {
+	if(arrayType->arrayLength < array->block.size) {
+		print_position(array->position);
+		fprintf(stderr, "Cannot initialize array of length '%d' with '%ld' items\n", arrayType->arrayLength, array->block.size);
+		exit(1);
+	}
+
+	Type declItemType = {};
+	declItemType.type = arrayType->type;
+	declItemType.indirection = arrayType->indirection - 1;
+
+	for(int i = 0; i < array->block.size; i++) {
+		type_check_expr(parser, array->block.children[i]);
+
+		Type item = pop_type_stack();
+
+		if(!types_assignable(&item, &declItemType)) {
+			print_position(array->position);
+			fprintf(stderr, "Cannot initialize array of type '%s' with item of type '%s'\n", type_to_string(declItemType), type_to_string(item));
+			exit(1);
+		}
+	}
+	push_type_stack(arrayType);
 }
 
 void type_check_statement(Parser* parser, Node* stmt) {
@@ -437,7 +497,10 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		}
 
 		if(stmt->variable.value) {
-			type_check_expr(parser, stmt->variable.value);
+			if(stmt->variable.value->type == AST_ARRAY_INIT)
+				type_check_array_init(parser, stmt->variable.value, &stmt->variable.type);
+			else
+				type_check_expr(parser, stmt->variable.value);
 
 			Type valueType = pop_type_stack();
 

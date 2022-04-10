@@ -202,6 +202,10 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    mov rax, %ld\n", expr->literal.as.integer);
 	}
 	else if(expr->type == AST_ACCESS_VAR) {
+		if(expr->variable.type.isArray) {
+			fprintf(out, "    lea rax, [rbp-%d]\n", expr->variable.stackOffset);
+		}
+		else
 		fprintf(out, "    %s %s, %s [rbp-%d]\n", type_movzx(&expr->variable.type), type_movzx_rax_subregister(&expr->variable.type), type_to_qualifier(&expr->variable.type), expr->variable.stackOffset);
 	}
 	else if(expr->type == AST_ASSIGN_VAR) {
@@ -246,6 +250,16 @@ void generate_expr_rax(Node* expr, FILE* out) {
 	}
 	else if(expr->type == OP_SIZEOF) {
 		fprintf(out, "    mov rax, %d\n", sizeof_type(&expr->computedType));
+	}
+	else if(expr->type == OP_ACCESS_SUBSCRIPT) {
+		generate_expr_rax(expr->binary.lhs, out);
+		fprintf(out, "    push rax\n");
+		generate_expr_rax(expr->binary.rhs, out);
+		fprintf(out, "    mov rbx, rax\n");
+		fprintf(out, "    pop rax\n");
+
+		fprintf(out, "    %s %s, %s [rax+rbx*%d]\n", type_movzx(&expr->computedType), type_movzx_rax_subregister(&expr->computedType), 
+		        type_to_qualifier(&expr->computedType), sizeof_type(&expr->computedType));
 	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));
@@ -334,8 +348,20 @@ void generate_statement(Node* stmt, FILE* out) {
 	}
 	else if(stmt->type == AST_DEFINE_VAR) {
 		if(stmt->variable.value != NULL) {
-			generate_expr_rax(stmt->variable.value, out);
-			fprintf(out, "    mov %s [rbp-%d], %s\n", type_to_qualifier(&stmt->variable.type), stmt->variable.stackOffset, type_to_rax_subregister(&stmt->variable.type));
+			if(stmt->variable.value->type != AST_ARRAY_INIT) {
+				generate_expr_rax(stmt->variable.value, out);
+				fprintf(out, "    mov %s [rbp-%d], %s\n", type_to_qualifier(&stmt->variable.type), stmt->variable.stackOffset, type_to_rax_subregister(&stmt->variable.type));
+			}
+			else {
+				Node* array = stmt->variable.value;
+				Type itemType = {};
+				itemType.type = stmt->variable.type.type;
+				itemType.indirection = stmt->variable.type.indirection - 1;
+				for(int i = 0; i < array->block.size; i++) {
+					generate_expr_rax(array->block.children[i], out);
+					fprintf(out, "    mov %s [rbp-%d], %s\n", type_to_qualifier(&itemType), stmt->variable.stackOffset - (i * sizeof_type(&itemType)), type_to_rax_subregister(&itemType));
+				}
+			}
 		}
 	}
 	else if(stmt->type == AST_EXPR_STMT) {

@@ -213,6 +213,25 @@ Node* parse_value(Parser* parser) {
 	}
 }
 
+Node* parse_subscript(Parser* parser) {
+	Node* left = parse_value(parser);
+
+	while(match(parser, TOKEN_LEFT_SQBR)) {
+		Token op = parser->previous;
+
+		Node* right = parse_expression(parser);
+
+		consume(parser, TOKEN_RIGHT_SQBR, "Expected ']' after subscript index");
+
+		Node* subscript = new_node(OP_ACCESS_SUBSCRIPT, op);
+		subscript->binary.lhs = left;
+		subscript->binary.rhs = right;
+		left = subscript;
+	}
+
+	return left;
+}
+
 Node* parse_unary(Parser* parser) {
 	if(match(parser, TOKEN_TILDE)) {
 		Token op = parser->previous;
@@ -250,7 +269,7 @@ Node* parse_unary(Parser* parser) {
 		return deref;
 	}
 
-	return parse_value(parser);
+	return parse_subscript(parser);
 }
 
 Node* parse_term(Parser* parser) {
@@ -489,7 +508,20 @@ Node* parse_var_declaration(Parser* parser) {
 
 	Node* value = NULL;
 	if(match(parser, TOKEN_EQ)) {
-		value = parse_expression(parser);
+		if(type.isArray && match(parser, TOKEN_LEFT_SQBR)) {
+			Node* array = new_node(AST_ARRAY_INIT, parser->previous);
+
+			if(!check(parser, TOKEN_RIGHT_SQBR)) {
+				do {
+					Node* item = parse_expression(parser);
+					node_add_child(array, item);
+				} while(match(parser, TOKEN_COMMA));
+			}
+			consume(parser, TOKEN_RIGHT_SQBR, "Expected ']' after array initialization");
+			value = array;
+		}
+		else
+			value = parse_expression(parser);
 	}
 
 	consume(parser, TOKEN_SEMICOLON, "Expected ';' after variable declaration");

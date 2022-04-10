@@ -237,6 +237,27 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case OP_ACCESS_SUBSCRIPT: {
+			printf("subscript [\n");
+			print_ast_depth(node->binary.lhs, depth + 1);
+			printf("\n");
+			print_ast_depth(node->binary.rhs, depth + 1);
+			printf("\n]");
+			break;
+		}
+
+		case AST_ARRAY_INIT: {
+			printf("[\n");
+			for(size_t i = 0; i < node->block.size; i++) {
+				print_ast_depth(node->block.children[i], depth + 1);
+				printf("\n");
+			}
+			for(int i = 0; i < depth; i++) printf("  ");
+			printf("]\n");
+
+			break;
+		}
+
 		default: {
 			fprintf(stderr, "Cannot handle type '%s' in print_ast_depth\n", node_type_to_string(node->type));
 			break;
