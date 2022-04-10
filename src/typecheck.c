@@ -67,6 +67,16 @@ int sizeof_type(Type* type) {
 	return 0;
 }
 
+static int sizeof_type_var_offset(Type* type) {
+	if(type->isArray) {
+		Type subType = {};
+		subType.indirection = type->indirection - 1;
+		subType.type = type->type;
+		return sizeof_type(&subType) * type->arrayLength;
+	}
+	return sizeof_type(type);
+}
+
 Node* lookup_variable(Parser* parser, Token name) {
 	Node* block = parser->currentBlock;
 
@@ -420,7 +430,7 @@ void type_check_statement(Parser* parser, Node* stmt) {
 			}
 		}
 
-		stmt->variable.stackOffset = parser->currentBlock->block.currentStackOffset += sizeof_type(declType);
+		stmt->variable.stackOffset = parser->currentBlock->block.currentStackOffset += sizeof_type_var_offset(declType);
 
 		if(stmt->variable.stackOffset > parser->currentFunction->function.localVariableStackOffset) {
 			parser->currentFunction->function.localVariableStackOffset = stmt->variable.stackOffset;

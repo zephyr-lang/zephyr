@@ -460,7 +460,16 @@ void generate_program(Parser* parser, Node* ast, FILE* out) {
 
 			fprintf(out, "_g_%.*s: ", (int)var->variable.name.length, var->variable.name.start);
 
-			fprintf(out, "%s 1\n", type_to_res(&var->variable.type));
+			Type type = var->variable.type;
+
+			if(type.isArray) {
+				Type subType = {};
+				subType.indirection = type.indirection - 1;
+				subType.type = type.type;
+				fprintf(out, "%s %d\n", type_to_res(&subType), type.arrayLength);
+			}
+			else
+				fprintf(out, "%s 1\n", type_to_res(&var->variable.type));
 		}
 	}
 }

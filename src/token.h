@@ -7,6 +7,8 @@
 	F(TOKEN_RIGHT_PAREN, "right-paren") \
 	F(TOKEN_LEFT_BRACE, "left-brace")   \
 	F(TOKEN_RIGHT_BRACE, "right-brace") \
+	F(TOKEN_LEFT_SQBR, "left-sqbrkt")   \
+	F(TOKEN_RIGHT_SQBR, "right-sqbrkt") \
 	F(TOKEN_COLON, "colon")             \
 	F(TOKEN_SEMICOLON, "semicolon")     \
 	F(TOKEN_COMMA, "comma")             \

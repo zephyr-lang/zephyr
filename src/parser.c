@@ -88,10 +88,23 @@ static bool match(Parser* parser, TokenType type) {
 	return true;
 }
 
+static int64_t parse_constant(Parser* parser) {
+	if(match(parser, TOKEN_INT_LITERAL)) {
+		Token literal = parser->previous;
+		if(parser->error) return 0;
+
+		return strtol(literal.start, NULL, 10);
+	}
+	else {
+		error_current(parser, "Expected constant value");
+		return 0;
+	}
+}
+
 Type parse_type(Parser* parser) {
 	advance(parser);
 
-	Type type;
+	Type type = { 0 };
 
 	switch (parser->previous.type) {
 		case TOKEN_INT: {
@@ -121,6 +134,13 @@ Type parse_type(Parser* parser) {
 
 	while(match(parser, TOKEN_STAR)) {
 		type.indirection++;
+	}
+
+	if(match(parser, TOKEN_LEFT_SQBR)) {
+		type.isArray = true;
+		type.arrayLength = parse_constant(parser);
+		type.indirection++;
+		consume(parser, TOKEN_RIGHT_SQBR, "Expected ']' after array length");
 	}
 	
 	return type;

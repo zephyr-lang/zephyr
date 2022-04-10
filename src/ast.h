@@ -58,9 +58,13 @@ typedef enum DataType {
 	DATA_TYPE_I64
 } DataType;
 
+typedef struct Node Node;
+
 typedef struct Type {
 	DataType type;
 	int indirection; // 0 = int, 1 = int*, 2 = int**, etc.
+	bool isArray;
+	int arrayLength;
 } Type;
 
 typedef enum LValueType {
@@ -68,7 +72,6 @@ typedef enum LValueType {
 	LVALUE_IDENTIFIER
 } LValueType;
 
-typedef struct Node Node;
 typedef struct Node {
 	NodeType type;
 	Token position;
