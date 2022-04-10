@@ -175,16 +175,23 @@ void type_check_access_var(Parser* parser, Node* expr) {
 		exit(1);
 	}
 
-	if(variable->type != AST_DEFINE_VAR) {
+	if(variable->type == AST_DEFINE_VAR) {
+		expr->variable.type = variable->variable.type;
+		expr->variable.stackOffset = variable->variable.stackOffset;
+
+		push_type_stack(&expr->variable.type);
+	}
+	else if(variable->type == AST_DEFINE_GLOBAL_VAR) {
+		expr->variable.type = variable->variable.type;
+		expr->type = AST_ACCESS_GLOBAL_VAR;
+
+		push_type_stack(&expr->variable.type);
+	}
+	else {
 		print_position(expr->position);
 		fprintf(stderr, "Can only access variables\n");
 		exit(1);
 	}
-
-	expr->variable.type = variable->variable.type;
-	expr->variable.stackOffset = variable->variable.stackOffset;
-
-	push_type_stack(&expr->variable.type);
 }
 
 void type_check_assign_var(Parser* parser, Node* expr) {
@@ -196,25 +203,41 @@ void type_check_assign_var(Parser* parser, Node* expr) {
 		exit(1);
 	}
 
-	if(variable->type != AST_DEFINE_VAR) {
+	if(variable->type == AST_DEFINE_VAR) {
+		type_check_expr(parser, expr->variable.value);
+		Type valueType = pop_type_stack();
+
+		if(!types_assignable(&valueType, &variable->variable.type)) {
+			print_position(expr->position);
+			fprintf(stderr, "Cannot assign type %s to variable of type %s\n", type_to_string(valueType), type_to_string(variable->variable.type));
+			exit(1);
+		}
+
+		expr->variable.type = variable->variable.type;
+		expr->variable.stackOffset = variable->variable.stackOffset;
+
+		push_type_stack(&expr->variable.type);
+	}
+	else if(variable->type == AST_DEFINE_GLOBAL_VAR) {
+		type_check_expr(parser, expr->variable.value);
+		Type valueType = pop_type_stack();
+
+		if(!types_assignable(&valueType, &variable->variable.type)) {
+			print_position(expr->position);
+			fprintf(stderr, "Cannot assign type %s to variable of type %s\n", type_to_string(valueType), type_to_string(variable->variable.type));
+			exit(1);
+		}
+
+		expr->type = AST_ASSIGN_GLOBAL_VAR;
+		expr->variable.type = variable->variable.type;
+
+		push_type_stack(&expr->variable.type);
+	}
+	else {
 		print_position(expr->position);
 		fprintf(stderr, "Can only assign to variables\n");
 		exit(1);
 	}
-
-	type_check_expr(parser, expr->variable.value);
-	Type valueType = pop_type_stack();
-
-	if(!types_assignable(&valueType, &variable->variable.type)) {
-		print_position(expr->position);
-		fprintf(stderr, "Cannot assign type %s to variable of type %s\n", type_to_string(valueType), type_to_string(variable->variable.type));
-		exit(1);
-	}
-
-	expr->variable.type = variable->variable.type;
-	expr->variable.stackOffset = variable->variable.stackOffset;
-
-	push_type_stack(&expr->variable.type);
 }
 
 void type_check_call(Parser* parser, Node* expr) {

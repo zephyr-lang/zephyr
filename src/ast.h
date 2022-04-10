@@ -31,6 +31,8 @@
 	F(AST_ACCESS_VAR, "access var") \
 	F(AST_ASSIGN_VAR, "assign var") \
 	F(AST_DEFINE_GLOBAL_VAR, "define gvar") \
+	F(AST_ACCESS_GLOBAL_VAR, "access gvar") \
+	F(AST_ASSIGN_GLOBAL_VAR, "assign gvar") \
 	F(AST_EXPR_STMT, "expression statement") \
 	F(AST_IF, "if") \
 	F(AST_FOR, "for") \

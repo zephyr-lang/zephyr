@@ -200,6 +200,14 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		generate_expr_rax(expr->variable.value, out);
 		fprintf(out, "    mov %s [rbp-%d], %s\n", type_to_qualifier(&expr->variable.type), expr->variable.stackOffset, type_to_rax_subregister(&expr->variable.type));
 	}
+	else if(expr->type == AST_ACCESS_GLOBAL_VAR) {
+		fprintf(out, "    %s %s, %s [_g_%.*s]\n", type_movzx(&expr->variable.type), type_movzx_rax_subregister(&expr->variable.type), type_to_qualifier(&expr->variable.type), 
+			                                    (int)expr->variable.name.length, expr->variable.name.start);
+	}
+	else if(expr->type == AST_ASSIGN_GLOBAL_VAR) {
+		generate_expr_rax(expr->variable.value, out);
+		fprintf(out, "    mov %s [_g_%.*s], %s\n", type_to_qualifier(&expr->variable.type), (int)expr->variable.name.length, expr->variable.name.start, type_to_rax_subregister(&expr->variable.type));
+	}
 	else if(expr->type == AST_CALL) {
 		if(expr->function.argumentCount > 6) {
 			fprintf(stderr, "Functions cannot have more than 6 arguments (func '%.*s')\n", (int)expr->function.name.length, expr->function.name.start);
@@ -423,7 +431,7 @@ void generate_program(Parser* parser, Node* ast, FILE* out) {
 
 		generate_expr_rax(var->variable.value, out);
 
-		fprintf(out, "    mov %s _g_%.*s[rip], %s\n", type_to_qualifier(&var->variable.type), (int)var->variable.name.length, var->variable.name.start, type_to_rax_subregister(&var->variable.type));
+		fprintf(out, "    mov %s [_g_%.*s], %s\n", type_to_qualifier(&var->variable.type), (int)var->variable.name.length, var->variable.name.start, type_to_rax_subregister(&var->variable.type));
 	}
 
 	fprintf(out, "    call main\n");

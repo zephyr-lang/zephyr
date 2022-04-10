@@ -197,11 +197,13 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_ACCESS_GLOBAL_VAR:
 		case AST_ACCESS_VAR: {
 			printf("(var %.*s)", (int)node->variable.name.length, node->variable.name.start);
 			break;
 		}
 
+		case AST_ASSIGN_GLOBAL_VAR:
 		case AST_ASSIGN_VAR: {
 			printf("(%.*s = ", (int)node->variable.name.length, node->variable.name.start);
 			print_ast_depth(node->variable.value, 0);
