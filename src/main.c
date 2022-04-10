@@ -153,7 +153,7 @@ int main(int argc, char const *argv[]) {
 	strcat(asmFile, ".yasm");
 
 	FILE* out = fopen(asmFile, "w");
-	generate_program(ast, out);
+	generate_program(&parser, ast, out);
 	fclose(out);
 
 	// Source was read from a file - free it

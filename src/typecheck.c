@@ -87,6 +87,13 @@ Node* lookup_variable(Parser* parser, Token name) {
 		}
 	}
 
+	for(int i = 0; i < parser->globalVarCount; i++) {
+		Token varName = parser->globalVars[i]->variable.name;
+		if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
+			return parser->globalVars[i];
+		}
+	}
+
 	for(int i = 0; i < parser->functionCount; i++) {
 		Token funcName = parser->functions[i]->function.name;
 		if(name.length == funcName.length && memcmp(name.start, funcName.start, name.length) == 0) {
@@ -451,11 +458,60 @@ void type_check_function(Parser* parser, Node* function) {
 	type_check_block(parser, function->function.body);
 }
 
+void type_check_global_var(Parser* parser, Node* stmt) {
+	Type* declType = &stmt->variable.type;
+	Token name = stmt->variable.name;
+
+	if(declType->type == DATA_TYPE_VOID && stmt->variable.value == NULL) {
+		print_position(stmt->position);
+		fprintf(stderr, "Cannot infer type to variable without initial value\n");
+		exit(1);
+	}
+
+	if(declType->type == DATA_TYPE_VOID) {
+		type_check_expr(parser, stmt->variable.value);
+		stmt->variable.type = pop_type_stack();
+		declType = &stmt->variable.type;
+	}
+
+	for(int i = 0; i < parser->globalVarCount; i++) {
+		Token varName = parser->globalVars[i]->variable.name;
+		if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
+			print_position(stmt->position);
+			fprintf(stderr, "Redeclaration of variable '%.*s' in global scope\n", (int)name.length, name.start);
+			exit(1);
+		}
+	}
+
+	if(stmt->variable.value) {
+		type_check_expr(parser, stmt->variable.value);
+		Type valueType = pop_type_stack();
+		if(!types_assignable(&valueType, declType)) {
+			print_position(stmt->position);
+			fprintf(stderr, "Cannot assign type '%s' to variable expecting '%s'\n", type_to_string(valueType), type_to_string(*declType));
+			exit(1);
+		}
+	}
+
+	parser->globalVars = realloc(parser->globalVars, ++parser->globalVarCount * sizeof(Node*));
+	parser->globalVars[parser->globalVarCount - 1] = stmt;
+}
+
 void type_check(Parser* parser, Node* program) {
 	assert(program->type == AST_PROGRAM);
 
-	for(int i = 0; i < parser->functionCount; i++) {
-		if(!parser->functions[i]->function.hasImplicitBody)
-			type_check_function(parser, parser->functions[i]);
+	for(int i = 0; i < program->block.size; i++) {
+		Node* node = program->block.children[i];
+
+		if(node->type == AST_FUNCTION) {
+			if(!parser->functions[i]->function.hasImplicitBody)
+				type_check_function(parser, node);
+		}
+		else if(node->type == AST_DEFINE_GLOBAL_VAR) {
+			type_check_global_var(parser, node);
+		}
+		else {
+			assert(0 && "Unreachable - unhandled node in type_check (program)");
+		}
 	}
 }

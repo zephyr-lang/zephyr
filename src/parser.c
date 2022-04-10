@@ -11,9 +11,6 @@ Node* parse_block(Parser* parser);
 Parser new_parser(Lexer* lexer) {
 	Parser parser = {0};
 	parser.lexer = lexer;
-	parser.currentFunction = NULL;
-	parser.currentBlock = NULL;
-	parser.functions = NULL;
 	return parser;
 }
 
@@ -668,6 +665,11 @@ Node* parse_program(Parser* parser) {
 		if(match(parser, TOKEN_FUNCTION)) {
 			Node* function = parse_function(parser);
 			node_add_child(program, function);
+		}
+		else if(match(parser, TOKEN_VAR)) {
+			Node* var = parse_var_declaration(parser);
+			var->type = AST_DEFINE_GLOBAL_VAR;
+			node_add_child(program, var);
 		}
 		else {
 			error_current(parser, "Expected function definition");

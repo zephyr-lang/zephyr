@@ -187,6 +187,7 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_DEFINE_GLOBAL_VAR:
 		case AST_DEFINE_VAR: {
 			printf("var %.*s: %s ", (int)node->variable.name.length, node->variable.name.start, type_to_string(node->variable.type));
 			if(node->variable.value != NULL) {

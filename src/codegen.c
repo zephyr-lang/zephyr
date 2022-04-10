@@ -46,6 +46,16 @@ char* type_movzx_rax_subregister(Type* type) {
 	return "rax";
 }
 
+char* type_to_res(Type* type) {
+	switch(sizeof_type(type)) {
+		case 1: return "resb";
+		case 2: return "resw";
+		case 4: return "resd";
+		case 8: return "resq";
+	}
+	assert(0 && "Unreachable - invalid size of type");
+}
+
 void generate_unary_rax(Node* expr, FILE* out) {
 	if(expr->type == OP_BWNOT) {
 		generate_expr_rax(expr->unary, out);
@@ -385,7 +395,8 @@ void generate_implicit_printu_impl(FILE* out) {
 	fprintf(out, "		ret\n");
 }
 
-void generate_program(Node* ast, FILE* out) {
+void generate_program(Parser* parser, Node* ast, FILE* out) {
+	fprintf(out, "section .text\n");
 	generate_implicit_printu_impl(out);
 
 	for(size_t i = 0; i < ast->block.size; i++) {
@@ -393,18 +404,42 @@ void generate_program(Node* ast, FILE* out) {
 			if(!ast->block.children[i]->function.hasImplicitBody)
 				generate_function(ast->block.children[i], out);
 		}
+		else if(ast->block.children[i]->type == AST_DEFINE_GLOBAL_VAR) {
+			// Handled elsewhere
+		}
 		else {
 			fprintf(stderr, "Unsupported type '%s' in generate_program\n", node_type_to_string(ast->block.children[i]->type));
 			exit(1);
 		}
 	}
 
-	// Entry point of _start -> calls main and exits (via syscall)
+	// Entry point of _start -> initalises global variables, calls main and exits (via syscall)
 	// Uses main's return value as the exit code
 	fprintf(out, "global _start\n");
 	fprintf(out, "_start:\n");
+
+	for(int i = 0; i < parser->globalVarCount; i++) {
+		Node* var = parser->globalVars[i];
+
+		generate_expr_rax(var->variable.value, out);
+
+		fprintf(out, "    mov %s _g_%.*s[rip], %s\n", type_to_qualifier(&var->variable.type), (int)var->variable.name.length, var->variable.name.start, type_to_rax_subregister(&var->variable.type));
+	}
+
 	fprintf(out, "    call main\n");
 	fprintf(out, "    mov rdi, rax\n");
 	fprintf(out, "    mov rax, 60\n");
 	fprintf(out, "    syscall\n");
+
+	if(parser->globalVarCount > 0) {
+		fprintf(out, "section .bss\n");
+
+		for(int i = 0; i < parser->globalVarCount; i++) {
+			Node* var = parser->globalVars[i];
+
+			fprintf(out, "_g_%.*s: ", (int)var->variable.name.length, var->variable.name.start);
+
+			fprintf(out, "%s 1\n", type_to_res(&var->variable.type));
+		}
+	}
 }
