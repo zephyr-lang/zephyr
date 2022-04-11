@@ -403,6 +403,56 @@ void type_check_array_init(Parser* parser, Node* array, Type* arrayType) {
 	push_type_stack(arrayType);
 }
 
+void type_check_define_var(Parser* parser, Node* stmt) {
+	//TODO: A warning against things such as assigning i64 to i8 without a cast would perhaps be nice
+	//      Although it may pose annoying for literals and the such
+	Type* declType = &stmt->variable.type;
+	Token name = stmt->variable.name;
+
+	if(declType->type == DATA_TYPE_VOID && stmt->variable.value == NULL) {
+		print_position(stmt->position);
+		fprintf(stderr, "Cannot infer type to variable without initial value\n");
+		exit(1);
+	}
+
+	if(declType->type == DATA_TYPE_VOID) {
+		type_check_expr(parser, stmt->variable.value);
+		stmt->variable.type = pop_type_stack();
+		declType = &stmt->variable.type;
+	}
+
+	for(int i = 0; i < parser->currentBlock->block.variableCount; i++) {
+		Token varName = parser->currentBlock->block.variables[i]->variable.name;
+		if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
+			print_position(stmt->position);
+			fprintf(stderr, "Redeclaration of variable '%.*s' in current scope\n", (int)name.length, name.start);
+			exit(1);
+		}
+	}
+
+	stmt->variable.stackOffset = parser->currentBlock->block.currentStackOffset += sizeof_type_var_offset(declType);
+
+	if(stmt->variable.stackOffset > parser->currentFunction->function.localVariableStackOffset) {
+		parser->currentFunction->function.localVariableStackOffset = stmt->variable.stackOffset;
+	}
+
+	if(stmt->variable.value) {
+		if(stmt->variable.value->type == AST_ARRAY_INIT)
+			type_check_array_init(parser, stmt->variable.value, &stmt->variable.type);
+		else
+			type_check_expr(parser, stmt->variable.value);
+		Type valueType = pop_type_stack();
+		if(!types_assignable(&valueType, declType)) {
+			print_position(stmt->position);
+			fprintf(stderr, "Cannot assign type '%s' to variable expecting '%s'\n", type_to_string(valueType), type_to_string(*declType));
+			exit(1);
+		}
+	}
+
+	parser->currentBlock->block.variables = realloc(parser->currentBlock->block.variables, ++parser->currentBlock->block.variableCount * sizeof(Node*));
+	parser->currentBlock->block.variables[parser->currentBlock->block.variableCount - 1] = stmt;
+}
+
 void type_check_statement(Parser* parser, Node* stmt) {
 	if(stmt->type == AST_IF) {
 		type_check_expr(parser, stmt->conditional.condition);
@@ -464,55 +514,7 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		}
 	}
 	else if(stmt->type == AST_DEFINE_VAR) {
-		//TODO: A warning against things such as assigning i64 to i8 without a cast would perhaps be nice
-		//      Although it may pose annoying for literals and the such
-		Type* declType = &stmt->variable.type;
-		Token name = stmt->variable.name;
-
-		if(declType->type == DATA_TYPE_VOID && stmt->variable.value == NULL) {
-			print_position(stmt->position);
-			fprintf(stderr, "Cannot infer type to variable without initial value\n");
-			exit(1);
-		}
-
-		if(declType->type == DATA_TYPE_VOID) {
-			type_check_expr(parser, stmt->variable.value);
-			stmt->variable.type = pop_type_stack();
-			declType = &stmt->variable.type;
-		}
-
-		for(int i = 0; i < parser->currentBlock->block.variableCount; i++) {
-			Token varName = parser->currentBlock->block.variables[i]->variable.name;
-			if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
-				print_position(stmt->position);
-				fprintf(stderr, "Redeclaration of variable '%.*s' in current scope\n", (int)name.length, name.start);
-				exit(1);
-			}
-		}
-
-		stmt->variable.stackOffset = parser->currentBlock->block.currentStackOffset += sizeof_type_var_offset(declType);
-
-		if(stmt->variable.stackOffset > parser->currentFunction->function.localVariableStackOffset) {
-			parser->currentFunction->function.localVariableStackOffset = stmt->variable.stackOffset;
-		}
-
-		if(stmt->variable.value) {
-			if(stmt->variable.value->type == AST_ARRAY_INIT)
-				type_check_array_init(parser, stmt->variable.value, &stmt->variable.type);
-			else
-				type_check_expr(parser, stmt->variable.value);
-
-			Type valueType = pop_type_stack();
-
-			if(!types_assignable(&valueType, declType)) {
-				print_position(stmt->position);
-				fprintf(stderr, "Cannot assign type '%s' to variable expecting '%s'\n", type_to_string(valueType), type_to_string(*declType));
-				exit(1);
-			}
-		}
-
-		parser->currentBlock->block.variables = realloc(parser->currentBlock->block.variables, ++parser->currentBlock->block.variableCount * sizeof(Node*));
-		parser->currentBlock->block.variables[parser->currentBlock->block.variableCount - 1] = stmt;
+		type_check_define_var(parser, stmt);
 	}
 	else if(stmt->type == AST_EXPR_STMT) {
 		type_check_expr(parser, stmt->unary);
@@ -595,7 +597,11 @@ void type_check_global_var(Parser* parser, Node* stmt) {
 	}
 
 	if(stmt->variable.value) {
-		type_check_expr(parser, stmt->variable.value);
+		if(stmt->variable.value->type == AST_ARRAY_INIT)
+			type_check_array_init(parser, stmt->variable.value, &stmt->variable.type);
+		else
+			type_check_expr(parser, stmt->variable.value);
+		
 		Type valueType = pop_type_stack();
 		if(!types_assignable(&valueType, declType)) {
 			print_position(stmt->position);

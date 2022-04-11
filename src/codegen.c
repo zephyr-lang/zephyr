@@ -213,8 +213,11 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    mov %s [rbp-%d], %s\n", type_to_qualifier(&expr->variable.type), expr->variable.stackOffset, type_to_rax_subregister(&expr->variable.type));
 	}
 	else if(expr->type == AST_ACCESS_GLOBAL_VAR) {
-		fprintf(out, "    %s %s, %s [_g_%.*s]\n", type_movzx(&expr->variable.type), type_movzx_rax_subregister(&expr->variable.type), type_to_qualifier(&expr->variable.type), 
-			                                    (int)expr->variable.name.length, expr->variable.name.start);
+		if(expr->variable.type.isArray)
+			fprintf(out, "    lea rax, [_g_%.*s]\n", (int)expr->variable.name.length, expr->variable.name.start);
+		else
+			fprintf(out, "    %s %s, %s [_g_%.*s]\n", type_movzx(&expr->variable.type), type_movzx_rax_subregister(&expr->variable.type), type_to_qualifier(&expr->variable.type), 
+			        (int)expr->variable.name.length, expr->variable.name.start);
 	}
 	else if(expr->type == AST_ASSIGN_GLOBAL_VAR) {
 		generate_expr_rax(expr->variable.value, out);
@@ -467,9 +470,23 @@ void generate_program(Parser* parser, Node* ast, FILE* out) {
 		Node* var = parser->globalVars[i];
 
 		if(var->variable.value != NULL) {
-			generate_expr_rax(var->variable.value, out);
+			if(var->variable.value->type == AST_ARRAY_INIT) {
+				Node* array = var->variable.value;
+				Type itemType = {};
+				itemType.type = var->variable.type.type;
+				itemType.indirection = var->variable.type.indirection - 1;
 
-			fprintf(out, "    mov %s [_g_%.*s], %s\n", type_to_qualifier(&var->variable.type), (int)var->variable.name.length, var->variable.name.start, type_to_rax_subregister(&var->variable.type));
+				for(int i = 0; i < array->block.size; i++) {
+					generate_expr_rax(array->block.children[i], out);
+					fprintf(out, "    mov %s [_g_%.*s+%d], %s\n", 
+					type_to_qualifier(&var->variable.type), (int)var->variable.name.length, var->variable.name.start, 
+					        i * sizeof_type(&itemType), type_to_rax_subregister(&var->variable.type));
+				}
+			}
+			else {
+				generate_expr_rax(var->variable.value, out);
+				fprintf(out, "    mov %s [_g_%.*s], %s\n", type_to_qualifier(&var->variable.type), (int)var->variable.name.length, var->variable.name.start, type_to_rax_subregister(&var->variable.type));
+			}
 		}
 	}
 
