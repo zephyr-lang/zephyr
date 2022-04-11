@@ -264,6 +264,16 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    %s %s, %s [rax+rbx*%d]\n", type_movzx(&expr->computedType), type_movzx_rax_subregister(&expr->computedType), 
 		        type_to_qualifier(&expr->computedType), sizeof_type(&expr->computedType));
 	}
+	else if(expr->type == OP_ASSIGN_SUBSCRIPT) {
+		generate_expr_rax(expr->ternary.lhs, out);
+		fprintf(out, "    mov rbx, rax\n");
+		generate_expr_rax(expr->ternary.mid, out);
+		fprintf(out, "    mov rcx, rax\n");
+		generate_expr_rax(expr->ternary.rhs, out);
+
+		fprintf(out, "    mov %s [rbx+rcx*%d], %s\n", type_to_qualifier(&expr->computedType), sizeof_type(&expr->computedType), 
+		        type_to_rax_subregister(&expr->computedType));
+	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));
 		exit(1);

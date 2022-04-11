@@ -345,6 +345,43 @@ void type_check_access_subscript(Parser* parser, Node* expr) {
 	push_type_stack(&itemType);
 }
 
+void type_check_assign_subscript(Parser* parser, Node* expr) {
+	type_check_expr(parser, expr->ternary.lhs);
+	Type lhs = pop_type_stack();
+
+	if(lhs.indirection == 0) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot subscript value type '%s'", type_to_string(lhs));
+		exit(1);
+	}
+
+	type_check_expr(parser, expr->ternary.mid);
+	Type index = pop_type_stack();
+
+	if(!types_assignable(&index, intType)) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot subscript with index of type '%s'\n", type_to_string(index));
+		exit(1);
+	}
+
+	Type itemType = {};
+	itemType.type = lhs.type;
+	itemType.indirection = lhs.indirection - 1;
+
+	expr->computedType = itemType;
+
+	type_check_expr(parser, expr->ternary.rhs);
+	Type rhs = pop_type_stack();
+	
+	if(!types_assignable(&rhs, &index)) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot assign value of type '%s' to array of elements '%s'\n", type_to_string(rhs), type_to_string(itemType));
+		exit(1);
+	}
+
+	push_type_stack(&itemType);
+}
+
 void type_check_expr(Parser* parser, Node* expr) {
 	if(is_unary_op(expr->type)) {
 		type_check_unary(parser, expr);
@@ -372,6 +409,9 @@ void type_check_expr(Parser* parser, Node* expr) {
 	}
 	else if(expr->type == OP_ACCESS_SUBSCRIPT) {
 		type_check_access_subscript(parser, expr);
+	}
+	else if(expr->type == OP_ASSIGN_SUBSCRIPT) {
+		type_check_assign_subscript(parser, expr);
 	}
 	else {
 		assert(0 && "Unreachable - type_check_expr");

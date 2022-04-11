@@ -242,7 +242,22 @@ void print_ast_depth(Node* node, int depth) {
 			print_ast_depth(node->binary.lhs, depth + 1);
 			printf("\n");
 			print_ast_depth(node->binary.rhs, depth + 1);
-			printf("\n]");
+			printf("\n");
+			for(int i = 0; i < depth + 1; i++) printf("  ");
+			printf("]");
+			break;
+		}
+
+		case OP_ASSIGN_SUBSCRIPT: {
+			printf("subscript = [\n");
+			print_ast_depth(node->ternary.lhs, depth + 1);
+			printf("\n");
+			print_ast_depth(node->ternary.mid, depth + 1);
+			printf("\n");
+			print_ast_depth(node->ternary.rhs, depth + 1);
+			printf("\n");
+			for(int i = 0; i < depth + 1; i++) printf("  ");
+			printf("]");
 			break;
 		}
 
@@ -252,7 +267,7 @@ void print_ast_depth(Node* node, int depth) {
 				print_ast_depth(node->block.children[i], depth + 1);
 				printf("\n");
 			}
-			for(int i = 0; i < depth; i++) printf("  ");
+			for(int i = 0; i < depth + 1; i++) printf("  ");
 			printf("]\n");
 
 			break;

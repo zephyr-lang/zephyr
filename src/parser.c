@@ -229,6 +229,17 @@ Node* parse_subscript(Parser* parser) {
 		left = subscript;
 	}
 
+	if(left != NULL && left->type == OP_ACCESS_SUBSCRIPT && match(parser, TOKEN_EQ)) {
+		Token op = parser->previous;
+		Node* value = parse_expression(parser);
+
+		Node* subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
+		subscript->ternary.lhs = left->binary.lhs;
+		subscript->ternary.mid = left->binary.rhs;
+		subscript->ternary.rhs = value;
+		left = subscript;
+	}
+
 	return left;
 }
 
@@ -597,13 +608,13 @@ Node* parse_statement(Parser* parser) {
 	else if(match(parser, TOKEN_WHILE)) {
 		return parse_while_statement(parser);
 	}
-	else if(match(parser, TOKEN_IDENTIFIER)) {
-		Node* expr = parse_identifier(parser);
+	else if(check(parser, TOKEN_IDENTIFIER)) {
+		Node* expr = parse_subscript(parser);
 		
 		if(expr == NULL) return NULL;
 
 		// Disallow just having a variable name as a statement
-		if(expr->type == AST_ACCESS_VAR) {
+		if(expr->type == AST_ACCESS_VAR || expr->type == OP_ACCESS_SUBSCRIPT) {
 			error_current(parser, "Expected statement");
 		}
 

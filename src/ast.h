@@ -27,6 +27,7 @@
 	F(OP_ADDROF, "&") \
 	F(OP_SIZEOF, "sizeof") \
 	F(OP_ACCESS_SUBSCRIPT, "access subscript") \
+	F(OP_ASSIGN_SUBSCRIPT, "assign subscript") \
 	F(AST_ARRAY_INIT, "array initialization") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CALL, "call") \
@@ -87,6 +88,12 @@ typedef struct Node {
 			Node* lhs;
 			Node* rhs;
 		} binary;
+
+		struct {
+			Node* lhs;
+			Node* mid;
+			Node* rhs;
+		} ternary;
 
 		struct {
 			Node* condition;
