@@ -298,7 +298,7 @@ void type_check_ternary_expr(Parser* parser, Node* expr) {
 
 	if(!types_assignable(&condition, intType)) {
 		print_position(expr->position);
-		fprintf(stderr, "Cannot use type '%s' as condition", type_to_string(condition));
+		fprintf(stderr, "Cannot use type '%s' as condition\n", type_to_string(condition));
 		exit(1);
 	}
 
@@ -310,7 +310,7 @@ void type_check_ternary_expr(Parser* parser, Node* expr) {
 
 	if(!types_assignable(&doTrue, &doFalse)) {
 		print_position(expr->position);
-		fprintf(stderr, "Cannot conditionally return differing types '%s' and '%s'", type_to_string(doTrue), type_to_string(doFalse));
+		fprintf(stderr, "Cannot conditionally return differing types '%s' and '%s'\n", type_to_string(doTrue), type_to_string(doFalse));
 		exit(1);
 	}
 
@@ -543,9 +543,21 @@ void type_check_function(Parser* parser, Node* function) {
 	for(int i = 0; i < function->function.argumentCount; i++) {
 		Node* arg = function->function.arguments[i];
 
+		if(arg->variable.type.isArray) {
+			print_position(arg->position);
+			fprintf(stderr, "Arrays cannot be used as function arguments - consider using a pointer instead\n");
+			exit(1);
+		}
+
 		stackOffset += sizeof_type(&arg->variable.type);
 
 		arg->variable.stackOffset = stackOffset;
+	}
+
+	if(function->function.returnType.isArray) {
+		print_position(function->position);
+		fprintf(stderr, "Arrays cannot be used as function return types - consider using a pointer instead\n");
+		exit(1);
 	}
 
 	function->function.body->block.currentStackOffset = stackOffset;
