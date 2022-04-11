@@ -261,7 +261,7 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, ".l%d:\n", endLabel);
 	}
 	else if(expr->type == OP_SIZEOF) {
-		fprintf(out, "    mov rax, %d\n", sizeof_type(&expr->computedType));
+		fprintf(out, "    mov rax, %d\n", sizeof_type_var_offset(&expr->computedType));
 	}
 	else if(expr->type == OP_ACCESS_SUBSCRIPT) {
 		generate_expr_rax(expr->binary.lhs, out);

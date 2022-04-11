@@ -67,7 +67,7 @@ int sizeof_type(Type* type) {
 	return 0;
 }
 
-static int sizeof_type_var_offset(Type* type) {
+int sizeof_type_var_offset(Type* type) {
 	if(type->isArray) {
 		Type subType = {};
 		subType.indirection = type->indirection - 1;
