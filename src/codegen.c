@@ -83,6 +83,15 @@ void generate_unary_rax(Node* expr, FILE* out) {
 				assert(0 && "Unreachable - unhandled node type");
 			}
 		}
+		else if(expr->unary->lvalue == LVALUE_SUBSCRIPT) {
+			generate_expr_rax(expr->unary->binary.lhs, out);
+			fprintf(out, "    push rax\n");
+			generate_expr_rax(expr->unary->binary.rhs, out);
+			fprintf(out, "    mov rbx, rax\n");
+			fprintf(out, "    pop rax\n");
+
+			fprintf(out, "    lea rax, [rax+rbx*%d]\n", sizeof_type(&expr->unary->computedType));
+		}
 		else {
 			assert(0 && "Unreachable - unknown lvalue type");
 		}

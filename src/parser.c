@@ -226,6 +226,7 @@ Node* parse_subscript(Parser* parser) {
 		Node* subscript = new_node(OP_ACCESS_SUBSCRIPT, op);
 		subscript->binary.lhs = left;
 		subscript->binary.rhs = right;
+		subscript->lvalue = LVALUE_SUBSCRIPT;
 		left = subscript;
 	}
 

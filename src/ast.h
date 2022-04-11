@@ -72,7 +72,8 @@ typedef struct Type {
 
 typedef enum LValueType {
 	LVALUE_NONE = 0,
-	LVALUE_IDENTIFIER
+	LVALUE_IDENTIFIER,
+	LVALUE_SUBSCRIPT
 } LValueType;
 
 typedef struct Node {
