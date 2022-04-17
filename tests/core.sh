@@ -5,6 +5,12 @@
 echo -n "Basic returns: "
 assert_exit_code 0 "function main(): int { return 0; }"
 assert_exit_code 100 "function main(): int { return 100; }"
+assert_compilation_error "function main(): int {}"
+assert_stdout "5" "function x() { printu(5); } function main(): int { x(); return 0; }"
+assert_exit_code 10 "function main(): int { if(1) { return 10; } else { return 5; } }"
+assert_exit_code 10 "function main(): int { if(1) return 10; else return 5; }"
+assert_exit_code 0 "function x() { return; } function main(): int { x(); return 0; }"
+assert_compilation_error "function main(): int { return; }"
 echo " Done"
 
 echo -n "Unary: "
@@ -93,8 +99,6 @@ function main(): int {
 
 		return y * z;
 	}
-
-	return 0;
 }
 "
 
