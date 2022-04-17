@@ -501,7 +501,9 @@ Node* parse_if_statement(Parser* parser) {
 
 Node* parse_return_statement(Parser* parser) {
 	Node* returnStmt = new_node(AST_RETURN, parser->previous);
-	returnStmt->unary = parse_expression(parser);
+
+	if(!check(parser, TOKEN_SEMICOLON))
+		returnStmt->unary = parse_expression(parser);
 
 	consume(parser, TOKEN_SEMICOLON, "Expected ';' after return statement");
 

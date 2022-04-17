@@ -364,7 +364,8 @@ void generate_statement(Node* stmt, FILE* out) {
 		generate_while_statement(stmt, out);
 	}
 	else if(stmt->type == AST_RETURN) {
-		generate_expr_rax(stmt->unary, out);
+		if(stmt->unary)
+			generate_expr_rax(stmt->unary, out);
 		fprintf(out, "    leave\n");
 		fprintf(out, "    ret\n");
 	}

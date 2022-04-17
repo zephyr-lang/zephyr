@@ -12,6 +12,7 @@ static Type typeStack[128];
 static int typeStackDepth = 0;
 
 static Type* intType = &(Type) { .type = DATA_TYPE_INT, .indirection = 0 };
+static Type* voidType = &(Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
 
 void print_position(Token position) {
 	fprintf(stderr, "[%zu] Error ", position.line);
@@ -543,9 +544,16 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		type_check_statement(parser, stmt->conditional.doTrue);
 	}
 	else if(stmt->type == AST_RETURN) {
-		type_check_expr(parser, stmt->unary);
+		Type returnType;
+		if(stmt->unary) {
+			type_check_expr(parser, stmt->unary);
 
-		Type returnType = pop_type_stack();
+			returnType = pop_type_stack();
+		}
+		else {
+			returnType = *voidType;
+		}
+
 		Type* expectedType = &parser->currentFunction->function.returnType;
 		if(!types_assignable(&returnType, expectedType)) {
 			print_position(stmt->position);

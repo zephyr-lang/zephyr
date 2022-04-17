@@ -177,7 +177,12 @@ void print_ast_depth(Node* node, int depth) {
 
 		case AST_RETURN: {
 			printf("return\n");
-			print_ast_depth(node->unary, depth + 1);
+			if(node->unary)
+				print_ast_depth(node->unary, depth + 1);
+			else {
+				for(int i = 0; i < depth + 1; i++) printf("  ");
+				printf("(void)");
+			}
 			printf("\n");
 			break;
 		}
