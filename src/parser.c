@@ -14,14 +14,14 @@ Parser new_parser(Lexer* lexer) {
 	return parser;
 }
 
-static Node* new_node(NodeType type, Token position) {
+Node* new_node(NodeType type, Token position) {
 	Node* node = calloc(1, sizeof(Node));
 	node->type = type;
 	node->position = position;
 	return node;
 }
 
-static void node_add_child(Node* parent, Node* child) {
+void node_add_child(Node* parent, Node* child) {
 	if(parent->block.size + 1 > parent->block.capacity) {
 		parent->block.capacity = parent->block.capacity < 8 ? 8 : parent->block.capacity * 2;
 		parent->block.children = realloc(parent->block.children, parent->block.capacity * sizeof(Node*));

@@ -125,6 +125,8 @@ typedef struct Node {
 			size_t size;
 			size_t capacity;
 
+			bool hasReturned;
+
 			Node* parent;
 			int variableCount;
 			Node** variables;

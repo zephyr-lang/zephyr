@@ -54,6 +54,10 @@ bool types_assignable(Type* a, Type* b) {
 	return a->type == b->type && a->indirection == b->indirection;
 }
 
+bool is_void_type(Type* a) {
+	return !a->isArray && a->type == DATA_TYPE_VOID && a->indirection == 0;
+}
+
 int sizeof_type(Type* type) {
 	if(type->indirection != 0) return 8;
 	switch(type->type) {
@@ -560,6 +564,7 @@ void type_check_statement(Parser* parser, Node* stmt) {
 			fprintf(stderr, "Cannot return type '%s' from function expecting '%s'\n", type_to_string(returnType), type_to_string(*expectedType));
 			exit(1);
 		}
+		parser->currentBlock->block.hasReturned = true;
 	}
 	else if(stmt->type == AST_DEFINE_VAR) {
 		type_check_define_var(parser, stmt);
@@ -617,6 +622,18 @@ void type_check_function(Parser* parser, Node* function) {
 
 	parser->currentBlock = function->function.body;
 	type_check_block(parser, function->function.body);
+
+	if(!function->function.body->block.hasReturned) {
+		if(is_void_type(&function->function.returnType)) {
+			Node* implReturn = new_node(AST_RETURN, (Token) { .start = "", .length=0, .line=0, .type = TOKEN_RETURN });
+			node_add_child(function->function.body, implReturn);
+		}
+		else {
+			print_position(function->position);
+			fprintf(stderr, "A non-void returning function must return a value (returning '%s')\n", type_to_string(function->function.returnType));
+			exit(1);
+		}
+	}
 }
 
 void type_check_global_var(Parser* parser, Node* stmt) {

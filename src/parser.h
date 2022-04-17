@@ -23,3 +23,5 @@ typedef struct Parser {
 
 Parser new_parser(Lexer* lexer);
 Node* parse_program(Parser* parser);
+Node* new_node(NodeType type, Token position);
+void node_add_child(Node* parent, Node* child);
