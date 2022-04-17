@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 
+function inc_total_test_count() {
+	if [ -n ${TEST_TOTAL_COUNT+x} ]
+	then
+		((TEST_TOTAL_COUNT=TEST_TOTAL_COUNT + 1))
+	fi
+}
+
+function inc_success_test_count() {
+	if [ -n ${TEST_SUCCESS_COUNT+x} ]
+	then
+		((TEST_SUCCESS_COUNT=TEST_SUCCESS_COUNT + 1))
+	fi
+}
+
 function assert_compilation_error() {
+	inc_total_test_count
 	set +e
 	./build/zephyr -c "$1" -o ./build/test >/dev/null 2>&1
 	res=$?
@@ -18,9 +33,11 @@ function assert_compilation_error() {
 	fi
 
 	echo -n "="
+	inc_success_test_count
 }
 
 function assert_exit_code() {
+	inc_total_test_count
 	set +e
 	./build/zephyr -c "$2" -o ./build/test
 	res=$?
@@ -58,9 +75,11 @@ function assert_exit_code() {
 	fi
 
 	echo -n "="
+	inc_success_test_count
 }
 
 function assert_stdout() {
+	inc_total_test_count
 	set +e
 	./build/zephyr -c "$2" -o ./build/test
 	res=$?
@@ -118,4 +137,5 @@ function assert_stdout() {
 	fi
 
 	echo -n "="
+	inc_success_test_count
 }
