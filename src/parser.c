@@ -1,4 +1,5 @@
 #include "parser.h"
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -149,15 +150,7 @@ Type parse_type(Parser* parser) {
 Node* parse_identifier(Parser* parser) {
 	Token name = parser->previous;
 
-	if(match(parser, TOKEN_EQ)) {
-		Node* value = parse_expression(parser);
-
-		Node* assign = new_node(AST_ASSIGN_VAR, name);
-		assign->variable.name = name;
-		assign->variable.value = value;
-		return assign;
-	}
-	else if(match(parser, TOKEN_LEFT_PAREN)) {
+	if(match(parser, TOKEN_LEFT_PAREN)) {
 		Node* call = new_node(AST_CALL, name);
 		call->function.name = name;
 		if(!check(parser, TOKEN_RIGHT_PAREN)) {
@@ -227,17 +220,6 @@ Node* parse_subscript(Parser* parser) {
 		subscript->binary.lhs = left;
 		subscript->binary.rhs = right;
 		subscript->lvalue = LVALUE_SUBSCRIPT;
-		left = subscript;
-	}
-
-	if(left != NULL && left->type == OP_ACCESS_SUBSCRIPT && match(parser, TOKEN_EQ)) {
-		Token op = parser->previous;
-		Node* value = parse_expression(parser);
-
-		Node* subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
-		subscript->ternary.lhs = left->binary.lhs;
-		subscript->ternary.mid = left->binary.rhs;
-		subscript->ternary.rhs = value;
 		left = subscript;
 	}
 
@@ -477,8 +459,44 @@ Node* parse_ternary_expression(Parser* parser) {
 	return condition;
 }
 
+Node* parse_assignment_expression(Parser* parser) {
+	Node* left = parse_ternary_expression(parser);
+
+	while(match(parser, TOKEN_EQ)) {
+		Token op = parser->previous;
+		Node* right = parse_ternary_expression(parser);
+
+		switch(left->lvalue) {
+			case LVALUE_IDENTIFIER: {
+				Token name = left->variable.name;
+				Node* assign = new_node(AST_ASSIGN_VAR, name);
+				assign->variable.name = name;
+				assign->variable.value = right;
+				left = assign;
+			}
+			case LVALUE_SUBSCRIPT: {
+				Node* subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
+				subscript->ternary.lhs = left->binary.lhs;
+				subscript->ternary.mid = left->binary.rhs;
+				subscript->ternary.rhs = right;
+				left = subscript;
+			}
+
+			case LVALUE_NONE: {
+				error(parser, "Invalid lvalue for assignment");
+				return NULL;
+			}
+			default: {
+				assert(0 && "Unreachable - parse_assignment_expression lvalue");
+			}
+		}
+	}
+
+	return left;
+}
+
 Node* parse_expression(Parser* parser) {
-	return parse_ternary_expression(parser);
+	return parse_assignment_expression(parser);
 }
 
 Node* parse_if_statement(Parser* parser) {
