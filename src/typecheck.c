@@ -512,8 +512,15 @@ void type_check_statement(Parser* parser, Node* stmt) {
 
 		type_check_statement(parser, stmt->conditional.doTrue);
 
-		if(stmt->conditional.doFalse != NULL)
+		bool trueHasReturned = parser->currentBlock->block.hasReturned;
+		bool falseHasReturned = false;
+
+		if(stmt->conditional.doFalse != NULL) {
 			type_check_statement(parser, stmt->conditional.doFalse);
+			falseHasReturned = parser->currentBlock->block.hasReturned;
+		}
+
+		parser->currentBlock->block.hasReturned = trueHasReturned && falseHasReturned;
 	}
 	else if(stmt->type == AST_FOR) {
 		if(stmt->loop.initial != NULL) type_check_statement(parser, stmt->loop.initial);
@@ -575,6 +582,7 @@ void type_check_statement(Parser* parser, Node* stmt) {
 	}
 	else if(stmt->type == AST_BLOCK) {
 		type_check_block(parser, stmt);
+		parser->currentBlock->block.hasReturned = stmt->block.hasReturned;
 	}
 	else {
 		assert(0 && "Unreachable");
