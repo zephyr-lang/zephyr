@@ -585,6 +585,11 @@ void type_check_block(Parser* parser, Node* block) {
 	block->block.currentStackOffset = parser->currentBlock->block.currentStackOffset;
 	parser->currentBlock = block;
 	for(int i = 0; i < block->block.size; i++) {
+		if(block->block.hasReturned) {
+			print_position(block->block.children[i]->position);
+			fprintf(stderr, "Unreachable code after return\n");
+			exit(1);
+		}
 		type_check_statement(parser, block->block.children[i]);
 	}
 	parser->currentBlock = block->block.parent;
