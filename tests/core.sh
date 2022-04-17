@@ -54,6 +54,9 @@ assert_exit_code 16 "function main():int { var a:int = 6; var b:int = 10; return
 assert_exit_code 7 "function main():int { var a: int; var b:int = 7; return b; }"
 assert_exit_code 12 "function main():int { var a: int; a = 12; return a; }"
 assert_exit_code 24 "function main():int { var a:int = 6; var b:int = 10; a = b = 12; return a + b; }"
+assert_stdout "5
+5
+5" "function main():int { var a = 5; var b = 0; var c = b = a; printu(a); printu(b); printu(c); return 0; }"
 echo " Done"
 
 echo -n "Functions: "
