@@ -98,7 +98,6 @@ void generate_unary_rax(Node* expr, FILE* out) {
 	}
 	else if(expr->type == OP_DEREF) {
 		generate_expr_rax(expr->unary, out);
-		//TODO get word based on size
 		fprintf(out, "    %s %s, %s [rax]\n", type_movzx(&expr->computedType), type_movzx_rax_subregister(&expr->computedType), type_to_qualifier(&expr->computedType));
 	}
 	else {
@@ -282,6 +281,14 @@ void generate_expr_rax(Node* expr, FILE* out) {
 
 		fprintf(out, "    mov %s [rbx+rcx*%d], %s\n", type_to_qualifier(&expr->computedType), sizeof_type(&expr->computedType), 
 		        type_to_rax_subregister(&expr->computedType));
+	}
+	else if(expr->type == OP_ASSIGN_DEREF) {
+		generate_expr_rax(expr->binary.lhs, out);
+		fprintf(out, "    push rax\n");
+		generate_expr_rax(expr->binary.rhs, out);
+		fprintf(out, "    pop rbx\n");
+
+		fprintf(out, "    mov %s [rbx], %s\n", type_to_qualifier(&expr->computedType), type_to_rax_subregister(&expr->computedType));
 	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));

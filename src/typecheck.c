@@ -387,6 +387,31 @@ void type_check_assign_subscript(Parser* parser, Node* expr) {
 	push_type_stack(&itemType);
 }
 
+void type_check_assign_deref(Parser* parser, Node* expr) {
+	type_check_expr(parser, expr->binary.lhs);
+	Type refType = pop_type_stack();
+
+	if(refType.indirection == 0) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot dereference non-pointer type '%s'\n", type_to_string(refType));
+		exit(1);
+	}
+
+	type_check_expr(parser, expr->binary.rhs);
+	Type valueType = pop_type_stack();
+
+	refType.indirection--;
+
+	if(!types_assignable(&valueType, &refType)) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot assign value of type '%s' to dereferenced type '%s'\n", type_to_string(valueType), type_to_string(refType));
+		exit(1);
+	}
+	
+	expr->computedType = refType;
+	push_type_stack(&refType);
+}
+
 void type_check_expr(Parser* parser, Node* expr) {
 	if(is_unary_op(expr->type)) {
 		type_check_unary(parser, expr);
@@ -417,6 +442,9 @@ void type_check_expr(Parser* parser, Node* expr) {
 	}
 	else if(expr->type == OP_ASSIGN_SUBSCRIPT) {
 		type_check_assign_subscript(parser, expr);
+	}
+	else if(expr->type == OP_ASSIGN_DEREF) {
+		type_check_assign_deref(parser, expr);
 	}
 	else {
 		assert(0 && "Unreachable - type_check_expr");

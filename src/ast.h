@@ -28,6 +28,7 @@
 	F(OP_SIZEOF, "sizeof") \
 	F(OP_ACCESS_SUBSCRIPT, "access subscript") \
 	F(OP_ASSIGN_SUBSCRIPT, "assign subscript") \
+	F(OP_ASSIGN_DEREF, "assign deref") \
 	F(AST_ARRAY_INIT, "array initialization") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CALL, "call") \
@@ -73,7 +74,8 @@ typedef struct Type {
 typedef enum LValueType {
 	LVALUE_NONE = 0,
 	LVALUE_IDENTIFIER,
-	LVALUE_SUBSCRIPT
+	LVALUE_SUBSCRIPT,
+	LVALUE_DEREF
 } LValueType;
 
 typedef struct Node {

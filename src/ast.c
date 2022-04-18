@@ -278,6 +278,14 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case OP_ASSIGN_DEREF: {
+			printf("* =\n");
+			print_ast_depth(node->binary.lhs, depth + 1);
+			printf("\n");
+			print_ast_depth(node->binary.rhs, depth + 1);
+			break;
+		}
+
 		default: {
 			fprintf(stderr, "Cannot handle type '%s' in print_ast_depth\n", node_type_to_string(node->type));
 			break;

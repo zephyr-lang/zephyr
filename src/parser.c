@@ -93,7 +93,8 @@ bool allow_expr_stmt(Node* expr) {
 	return expr->type == AST_CALL ||
 	       expr->type == AST_ASSIGN_VAR ||
 	       expr->type == AST_ASSIGN_GLOBAL_VAR ||
-		   expr->type == OP_ASSIGN_SUBSCRIPT;
+		   expr->type == OP_ASSIGN_SUBSCRIPT ||
+		   expr->type == OP_ASSIGN_DEREF;
 }
 
 static int64_t parse_constant(Parser* parser) {
@@ -266,6 +267,7 @@ Node* parse_unary(Parser* parser) {
 		Token op = parser->previous;
 		Node* expr = parse_unary(parser);
 		Node* deref = new_node(OP_DEREF, op);
+		deref->lvalue = LVALUE_DEREF;
 		deref->unary = expr;
 		return deref;
 	}
@@ -495,6 +497,13 @@ Node* parse_assignment_expression(Parser* parser) {
 				left = subscript;
 				break;
 			}
+			case LVALUE_DEREF: {
+				Node* assign = new_node(OP_ASSIGN_DEREF, op);
+				assign->binary.lhs = left->unary;
+				assign->binary.rhs = right;
+				left = assign;
+				break;
+			}
 			default: {
 				assert(0 && "Unreachable - parse_assignment_expression lvalue");
 			}
@@ -647,7 +656,7 @@ Node* parse_statement(Parser* parser) {
 	if(expr == NULL) return NULL;
 
 	if(!allow_expr_stmt(expr)) {
-		error_current(parser, "Expected statement");
+		error(parser, "Expected statement");
 	}
 
 	consume(parser, TOKEN_SEMICOLON, "Expected ';' after expression");
