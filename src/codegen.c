@@ -296,6 +296,9 @@ void generate_expr_rax(Node* expr, FILE* out) {
 
 		fprintf(out, "    mov %s [rbx], %s\n", type_to_qualifier(&expr->computedType), type_to_rax_subregister(&expr->computedType));
 	}
+	else if(expr->type == AST_CAST) {
+		generate_expr_rax(expr->unary, out);
+	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));
 		exit(1);

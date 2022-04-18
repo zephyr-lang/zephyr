@@ -33,6 +33,7 @@
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CHAR_LITERAL, "char literal") \
 	F(AST_STRING, "string") \
+	F(AST_CAST, "cast") \
 	F(AST_CALL, "call") \
 	F(AST_DEFINE_VAR, "define var") \
 	F(AST_ACCESS_VAR, "access var") \

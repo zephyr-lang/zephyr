@@ -453,6 +453,12 @@ void type_check_expr(Parser* parser, Node* expr) {
 	else if(expr->type == OP_ASSIGN_DEREF) {
 		type_check_assign_deref(parser, expr);
 	}
+	else if(expr->type == AST_CAST) {
+		// NOTE: All casts are completely allowed at the moment. Whether or not this is good
+		//       or requires a warning in some cases is to be decided.
+		type_check_expr(parser, expr->unary);
+		push_type_stack(&expr->computedType);
+	}
 	else {
 		assert(0 && "Unreachable - type_check_expr");
 	}

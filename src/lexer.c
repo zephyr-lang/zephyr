@@ -79,6 +79,7 @@ static TokenType check_keyword(Lexer* lexer, size_t start, size_t length, const 
 
 static TokenType identifier_type(Lexer* lexer) {
 	switch(lexer->start[0]) {
+		case 'a': return check_keyword(lexer, 1, 1, "s", TOKEN_AS);
 		case 'e': return check_keyword(lexer, 1, 3, "lse", TOKEN_ELSE);
 		case 'i': {
 			if(lexer->current - lexer->start > 1) {

@@ -306,13 +306,29 @@ Node* parse_unary(Parser* parser) {
 	return parse_subscript(parser);
 }
 
-Node* parse_term(Parser* parser) {
+Node* parse_as_cast(Parser* parser) {
 	Node* left = parse_unary(parser);
+
+	if(match(parser, TOKEN_AS)) {
+		Token op = parser->previous;
+		Type castTo = parse_type(parser);
+
+		Node* cast = new_node(AST_CAST, op);
+		cast->unary = left;
+		cast->computedType = castTo;
+		left = cast;
+	}
+
+	return left;
+}
+
+Node* parse_term(Parser* parser) {
+	Node* left = parse_as_cast(parser);
 
 	while(match(parser, TOKEN_STAR) || match(parser, TOKEN_SLASH) || match(parser, TOKEN_PERCENT)) {
 		Token op = parser->previous;
 
-		Node* right = parse_unary(parser);
+		Node* right = parse_as_cast(parser);
 
 		NodeType type;
 		switch(op.type) {

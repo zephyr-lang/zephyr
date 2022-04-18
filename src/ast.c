@@ -110,6 +110,13 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_CAST: {
+			printf("cast\n");
+			print_ast_depth(node->unary, depth);
+			printf("\nas %s", type_to_string(node->computedType));
+			break;
+		}
+
 		case AST_FUNCTION: {
 			printf("function %.*s: %s\n", (int)node->function.name.length, node->function.name.start, type_to_string(node->function.returnType));
 			for(int i = 0; i < node->function.argumentCount; i++) {
