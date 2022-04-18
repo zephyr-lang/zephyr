@@ -13,6 +13,7 @@ static int typeStackDepth = 0;
 
 static Type* intType = &(Type) { .type = DATA_TYPE_INT, .indirection = 0 };
 static Type* voidType = &(Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
+static Type* i8Type = &(Type) { .type = DATA_TYPE_I8, .indirection = 0 };
 
 void print_position(Token position) {
 	fprintf(stderr, "[%zu] Error ", position.line);
@@ -421,6 +422,9 @@ void type_check_expr(Parser* parser, Node* expr) {
 	}
 	else if(expr->type == AST_INT_LITERAL) {
 		push_type_stack(intType);
+	}
+	else if(expr->type == AST_CHAR_LITERAL) {
+		push_type_stack(i8Type);
 	}
 	else if(expr->type == AST_ACCESS_VAR) {
 		type_check_access_var(parser, expr);

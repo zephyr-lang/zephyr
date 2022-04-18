@@ -180,6 +180,13 @@ TokenType greater_than(Lexer* lexer) {
 	return type;
 }
 
+Token character(Lexer* lexer) {
+	if(is_at_end(lexer)) return error_token(lexer, "Expected character literal");
+	advance(lexer);
+	if(!match(lexer, '\'')) return error_token(lexer, "Expected closing single quote");
+	return make_token(lexer, TOKEN_CHAR_LITERAL);
+}
+
 Token lexer_next(Lexer* lexer) {
 	skip_whitespace(lexer);
 	lexer->start = lexer->current;
@@ -190,6 +197,8 @@ Token lexer_next(Lexer* lexer) {
 
 	if(is_alpha(c)) return identifier(lexer);
 	if(is_digit(c)) return number(lexer);
+
+	if(c == '\'') return character(lexer);
 
 	switch (c) {
 		case '(': return make_token(lexer, TOKEN_LEFT_PAREN);

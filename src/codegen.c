@@ -209,6 +209,9 @@ void generate_expr_rax(Node* expr, FILE* out) {
 	else if(expr->type == AST_INT_LITERAL) {
 		fprintf(out, "    mov rax, %ld\n", expr->literal.as.integer);
 	}
+	else if(expr->type == AST_CHAR_LITERAL) {
+		fprintf(out, "    mov rax, %ld\n", expr->literal.as.integer);
+	}
 	else if(expr->type == AST_ACCESS_VAR) {
 		if(expr->variable.type.isArray) {
 			fprintf(out, "    lea rax, [rbp-%d]\n", expr->variable.stackOffset);

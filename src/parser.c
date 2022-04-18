@@ -192,6 +192,16 @@ Node* parse_value(Parser* parser) {
 		
 		return literalNode;
 	}
+	else if(match(parser, TOKEN_CHAR_LITERAL)) {
+		Token literal = parser->previous;
+		if(parser->error) return NULL;
+
+		Node* literalNode = new_node(AST_CHAR_LITERAL, literal);
+		literalNode->literal.type = (Type) { .type = DATA_TYPE_I8, .indirection = 0 };
+		literalNode->literal.as.integer = literal.start[1];
+		
+		return literalNode;
+	}
 	else if(match(parser, TOKEN_IDENTIFIER)) {
 		return parse_identifier(parser);
 	}

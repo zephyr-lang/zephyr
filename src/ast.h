@@ -31,6 +31,7 @@
 	F(OP_ASSIGN_DEREF, "assign deref") \
 	F(AST_ARRAY_INIT, "array initialization") \
 	F(AST_INT_LITERAL, "int literal") \
+	F(AST_CHAR_LITERAL, "char literal") \
 	F(AST_CALL, "call") \
 	F(AST_DEFINE_VAR, "define var") \
 	F(AST_ACCESS_VAR, "access var") \
