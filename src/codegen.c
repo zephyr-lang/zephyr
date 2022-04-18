@@ -476,9 +476,20 @@ void generate_implicit_printu_impl(FILE* out) {
 	fprintf(out, "		ret\n");
 }
 
+void generate_implicit_syscall3_impl(FILE* out) {
+	fprintf(out, "syscall3:\n");
+	fprintf(out, "    mov rax, rdi\n");
+	fprintf(out, "    mov rdi, rsi\n");
+	fprintf(out, "    mov rsi, rdx\n");
+	fprintf(out, "    mov rdx, rcx\n");
+	fprintf(out, "    syscall\n");
+	fprintf(out, "    ret\n");
+}
+
 void generate_program(Parser* parser, Node* ast, FILE* out) {
 	fprintf(out, "section .text\n");
 	generate_implicit_printu_impl(out);
+	generate_implicit_syscall3_impl(out);
 
 	for(size_t i = 0; i < ast->block.size; i++) {
 		if(ast->block.children[i]->type == AST_FUNCTION) {

@@ -789,11 +789,54 @@ void add_implicit_printu_function(Parser* parser) {
 	parser->functions[parser->functionCount - 1] = function;
 }
 
+void add_implicit_syscall3_function(Parser* parser) {
+	Token name = (Token) { .type = TOKEN_IDENTIFIER, .start = "syscall3", .length = 8, .line = 0 };
+	Node* function = new_node(AST_FUNCTION, name);
+	function->function.name = name;
+
+	function->function.arguments = malloc(4 * sizeof(Node*));
+	function->function.argumentCount = 4;
+
+	Token nrTok = (Token) { .type = TOKEN_IDENTIFIER, .start = "nr", .length = 2, .line = 0 };
+	Node* nr = new_node(AST_DEFINE_VAR, nrTok);
+	nr->variable.name = nrTok;
+	nr->variable.type = (Type) { .type = DATA_TYPE_INT, .indirection = 0 };
+	function->function.arguments[0] = nr;
+
+	// Argument names after the write syscall
+
+	Token fdTok = (Token) { .type = TOKEN_IDENTIFIER, .start = "fd", .length = 2, .line = 0 };
+	Node* fd = new_node(AST_DEFINE_VAR, fdTok);
+	fd->variable.name = fdTok;
+	fd->variable.type = (Type) { .type = DATA_TYPE_INT, .indirection = 0 };
+	function->function.arguments[1] = fd;
+
+	Token bufTok = (Token) { .type = TOKEN_IDENTIFIER, .start = "buf", .length = 3, .line = 0 };
+	Node* buf = new_node(AST_DEFINE_VAR, bufTok);
+	buf->variable.name = bufTok;
+	buf->variable.type = (Type) { .type = DATA_TYPE_I8, .indirection = 1 };
+	function->function.arguments[2] = buf;
+
+	Token countTok = (Token) { .type = TOKEN_IDENTIFIER, .start = "count", .length = 5, .line = 0 };
+	Node* count = new_node(AST_DEFINE_VAR, countTok);
+	count->variable.name = countTok;
+	count->variable.type = (Type) { .type = DATA_TYPE_INT, .indirection = 0 };
+	function->function.arguments[3] = count;
+
+	function->function.returnType = (Type) {.type = DATA_TYPE_INT, .indirection = 0 };
+
+	function->function.hasImplicitBody = true;
+
+	parser->functions = realloc(parser->functions, ++parser->functionCount * sizeof(Node*));
+	parser->functions[parser->functionCount - 1] = function;
+}
+
 Node* parse_program(Parser* parser) {
 	advance(parser);
 	Node* program = new_node(AST_PROGRAM, parser->current);
 
 	add_implicit_printu_function(parser);
+	add_implicit_syscall3_function(parser);
 
 	while(!match(parser, TOKEN_EOF)) {
 		if(match(parser, TOKEN_FUNCTION)) {
