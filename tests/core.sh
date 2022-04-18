@@ -2,7 +2,7 @@
 
 . tests/asserts.sh
 
-echo -n "Basic returns: "
+echo -n "Returns: "
 assert_exit_code 0 "function main(): int { return 0; }"
 assert_exit_code 100 "function main(): int { return 100; }"
 assert_compilation_error "function main(): int {}"
@@ -11,6 +11,11 @@ assert_exit_code 10 "function main(): int { if(1) { return 10; } else { return 5
 assert_exit_code 10 "function main(): int { if(1) return 10; else return 5; }"
 assert_exit_code 0 "function x() { return; } function main(): int { x(); return 0; }"
 assert_compilation_error "function main(): int { return; }"
+echo " Done"
+
+echo -n "Literals: "
+assert_exit_code 65 "function main(): int { return 'A'; }"
+assert_compilation_error "function main(): int { return 'AZ'; }"
 echo " Done"
 
 echo -n "Unary: "

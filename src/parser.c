@@ -104,6 +104,12 @@ static int64_t parse_constant(Parser* parser) {
 
 		return strtol(literal.start, NULL, 10);
 	}
+	else if(match(parser, TOKEN_CHAR_LITERAL)) {
+		Token literal = parser->previous;
+		if(parser->error) return 0;
+
+		return literal.start[1];
+	}
 	else {
 		error_current(parser, "Expected constant value");
 		return 0;
