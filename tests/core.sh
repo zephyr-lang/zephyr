@@ -391,3 +391,29 @@ function main(): int {
 }
 "
 echo " Done"
+
+echo -n "Cast: "
+# NOTE: Little-endian specific
+assert_stdout "DCBA" "
+function main(): int {
+	var i = 1094861636;
+	var ip = &i;
+
+	syscall3(1, 1, ip as i8*, 4);
+
+	return 0;
+}
+"
+assert_stdout "68" "
+function main(): int {
+	var i = 1094861636;
+	var ip = &i;
+
+	var c: i8 = i as i8;
+
+	printu(c as int);
+
+	return 0;
+}
+"
+echo " Done"
