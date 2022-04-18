@@ -213,7 +213,7 @@ Node* parse_value(Parser* parser) {
 		if(parser->error) return NULL;
 
 		Node* literalNode = new_node(AST_STRING, literal);
-		literalNode->literal.type = (Type) { .type = DATA_TYPE_I8, .indirection = 1, .isArray = true, .arrayLength = literal.length - 1 };
+		literalNode->literal.type = (Type) { .type = DATA_TYPE_I8, .indirection = 1 };
 		literalNode->literal.as.string.chars = literal.start + 1;
 		literalNode->literal.as.string.length = literal.length - 2;
 		literalNode->literal.as.string.id = parser->stringCount;

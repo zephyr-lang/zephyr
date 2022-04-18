@@ -248,7 +248,7 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    call %.*s\n", (int)expr->function.name.length, expr->function.name.start);
 	}
 	else if(expr->type == AST_STRING) {
-		fprintf(out, "    mov rax, QWORD [_s%d]\n", expr->literal.as.string.id);
+		fprintf(out, "    lea rax, [_s%d]\n", expr->literal.as.string.id);
 	}
 	else if(expr->type == OP_TERNARY) {
 		generate_expr_rax(expr->conditional.condition, out);

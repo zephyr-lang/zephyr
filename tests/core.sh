@@ -16,6 +16,22 @@ echo " Done"
 echo -n "Literals: "
 assert_exit_code 65 "function main(): int { return 'A'; }"
 assert_compilation_error "function main(): int { return 'AZ'; }"
+assert_exit_code 72 "function main(): int { return \"Hello\"[0]; }"
+assert_stdout "72
+101
+108
+108
+111" "
+function main(): int {
+	var s = \"Hello\";
+
+	for(var i = 0; s[i]; i = i + 1) {
+		printu(s[i]);
+	}
+
+	return 0;
+}
+"
 echo " Done"
 
 echo -n "Unary: "
