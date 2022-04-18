@@ -246,6 +246,41 @@ function main(): int {
 }
 "
 
+assert_stdout "12" "
+function main(): int {
+	var i = 10;
+	var ip = &i;
+
+	*ip = 12;
+
+	printu(*ip);
+
+	return 0;
+}
+"
+
+assert_compilation_error "
+function main(): int {
+	var i = 10;
+	*i = 12;
+	return 0;
+}
+"
+
+assert_compilation_error "
+function x() {}
+function main(): int {
+	var i = 10;
+	var ip = &i;
+
+	*ip = x();
+
+	printu(*ip);
+
+	return 0;
+}
+"
+
 echo " Done"
 
 echo -n "Global Variables: "
