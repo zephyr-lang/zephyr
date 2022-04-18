@@ -89,6 +89,13 @@ static bool match(Parser* parser, TokenType type) {
 	return true;
 }
 
+bool allow_expr_stmt(Node* expr) {
+	return expr->type == AST_CALL ||
+	       expr->type == AST_ASSIGN_VAR ||
+	       expr->type == AST_ASSIGN_GLOBAL_VAR ||
+		   expr->type == OP_ASSIGN_SUBSCRIPT;
+}
+
 static int64_t parse_constant(Parser* parser) {
 	if(match(parser, TOKEN_INT_LITERAL)) {
 		Token literal = parser->previous;
@@ -463,8 +470,13 @@ Node* parse_assignment_expression(Parser* parser) {
 	Node* left = parse_ternary_expression(parser);
 
 	while(match(parser, TOKEN_EQ)) {
+		if(left->lvalue == LVALUE_NONE) {
+			error(parser, "Invalid lvalue for assignment");
+			return NULL;
+		}
+
 		Token op = parser->previous;
-		Node* right = parse_ternary_expression(parser);
+		Node* right = parse_assignment_expression(parser);
 
 		switch(left->lvalue) {
 			case LVALUE_IDENTIFIER: {
@@ -473,6 +485,7 @@ Node* parse_assignment_expression(Parser* parser) {
 				assign->variable.name = name;
 				assign->variable.value = right;
 				left = assign;
+				break;
 			}
 			case LVALUE_SUBSCRIPT: {
 				Node* subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
@@ -480,11 +493,7 @@ Node* parse_assignment_expression(Parser* parser) {
 				subscript->ternary.mid = left->binary.rhs;
 				subscript->ternary.rhs = right;
 				left = subscript;
-			}
-
-			case LVALUE_NONE: {
-				error(parser, "Invalid lvalue for assignment");
-				return NULL;
+				break;
 			}
 			default: {
 				assert(0 && "Unreachable - parse_assignment_expression lvalue");
@@ -629,29 +638,23 @@ Node* parse_statement(Parser* parser) {
 	else if(match(parser, TOKEN_WHILE)) {
 		return parse_while_statement(parser);
 	}
-	else if(check(parser, TOKEN_IDENTIFIER)) {
-		Node* expr = parse_subscript(parser);
-		
-		if(expr == NULL) return NULL;
-
-		// Disallow just having a variable name as a statement
-		if(expr->type == AST_ACCESS_VAR || expr->type == OP_ACCESS_SUBSCRIPT) {
-			error_current(parser, "Expected statement");
-		}
-
-		consume(parser, TOKEN_SEMICOLON, "Expected ';' after expression");
-		
-		Node* exprStmt = new_node(AST_EXPR_STMT, expr->position);
-		exprStmt->unary = expr;
-		return exprStmt;
-	}
 	else if(match(parser, TOKEN_LEFT_BRACE)) {
 		return parse_block(parser);
 	}
+	
+	Node* expr = parse_expression(parser);
 
-	error_current(parser, "Expected statement");
+	if(expr == NULL) return NULL;
 
-	return NULL;
+	if(!allow_expr_stmt(expr)) {
+		error_current(parser, "Expected statement");
+	}
+
+	consume(parser, TOKEN_SEMICOLON, "Expected ';' after expression");
+		
+	Node* exprStmt = new_node(AST_EXPR_STMT, expr->position);
+	exprStmt->unary = expr;
+	return exprStmt;
 }
 
 Node* parse_block(Parser* parser) {

@@ -81,7 +81,7 @@ function main(): int {
 	return 0;
 }
 "
-
+assert_compilation_error "function main(): int { 12 + 5; return 0; }"
 echo " Done"
 
 echo -n "Scoping: "
