@@ -378,3 +378,16 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Hello World: "
+assert_stdout "Hello, World!" "
+function main(): int {	
+	syscall3(1, 1, \"Hello, World!\", 13);
+
+	var n: i8 = 10;
+	syscall3(1, 1, &n, 1);
+
+	return 0;
+}
+"
+echo " Done"
