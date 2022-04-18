@@ -37,6 +37,7 @@
                                           \
 	F(TOKEN_INT_LITERAL, "int-literal")   \
 	F(TOKEN_CHAR_LITERAL, "char-literal") \
+	F(TOKEN_STRING, "string")             \
 	F(TOKEN_IDENTIFIER, "identifier")     \
                                           \
 	F(TOKEN_ELSE, "else")                 \

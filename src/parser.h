@@ -17,6 +17,9 @@ typedef struct Parser {
 	Node** globalVars;
 	size_t globalVarCount;
 
+	Node** strings;
+	size_t stringCount;
+
 	bool error;
 	bool panic;
 } Parser;

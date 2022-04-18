@@ -187,6 +187,18 @@ Token character(Lexer* lexer) {
 	return make_token(lexer, TOKEN_CHAR_LITERAL);
 }
 
+Token string(Lexer* lexer) {
+	while(!is_at_end(lexer) && peek(lexer) != '"') {
+		advance(lexer);
+	}
+
+	if(!match(lexer, '"')) {
+		return error_token(lexer, "Expected closing double quote");
+	}
+
+	return make_token(lexer, TOKEN_STRING);
+}
+
 Token lexer_next(Lexer* lexer) {
 	skip_whitespace(lexer);
 	lexer->start = lexer->current;
@@ -199,6 +211,7 @@ Token lexer_next(Lexer* lexer) {
 	if(is_digit(c)) return number(lexer);
 
 	if(c == '\'') return character(lexer);
+	if(c == '"') return string(lexer);
 
 	switch (c) {
 		case '(': return make_token(lexer, TOKEN_LEFT_PAREN);

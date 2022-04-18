@@ -426,6 +426,9 @@ void type_check_expr(Parser* parser, Node* expr) {
 	else if(expr->type == AST_CHAR_LITERAL) {
 		push_type_stack(i8Type);
 	}
+	else if(expr->type == AST_STRING) {
+		push_type_stack(&expr->literal.type);
+	}
 	else if(expr->type == AST_ACCESS_VAR) {
 		type_check_access_var(parser, expr);
 	}

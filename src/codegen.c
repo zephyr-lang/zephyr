@@ -247,6 +247,9 @@ void generate_expr_rax(Node* expr, FILE* out) {
 
 		fprintf(out, "    call %.*s\n", (int)expr->function.name.length, expr->function.name.start);
 	}
+	else if(expr->type == AST_STRING) {
+		fprintf(out, "    mov rax, QWORD [_s%d]\n", expr->literal.as.string.id);
+	}
 	else if(expr->type == OP_TERNARY) {
 		generate_expr_rax(expr->conditional.condition, out);
 		fprintf(out, "    test rax, rax\n");
@@ -543,6 +546,16 @@ void generate_program(Parser* parser, Node* ast, FILE* out) {
 			}
 			else
 				fprintf(out, "%s 1\n", type_to_res(&var->variable.type));
+		}
+	}
+
+	if(parser->stringCount > 0) {
+		fprintf(out, "section .data\n");
+
+		for(size_t i = 0; i < parser->stringCount; i++) {
+			Node* str = parser->strings[i];
+
+			fprintf(out, "_s%d: db \"%.*s\", 0\n", str->literal.as.string.id, (int)str->literal.as.string.length, str->literal.as.string.chars);
 		}
 	}
 }

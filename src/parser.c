@@ -208,6 +208,21 @@ Node* parse_value(Parser* parser) {
 		
 		return literalNode;
 	}
+	else if(match(parser, TOKEN_STRING)) {
+		Token literal = parser->previous;
+		if(parser->error) return NULL;
+
+		Node* literalNode = new_node(AST_STRING, literal);
+		literalNode->literal.type = (Type) { .type = DATA_TYPE_I8, .indirection = 1, .isArray = true, .arrayLength = literal.length - 1 };
+		literalNode->literal.as.string.chars = literal.start + 1;
+		literalNode->literal.as.string.length = literal.length - 2;
+		literalNode->literal.as.string.id = parser->stringCount;
+		
+		parser->strings = realloc(parser->strings, ++parser->stringCount * sizeof(Node*));
+		parser->strings[parser->stringCount - 1] = literalNode;
+
+		return literalNode;
+	}
 	else if(match(parser, TOKEN_IDENTIFIER)) {
 		return parse_identifier(parser);
 	}
@@ -565,7 +580,6 @@ Node* parse_return_statement(Parser* parser) {
 Node* parse_var_declaration(Parser* parser) {
 	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected variable name");
 
-	// TODO: Type inference
 	Type type = (Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
 	
 	if(match(parser, TOKEN_COLON)) {
