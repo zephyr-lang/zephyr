@@ -502,6 +502,9 @@ void generate_program(Parser* parser, Node* ast, FILE* out) {
 		else if(ast->block.children[i]->type == AST_DEFINE_GLOBAL_VAR) {
 			// Handled elsewhere
 		}
+		else if(ast->block.children[i]->type == AST_STRUCT) {
+			// No code generated
+		}
 		else {
 			fprintf(stderr, "Unsupported type '%s' in generate_program\n", node_type_to_string(ast->block.children[i]->type));
 			exit(1);

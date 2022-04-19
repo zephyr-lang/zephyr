@@ -20,6 +20,9 @@ typedef struct Parser {
 	Node** strings;
 	size_t stringCount;
 
+	Type* definedTypes;
+	size_t definedTypeCount;
+
 	bool error;
 	bool panic;
 } Parser;

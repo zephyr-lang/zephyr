@@ -41,6 +41,8 @@
 	F(AST_DEFINE_GLOBAL_VAR, "define gvar") \
 	F(AST_ACCESS_GLOBAL_VAR, "access gvar") \
 	F(AST_ASSIGN_GLOBAL_VAR, "assign gvar") \
+	F(AST_STRUCT, "struct") \
+	F(AST_MEMBER, "member") \
 	F(AST_EXPR_STMT, "expression statement") \
 	F(AST_IF, "if") \
 	F(AST_FOR, "for") \
@@ -62,7 +64,11 @@ typedef enum DataType {
 	DATA_TYPE_I8,
 	DATA_TYPE_I16,
 	DATA_TYPE_I32,
-	DATA_TYPE_I64
+	DATA_TYPE_I64,
+
+	DATA_TYPE_STRUCT,
+
+	DATA_TYPE_UNRESOLVED
 } DataType;
 
 typedef struct Node Node;
@@ -72,6 +78,10 @@ typedef struct Type {
 	int indirection; // 0 = int, 1 = int*, 2 = int**, etc.
 	bool isArray;
 	int arrayLength;
+
+	Token name;
+	Node** fields;
+	int fieldCount;
 } Type;
 
 typedef enum LValueType {

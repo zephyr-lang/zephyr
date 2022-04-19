@@ -142,6 +142,10 @@ Type parse_type(Parser* parser) {
 			type = (Type) { .type = DATA_TYPE_I64, .indirection = 0 };
 			break;
 		}
+		case TOKEN_IDENTIFIER: {
+			type = (Type) { .type = DATA_TYPE_UNRESOLVED, .indirection = 0, .name = parser->previous };
+			break;
+		}
 		default: 
 			error(parser, "Expected type");
 			return (Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
@@ -783,6 +787,47 @@ Node* parse_function(Parser* parser) {
 	return function;
 }
 
+Node* parse_struct_definition(Parser* parser) {
+	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected struct name");
+
+	consume(parser, TOKEN_LEFT_BRACE, "Expected '{' before struct body");
+
+	if(match(parser, TOKEN_RIGHT_BRACE)) error(parser, "Expected at least one struct member");
+
+	Type structType = (Type) { .type = DATA_TYPE_STRUCT };
+
+	structType.name = name;
+
+	do {
+		Token memName = consume(parser, TOKEN_IDENTIFIER, "Expected member name");
+		
+		consume(parser, TOKEN_COLON, "Expected ':' after member name");
+
+		Type memType = parse_type(parser);
+
+		consume(parser, TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		Node* member = new_node(AST_MEMBER, memName);
+		member->variable.name = memName;
+		member->variable.type = memType;
+
+		structType.fields = realloc(structType.fields, ++structType.fieldCount * sizeof(Node*));
+		structType.fields[structType.fieldCount - 1] = member;
+	} while(!check(parser, TOKEN_RIGHT_BRACE));
+
+	consume(parser, TOKEN_RIGHT_BRACE, "Expected '}' after struct body");
+
+	Node* strukt = new_node(AST_STRUCT, name);
+	strukt->computedType = structType;
+	strukt->variable.name = name;
+
+	//TODO check for duplicate structure names
+	parser->definedTypes = realloc(parser->definedTypes, ++parser->definedTypeCount * sizeof(Type));
+	parser->definedTypes[parser->definedTypeCount - 1] = structType;
+
+	return strukt;
+}
+
 void add_implicit_printu_function(Parser* parser) {
 	Token name = (Token) { .type = TOKEN_IDENTIFIER, .start = "printu", .length = 6, .line = 0 };
 	Node* function = new_node(AST_FUNCTION, name);
@@ -863,6 +908,10 @@ Node* parse_program(Parser* parser) {
 			Node* var = parse_var_declaration(parser);
 			var->type = AST_DEFINE_GLOBAL_VAR;
 			node_add_child(program, var);
+		}
+		else if(match(parser, TOKEN_STRUCT)) {
+			Node* strukt = parse_struct_definition(parser);
+			node_add_child(program, strukt);
 		}
 		else {
 			error_current(parser, "Expected function definition");

@@ -11,6 +11,9 @@ void type_check_block(Parser* parser, Node* block);
 static Type typeStack[128];
 static int typeStackDepth = 0;
 
+static Type* definedTypes;
+static size_t definedTypeCount;
+
 static Type* intType = &(Type) { .type = DATA_TYPE_INT, .indirection = 0 };
 static Type* voidType = &(Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
 static Type* i8Type = &(Type) { .type = DATA_TYPE_I8, .indirection = 0 };
@@ -25,6 +28,36 @@ void print_position(Token position) {
 		fprintf(stderr, "@ '%.*s'", (int)position.length, position.start);
 	}
 	fprintf(stderr, ": ");
+}
+
+bool tokens_equal(Token a, Token b) {
+	return a.length == b.length && memcmp(a.start, b.start, a.length) == 0;
+}
+
+Type* lookup_type(Token name) {
+
+	for(size_t i = 0; i < definedTypeCount; i++) {
+		Token typeName = definedTypes[i].name;
+		if(tokens_equal(typeName, name)) {
+			return &definedTypes[i];
+		}
+	}
+
+	print_position(name);
+	fprintf(stderr, "Unknown type '%.*s'\n", (int)name.length, name.start);
+	exit(1);
+
+	return NULL;
+}
+
+Type* resolve_type(Type* type) {
+	if(type->type != DATA_TYPE_UNRESOLVED) return type;
+	Type* resolve = lookup_type(type->name);
+	resolve->indirection = type->indirection;
+	resolve->isArray = type->isArray;
+	resolve->arrayLength = type->arrayLength;
+	*type = *resolve;
+	return type;
 }
 
 void push_type_stack(Type* type) {
@@ -48,8 +81,19 @@ bool type_is_integral(Type* a) {
 }
 
 bool types_assignable(Type* a, Type* b) {
+	resolve_type(a);
+	resolve_type(b);
+	
 	if(type_is_integral(a) && type_is_integral(b)) {
 		return true;
+	}
+
+	if(a->type == DATA_TYPE_STRUCT && b->type == DATA_TYPE_STRUCT && a->indirection == 0 && b->indirection == 0) {
+		if(sizeof_type(a) == sizeof_type(b)) {
+			//TODO: Warning
+			return true;
+		}
+		return false;
 	}
 
 	return a->type == b->type && a->indirection == b->indirection;
@@ -59,7 +103,10 @@ bool is_void_type(Type* a) {
 	return !a->isArray && a->type == DATA_TYPE_VOID && a->indirection == 0;
 }
 
+int sizeof_type_var_offset(Type* type);
+
 int sizeof_type(Type* type) {
+	resolve_type(type);
 	if(type->indirection != 0) return 8;
 	switch(type->type) {
 		case DATA_TYPE_INT: return 8;
@@ -67,6 +114,13 @@ int sizeof_type(Type* type) {
 		case DATA_TYPE_I16: return 2;
 		case DATA_TYPE_I32: return 4;
 		case DATA_TYPE_I64: return 8;
+		case DATA_TYPE_STRUCT: {
+			int size = 0;
+			for(int i = 0; i < type->fieldCount; i++) {
+				size += sizeof_type_var_offset(&type->fields[i]->variable.type);
+			}
+			return size;
+		}
 		case DATA_TYPE_VOID: assert(0 && "Not reached - sizeof_type(void)");
 		default: assert(0 && "Unreachable - sizeof_type");
 	}
@@ -89,7 +143,7 @@ Node* lookup_variable(Parser* parser, Token name) {
 	while(block != NULL) {
 		for(int i = 0; i < block->block.variableCount; i++) {
 			Token varName = block->block.variables[i]->variable.name;
-			if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
+			if(tokens_equal(varName, name)) {
 				return block->block.variables[i];
 			}
 		}
@@ -98,21 +152,21 @@ Node* lookup_variable(Parser* parser, Token name) {
 
 	for(int i = 0; i < parser->currentFunction->function.argumentCount; i++) {
 		Token argName = parser->currentFunction->function.arguments[i]->variable.name;
-		if(name.length == argName.length && memcmp(name.start, argName.start, name.length) == 0) {
+		if(tokens_equal(argName, name)) {
 			return parser->currentFunction->function.arguments[i];
 		}
 	}
 
 	for(int i = 0; i < parser->globalVarCount; i++) {
 		Token varName = parser->globalVars[i]->variable.name;
-		if(name.length == varName.length && memcmp(name.start, varName.start, name.length) == 0) {
+		if(tokens_equal(varName, name)) {
 			return parser->globalVars[i];
 		}
 	}
 
 	for(int i = 0; i < parser->functionCount; i++) {
 		Token funcName = parser->functions[i]->function.name;
-		if(name.length == funcName.length && memcmp(name.start, funcName.start, name.length) == 0) {
+		if(tokens_equal(funcName, name)) {
 			return parser->functions[i];
 		}
 	}
@@ -159,7 +213,7 @@ void type_check_unary(Parser* parser, Node* expr) {
 
 	if(!types_assignable(&type, intType)) {
 		print_position(expr->position);
-		fprintf(stderr, "Cannot perform operation '%s' on type %s\n", node_type_to_string(expr->type), type_to_string(type));
+		fprintf(stderr, "Cannot perform operation '%s' on type '%s'\n", node_type_to_string(expr->type), type_to_string(type));
 		exit(1);
 	}
 	push_type_stack(&type);
@@ -174,7 +228,7 @@ void type_check_binary(Parser* parser, Node* expr) {
 
 	if(!types_assignable(&left, intType) || !types_assignable(&right, intType)) {
 		print_position(expr->position);
-		fprintf(stderr, "Cannot perform operation '%s' on types %s and %s\n", node_type_to_string(expr->type), type_to_string(left), type_to_string(right));
+		fprintf(stderr, "Cannot perform operation '%s' on types '%s' and '%s'\n", node_type_to_string(expr->type), type_to_string(left), type_to_string(right));
 		exit(1);
 	}
 
@@ -195,9 +249,9 @@ void type_check_access_var(Parser* parser, Node* expr) {
 		expr->variable.type = variable->variable.type;
 		expr->variable.stackOffset = variable->variable.stackOffset;
 
-		Type decay = {};
-		decay.type = expr->variable.type.type;
-		decay.indirection = expr->variable.type.indirection;
+		Type decay = expr->variable.type;
+		decay.isArray = false;
+		decay.arrayLength = 0;
 
 		push_type_stack(&decay);
 	}
@@ -229,7 +283,7 @@ void type_check_assign_var(Parser* parser, Node* expr) {
 
 		if(!types_assignable(&valueType, &variable->variable.type)) {
 			print_position(expr->position);
-			fprintf(stderr, "Cannot assign type %s to variable of type %s\n", type_to_string(valueType), type_to_string(variable->variable.type));
+			fprintf(stderr, "Cannot assign type '%s' to variable of type '%s'\n", type_to_string(valueType), type_to_string(variable->variable.type));
 			exit(1);
 		}
 
@@ -244,7 +298,7 @@ void type_check_assign_var(Parser* parser, Node* expr) {
 
 		if(!types_assignable(&valueType, &variable->variable.type)) {
 			print_position(expr->position);
-			fprintf(stderr, "Cannot assign type %s to variable of type %s\n", type_to_string(valueType), type_to_string(variable->variable.type));
+			fprintf(stderr, "Cannot assign type '%s' to variable of type '%s'\n", type_to_string(valueType), type_to_string(variable->variable.type));
 			exit(1);
 		}
 
@@ -290,7 +344,7 @@ void type_check_call(Parser* parser, Node* expr) {
 
 		if(!types_assignable(&argType, paramType)) {
 			print_position(expr->position);
-			fprintf(stderr, "Function argument %d expected type %s but got %s\n", i, type_to_string(*paramType), type_to_string(argType));
+			fprintf(stderr, "Function argument %d expected type '%s' but got '%s'\n", i, type_to_string(*paramType), type_to_string(argType));
 			exit(1);
 		}
 	}
@@ -736,6 +790,9 @@ void type_check_global_var(Parser* parser, Node* stmt) {
 void type_check(Parser* parser, Node* program) {
 	assert(program->type == AST_PROGRAM);
 
+	definedTypes = parser->definedTypes;
+	definedTypeCount = parser->definedTypeCount;
+
 	for(int i = 0; i < program->block.size; i++) {
 		Node* node = program->block.children[i];
 
@@ -745,6 +802,18 @@ void type_check(Parser* parser, Node* program) {
 		}
 		else if(node->type == AST_DEFINE_GLOBAL_VAR) {
 			type_check_global_var(parser, node);
+		}
+		else if(node->type == AST_STRUCT) {
+			for(int i = 0; i < node->computedType.fieldCount; i++) {
+				Type* type = &node->computedType.fields[i]->variable.type;
+				
+				if(tokens_equal(type->name, node->computedType.name) && type->indirection == 0) {
+					print_position(node->computedType.fields[i]->variable.name);
+					fprintf(stderr, "A struct cannot contain a member of itself (use a pointer instead)\n");
+					exit(1);
+				}
+				resolve_type(type);
+			}
 		}
 		else {
 			assert(0 && "Unreachable - unhandled node in type_check (program)");

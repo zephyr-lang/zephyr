@@ -1,4 +1,5 @@
 #include "ast.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +12,8 @@ char* data_type_to_string(DataType type) {
 		case DATA_TYPE_I16: return "i16";
 		case DATA_TYPE_I32: return "i32";
 		case DATA_TYPE_I64: return "i64";
+		case DATA_TYPE_UNRESOLVED:
+		case DATA_TYPE_STRUCT: assert(0 && "Unreachable");
 	}
 	return "<unknown type>";
 }
@@ -24,9 +27,22 @@ char* node_type_to_string(NodeType type) {
 	return "<unknown node type>";
 }
 
+char* struct_name_string(Type strukt) {
+	char* str = malloc(strukt.name.length + 1);
+	memcpy(str, strukt.name.start, strukt.name.length);
+	str[strukt.name.length] = '\0';
+	return str;
+}
+
 char* type_to_string(Type type) {
 	char* str = malloc(128); // Should be enough for now
-	char* baseType = data_type_to_string(type.type);
+	char* baseType;
+
+	if(type.type == DATA_TYPE_STRUCT || type.type == DATA_TYPE_UNRESOLVED)
+		baseType = struct_name_string(type);
+	else
+		baseType = data_type_to_string(type.type);
+
 	strcpy(str, baseType);
 	
 	for(int i = 0; i < type.indirection; i++) {
@@ -300,6 +316,19 @@ void print_ast_depth(Node* node, int depth) {
 			print_ast_depth(node->binary.lhs, depth + 1);
 			printf("\n");
 			print_ast_depth(node->binary.rhs, depth + 1);
+			break;
+		}
+
+		case AST_STRUCT: {
+			printf("struct %.*s\n", (int)node->variable.name.length, node->variable.name.start);
+			for(int i = 0; i < node->computedType.fieldCount; i++) {
+				print_ast_depth(node->computedType.fields[i], depth + 1);
+			}
+			break;
+		}
+
+		case AST_MEMBER: {
+			printf("%.*s: %s\n", (int)node->variable.name.length, node->variable.name.start, type_to_string(node->variable.type));
 			break;
 		}
 
