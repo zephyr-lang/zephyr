@@ -488,4 +488,66 @@ function main(): int {
 	return 0;
 }
 "
+
+assert_stdout "25" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+function main(): int {
+	var p: Point;
+
+	p.x = 12;
+	p.y = 13;
+
+	printu(p.x + p.y);
+
+	return 0;
+}
+"
+
+assert_stdout "25" "
+struct Point {
+	x: int;
+	y: int;
+	sum: int;
+}
+
+function sum(p: Point*) {
+	p.sum = p.x + p.y;
+}
+
+function main(): int {
+	var p: Point;
+
+	p.x = 12;
+	p.y = 13;
+
+	sum(&p);
+
+	printu(p.sum);
+
+	return 0;
+}
+"
+
+assert_compilation_error "
+struct Point {
+	x: int;
+	y: int;
+	sum: int;
+}
+
+function main(): int {
+	var p: Point;
+	var ip = &p;
+	var ipp = &ip;
+
+	ipp.x = 12;
+
+	return 0;
+}
+"
+
 echo " Done"
