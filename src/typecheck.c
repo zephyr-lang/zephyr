@@ -103,6 +103,11 @@ bool is_void_type(Type* a) {
 	return !a->isArray && a->type == DATA_TYPE_VOID && a->indirection == 0;
 }
 
+bool is_structural_type(Type* a) {
+	resolve_type(a);
+	return a->type == DATA_TYPE_STRUCT && a->indirection == 0;
+}
+
 int sizeof_type_var_offset(Type* type);
 
 int sizeof_type(Type* type) {
@@ -488,16 +493,22 @@ void type_check_access_member(Parser* parser, Node* expr) {
 	type_check_expr(parser, expr->member.parent);
 
 	Type parentType = pop_type_stack();
+	Token name = expr->member.name;
+	Node* field;
 
-	if(parentType.type != DATA_TYPE_STRUCT || parentType.indirection != 0) {
+	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+		field = lookup_field(&parentType, name);
+	}
+	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+		parentType.indirection--;
+		expr->type = OP_ACCESS_MEMBER_PTR;
+		field = lookup_field(&parentType, name);
+	}
+	else {
 		print_position(expr->position);
 		fprintf(stderr, "Cannot access member on type '%s'\n", type_to_string(parentType));
 		exit(1);
 	}
-
-	Token name = expr->member.name;
-
-	Node* field = lookup_field(&parentType, name);
 
 	expr->member.memberRef = field;
 
@@ -508,16 +519,24 @@ void type_check_assign_member(Parser* parser, Node* expr) {
 	type_check_expr(parser, expr->member.parent);
 
 	Type parentType = pop_type_stack();
+	Token name = expr->member.name;
+	Node* field;
 
-	if(parentType.type != DATA_TYPE_STRUCT || parentType.indirection != 0) {
+	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+		field = lookup_field(&parentType, name);
+	}
+	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+		parentType.indirection--;
+		expr->type = OP_ASSIGN_MEMBER_PTR;
+		field = lookup_field(&parentType, name);
+	}
+	else {
 		print_position(expr->position);
 		fprintf(stderr, "Cannot access member on type '%s'\n", type_to_string(parentType));
 		exit(1);
 	}
 
-	Token name = expr->member.name;
 
-	Node* field = lookup_field(&parentType, name);
 
 	expr->member.memberRef = field;
 
@@ -786,6 +805,12 @@ void type_check_function(Parser* parser, Node* function) {
 			fprintf(stderr, "Arrays cannot be used as function arguments - consider using a pointer instead\n");
 			exit(1);
 		}
+		else if(is_structural_type(&arg->variable.type)) {
+			//FIXME When struct-copying is implemented
+			print_position(arg->position);
+			fprintf(stderr, "Structs cannot be used as function arguments - consider using a pointer instead\n");
+			exit(1);
+		}
 
 		stackOffset += sizeof_type(&arg->variable.type);
 
@@ -795,6 +820,12 @@ void type_check_function(Parser* parser, Node* function) {
 	if(function->function.returnType.isArray) {
 		print_position(function->position);
 		fprintf(stderr, "Arrays cannot be used as function return types - consider using a pointer instead\n");
+		exit(1);
+	}
+	else if(is_structural_type(&function->function.returnType)) {
+		//FIXME When struct-copying is implemented
+		print_position(function->position);
+		fprintf(stderr, "Structs cannot be used as function return types - consider using a pointer instead\n");
 		exit(1);
 	}
 

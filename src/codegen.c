@@ -97,6 +97,11 @@ void generate_unary_rax(Node* expr, FILE* out) {
 		}
 	}
 	else if(expr->type == OP_DEREF) {
+		if(sizeof_type(&expr->computedType) > 8) {
+			//TODO: Copy structs
+			fprintf(stderr, "Cannot copy structs (yet)\n");
+			exit(1);
+		}
 		generate_expr_rax(expr->unary, out);
 		fprintf(out, "    %s %s, %s [rax]\n", type_movzx(&expr->computedType), type_movzx_rax_subregister(&expr->computedType), type_to_qualifier(&expr->computedType));
 	}
@@ -316,6 +321,22 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		        type_to_qualifier(&field->variable.type), field->variable.stackOffset);
 	}
 	else if(expr->type == OP_ASSIGN_MEMBER) {
+		generate_expr_rax(expr->member.parent, out);
+		fprintf(out, "    push rax\n");
+		generate_expr_rax(expr->member.value, out);
+		fprintf(out, "    pop rbx\n");
+		Node* field = expr->member.memberRef;
+		fprintf(out, "    mov %s [rbx+%d], %s\n", type_to_qualifier(&field->variable.type), field->variable.stackOffset,
+		        type_to_rax_subregister(&field->variable.type));
+	}
+	// Currently does the same as above - may change when copying is added
+	else if(expr->type == OP_ACCESS_MEMBER_PTR) {
+		generate_expr_rax(expr->member.parent, out);
+		Node* field = expr->member.memberRef;
+		fprintf(out, "    %s %s, %s [rax+%d]\n", type_movzx(&field->variable.type), type_movzx_rax_subregister(&field->variable.type),
+		        type_to_qualifier(&field->variable.type), field->variable.stackOffset);
+	}
+	else if(expr->type == OP_ASSIGN_MEMBER_PTR) {
 		generate_expr_rax(expr->member.parent, out);
 		fprintf(out, "    push rax\n");
 		generate_expr_rax(expr->member.value, out);

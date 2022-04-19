@@ -31,6 +31,8 @@
 	F(OP_ASSIGN_DEREF, "assign deref") \
 	F(OP_ACCESS_MEMBER, "access member") \
 	F(OP_ASSIGN_MEMBER, "assign member") \
+	F(OP_ACCESS_MEMBER_PTR, "access member ptr") \
+	F(OP_ASSIGN_MEMBER_PTR, "assign member ptr") \
 	F(AST_ARRAY_INIT, "array initialization") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CHAR_LITERAL, "char literal") \
