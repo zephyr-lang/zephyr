@@ -377,6 +377,23 @@ function main(): int {
 }
 "
 
+assert_stdout "16
+8" "
+struct Foo {
+	y: int;
+	z: int;
+}
+
+struct Bar {
+	x: i8*;
+}
+function main(): int {
+	printu(sizeof(Foo));
+	printu(sizeof(Bar));
+	return 0;
+}
+"
+
 echo " Done"
 
 echo -n "Hello World: "
@@ -412,6 +429,61 @@ function main(): int {
 	var c: i8 = i as i8;
 
 	printu(c as int);
+
+	return 0;
+}
+"
+echo " Done"
+
+echo -n "Struct: "
+assert_exit_code 0 "
+struct Item {
+	next: Item*;
+	value: int;
+}
+
+function main(): int { return 0; }
+"
+
+assert_compilation_error "
+struct Point {
+	p: Point;
+}
+
+function main(): int { return 0; }
+"
+
+assert_exit_code 0 "
+struct Z {
+	x: i32[2];
+}
+
+struct Y {
+	y: i64;
+}
+
+function main(): int {
+	var z: Z;
+	var y: Y;
+	z = y;
+	return 0;
+}
+"
+
+assert_compilation_error "
+struct Foo {
+	a: int;
+}
+struct Bar {
+	b: int;
+	c: int;
+}
+
+function main(): int {
+	var f: Foo;
+	var b: Bar;
+
+	f = b;
 
 	return 0;
 }
