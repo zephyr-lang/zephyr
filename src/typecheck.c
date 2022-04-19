@@ -174,6 +174,23 @@ Node* lookup_variable(Parser* parser, Token name) {
 	return NULL;
 }
 
+Node* lookup_field(Type* parent, Token name) {
+	assert(parent->type == DATA_TYPE_STRUCT);
+
+	for(int i = 0; i < parent->fieldCount; i++) {
+		Token fieldName = parent->fields[i]->variable.name;
+		if(tokens_equal(fieldName, name)) {
+			return parent->fields[i];
+		}
+	}
+
+	print_position(name);
+	fprintf(stderr, "Type '%s' has no member '%.*s'\n", type_to_string(*parent), (int)name.length, name.start);
+	exit(1);
+
+	return NULL;
+}
+
 void type_check_unary(Parser* parser, Node* expr) {
 	if(expr->type == OP_ADDROF) {
 		if(!expr->unary->lvalue) {
@@ -467,6 +484,58 @@ void type_check_assign_deref(Parser* parser, Node* expr) {
 	push_type_stack(&refType);
 }
 
+void type_check_access_member(Parser* parser, Node* expr) {
+	type_check_expr(parser, expr->member.parent);
+
+	Type parentType = pop_type_stack();
+
+	if(parentType.type != DATA_TYPE_STRUCT || parentType.indirection != 0) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot access member on type '%s'\n", type_to_string(parentType));
+		exit(1);
+	}
+
+	Token name = expr->member.name;
+
+	Node* field = lookup_field(&parentType, name);
+
+	expr->member.memberRef = field;
+
+	push_type_stack(&field->variable.type);
+}
+
+void type_check_assign_member(Parser* parser, Node* expr) {
+	type_check_expr(parser, expr->member.parent);
+
+	Type parentType = pop_type_stack();
+
+	if(parentType.type != DATA_TYPE_STRUCT || parentType.indirection != 0) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot access member on type '%s'\n", type_to_string(parentType));
+		exit(1);
+	}
+
+	Token name = expr->member.name;
+
+	Node* field = lookup_field(&parentType, name);
+
+	expr->member.memberRef = field;
+
+	Type fieldType = field->variable.type;
+
+	type_check_expr(parser, expr->member.value);
+
+	Type valueType = pop_type_stack();
+
+	if(!types_assignable(&valueType, &fieldType)) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot assign type '%s' to member expecting '%s'\n", type_to_string(valueType), type_to_string(fieldType));
+		exit(1);
+	}
+
+	push_type_stack(&fieldType);
+}
+
 void type_check_expr(Parser* parser, Node* expr) {
 	if(is_unary_op(expr->type)) {
 		type_check_unary(parser, expr);
@@ -512,6 +581,12 @@ void type_check_expr(Parser* parser, Node* expr) {
 		//       or requires a warning in some cases is to be decided.
 		type_check_expr(parser, expr->unary);
 		push_type_stack(&expr->computedType);
+	}
+	else if(expr->type == OP_ACCESS_MEMBER) {
+		type_check_access_member(parser, expr);
+	}
+	else if(expr->type == OP_ASSIGN_MEMBER) {
+		type_check_assign_member(parser, expr);
 	}
 	else {
 		assert(0 && "Unreachable - type_check_expr");
@@ -804,14 +879,20 @@ void type_check(Parser* parser, Node* program) {
 			type_check_global_var(parser, node);
 		}
 		else if(node->type == AST_STRUCT) {
+			int offset = 0;
 			for(int i = 0; i < node->computedType.fieldCount; i++) {
-				Type* type = &node->computedType.fields[i]->variable.type;
+				Node* field = node->computedType.fields[i];
+				Type* type = &field->variable.type;
 				
 				if(tokens_equal(type->name, node->computedType.name) && type->indirection == 0) {
-					print_position(node->computedType.fields[i]->variable.name);
+					print_position(field->variable.name);
 					fprintf(stderr, "A struct cannot contain a member of itself (use a pointer instead)\n");
 					exit(1);
 				}
+
+				field->variable.stackOffset = offset;
+				offset += sizeof_type_var_offset(&field->variable.type);
+
 				resolve_type(type);
 			}
 		}

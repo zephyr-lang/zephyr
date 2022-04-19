@@ -12,6 +12,7 @@
 	F(TOKEN_COLON, "colon")               \
 	F(TOKEN_SEMICOLON, "semicolon")       \
 	F(TOKEN_COMMA, "comma")               \
+	F(TOKEN_DOT, "dot")                   \
 	F(TOKEN_QUESTION, "question")         \
 	F(TOKEN_TILDE, "tilde")               \
 	F(TOKEN_MINUS, "minus")               \

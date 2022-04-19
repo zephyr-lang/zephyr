@@ -29,6 +29,8 @@
 	F(OP_ACCESS_SUBSCRIPT, "access subscript") \
 	F(OP_ASSIGN_SUBSCRIPT, "assign subscript") \
 	F(OP_ASSIGN_DEREF, "assign deref") \
+	F(OP_ACCESS_MEMBER, "access member") \
+	F(OP_ASSIGN_MEMBER, "assign member") \
 	F(AST_ARRAY_INIT, "array initialization") \
 	F(AST_INT_LITERAL, "int literal") \
 	F(AST_CHAR_LITERAL, "char literal") \
@@ -88,7 +90,8 @@ typedef enum LValueType {
 	LVALUE_NONE = 0,
 	LVALUE_IDENTIFIER,
 	LVALUE_SUBSCRIPT,
-	LVALUE_DEREF
+	LVALUE_DEREF,
+	LVALUE_MEMBER
 } LValueType;
 
 typedef struct Node {
@@ -168,6 +171,13 @@ typedef struct Node {
 
 			int stackOffset;
 		} variable;
+
+		struct {
+			Token name;
+			Node* parent;
+			Node* value;
+			Node* memberRef;
+		} member;
 
 	};
 } Node;

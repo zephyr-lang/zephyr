@@ -94,7 +94,8 @@ bool allow_expr_stmt(Node* expr) {
 	       expr->type == AST_ASSIGN_VAR ||
 	       expr->type == AST_ASSIGN_GLOBAL_VAR ||
 		   expr->type == OP_ASSIGN_SUBSCRIPT ||
-		   expr->type == OP_ASSIGN_DEREF;
+		   expr->type == OP_ASSIGN_DEREF ||
+		   expr->type == OP_ASSIGN_MEMBER;
 }
 
 static int64_t parse_constant(Parser* parser) {
@@ -249,21 +250,32 @@ Node* parse_value(Parser* parser) {
 	}
 }
 
-Node* parse_subscript(Parser* parser) {
+Node* parse_member_access(Parser* parser) {
 	Node* left = parse_value(parser);
 
-	while(match(parser, TOKEN_LEFT_SQBR)) {
+	while(match(parser, TOKEN_LEFT_SQBR) || match(parser, TOKEN_DOT)) {
 		Token op = parser->previous;
 
-		Node* right = parse_expression(parser);
+		if(op.type == TOKEN_LEFT_SQBR) {
+			Node* right = parse_expression(parser);
 
-		consume(parser, TOKEN_RIGHT_SQBR, "Expected ']' after subscript index");
+			consume(parser, TOKEN_RIGHT_SQBR, "Expected ']' after subscript index");
 
-		Node* subscript = new_node(OP_ACCESS_SUBSCRIPT, op);
-		subscript->binary.lhs = left;
-		subscript->binary.rhs = right;
-		subscript->lvalue = LVALUE_SUBSCRIPT;
-		left = subscript;
+			Node* subscript = new_node(OP_ACCESS_SUBSCRIPT, op);
+			subscript->binary.lhs = left;
+			subscript->binary.rhs = right;
+			subscript->lvalue = LVALUE_SUBSCRIPT;
+			left = subscript;
+		}
+		else {
+			Token memberName = consume(parser, TOKEN_IDENTIFIER, "Expected member name");
+
+			Node* member = new_node(OP_ACCESS_MEMBER, op);
+			member->member.name = memberName;
+			member->member.parent = left;
+			member->lvalue = LVALUE_MEMBER;
+			left = member;
+		}
 	}
 
 	return left;
@@ -307,7 +319,7 @@ Node* parse_unary(Parser* parser) {
 		return deref;
 	}
 
-	return parse_subscript(parser);
+	return parse_member_access(parser);
 }
 
 Node* parse_as_cast(Parser* parser) {
@@ -552,6 +564,14 @@ Node* parse_assignment_expression(Parser* parser) {
 				Node* assign = new_node(OP_ASSIGN_DEREF, op);
 				assign->binary.lhs = left->unary;
 				assign->binary.rhs = right;
+				left = assign;
+				break;
+			}
+			case LVALUE_MEMBER: {
+				Node* assign = new_node(OP_ASSIGN_MEMBER, op);
+				assign->member.name = left->member.name;
+				assign->member.parent = left->member.parent;
+				assign->member.value = right;
 				left = assign;
 				break;
 			}

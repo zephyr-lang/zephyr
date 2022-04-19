@@ -332,6 +332,20 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case OP_ACCESS_MEMBER: {
+			printf(".%.*s\n", (int)node->member.name.length, node->member.name.start);
+			print_ast_depth(node->member.parent, depth + 1);
+			break;
+		}
+
+		case OP_ASSIGN_MEMBER: {
+			printf(".%.*s\n", (int)node->member.name.length, node->member.name.start);
+			print_ast_depth(node->member.parent, depth + 1);
+			printf("\n");
+			print_ast_depth(node->member.value, depth + 1);
+			break;
+		}
+
 		default: {
 			fprintf(stderr, "Cannot handle type '%s' in print_ast_depth\n", node_type_to_string(node->type));
 			break;
