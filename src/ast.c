@@ -260,6 +260,18 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_CALL_METHOD: {
+			printf("(call %.*s", (int)node->function.name.length, node->function.name.start);
+			for(int i = 0; i < node->function.argumentCount; i++) {
+				Node* arg = node->function.arguments[i];
+				printf(" ");
+				print_ast_depth(arg, 0);
+			}
+			printf(") of\n");
+			print_ast_depth(node->function.parent, depth + 1);
+			break;
+		}
+
 		case OP_TERNARY: {
 			printf("(");
 			print_ast_depth(node->conditional.condition, 0);

@@ -39,6 +39,7 @@
 	F(AST_STRING, "string") \
 	F(AST_CAST, "cast") \
 	F(AST_CALL, "call") \
+	F(AST_CALL_METHOD, "call method") \
 	F(AST_DEFINE_VAR, "define var") \
 	F(AST_ACCESS_VAR, "access var") \
 	F(AST_ASSIGN_VAR, "assign var") \
@@ -86,6 +87,9 @@ typedef struct Type {
 	Token name;
 	Node** fields;
 	int fieldCount;
+
+	Node** methods;
+	int methodCount;
 } Type;
 
 typedef enum LValueType {
@@ -134,6 +138,10 @@ typedef struct Node {
 			Type returnType;
 			Node* body;
 			bool hasImplicitBody;
+			
+			bool isMethod;
+			Node* parent;
+			Type parentType;
 
 			Node** arguments;
 			int argumentCount;

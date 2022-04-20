@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define ENUM_TOKENS(F)                    \
 	F(TOKEN_LEFT_PAREN, "left-paren")     \
@@ -76,3 +77,4 @@ typedef struct Token {
 
 char* token_type_to_string(TokenType type);
 void print_token(Token* token);
+bool tokens_equal(Token a, Token b);

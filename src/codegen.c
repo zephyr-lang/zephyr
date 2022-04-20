@@ -260,7 +260,25 @@ void generate_expr_rax(Node* expr, FILE* out) {
 			fprintf(out, "    mov %s, rax\n", ARG_REGISTERS[i]);
 		}
 
-		fprintf(out, "    call %.*s\n", (int)expr->function.name.length, expr->function.name.start);
+		fprintf(out, "    call _f_%.*s\n", (int)expr->function.name.length, expr->function.name.start);
+	}
+	else if(expr->type == AST_CALL_METHOD) {
+		if(expr->function.argumentCount > 6) {
+			fprintf(stderr, "Methods cannot have more than 5 arguments (method '%.*s' of '%.*s')\n", (int)expr->function.name.length, expr->function.name.start,
+			        (int)expr->function.parentType.name.length, expr->function.parentType.name.start);
+			exit(1);
+		}
+
+		generate_expr_rax(expr->function.parent, out);
+		fprintf(out, "    mov rdi, rax\n");
+
+		for(int i = 1; i < expr->function.argumentCount; i++) {
+			generate_expr_rax(expr->function.arguments[i], out);
+			fprintf(out, "    mov %s, rax\n", ARG_REGISTERS[i]);
+		}
+
+		fprintf(out, "    call _m_%.*s_%.*s\n",  (int)expr->function.parentType.name.length, expr->function.parentType.name.start, 
+		       (int)expr->function.name.length, expr->function.name.start);
 	}
 	else if(expr->type == AST_STRING) {
 		fprintf(out, "    lea rax, [_s%d]\n", expr->literal.as.string.id);
@@ -468,8 +486,16 @@ void generate_block(Node* block, FILE* out) {
 }
 
 void generate_function(Node* function, FILE* out) {
-	fprintf(out, "global %.*s\n", (int)function->function.name.length, function->function.name.start);
-	fprintf(out, "%.*s:\n", (int)function->function.name.length, function->function.name.start);
+	if(!function->function.isMethod) {
+		fprintf(out, "global _f_%.*s\n", (int)function->function.name.length, function->function.name.start);
+		fprintf(out, "_f_%.*s:\n", (int)function->function.name.length, function->function.name.start);
+	}
+	else {
+		fprintf(out, "global _m_%.*s_%.*s\n", (int)function->function.parentType.name.length, function->function.parentType.name.start, 
+		       (int)function->function.name.length, function->function.name.start);
+		fprintf(out, "_m_%.*s_%.*s:\n", (int)function->function.parentType.name.length, function->function.parentType.name.start, 
+		       (int)function->function.name.length, function->function.name.start);
+	}
 
 	fprintf(out, "    push rbp\n");
 	fprintf(out, "    mov rbp, rsp\n");
@@ -491,7 +517,7 @@ void generate_function(Node* function, FILE* out) {
 }
 
 void generate_implicit_printu_impl(FILE* out) {
-	fprintf(out, "printu:\n");
+	fprintf(out, "_f_printu:\n");
 	fprintf(out, "		sub     rsp, 40\n");
 	fprintf(out, "		mov     eax, 10\n");
 	fprintf(out, "		mov     esi, 19\n");
@@ -526,7 +552,7 @@ void generate_implicit_printu_impl(FILE* out) {
 }
 
 void generate_implicit_syscall3_impl(FILE* out) {
-	fprintf(out, "syscall3:\n");
+	fprintf(out, "_f_syscall3:\n");
 	fprintf(out, "    mov rax, rdi\n");
 	fprintf(out, "    mov rdi, rsi\n");
 	fprintf(out, "    mov rsi, rdx\n");
@@ -586,7 +612,7 @@ void generate_program(Parser* parser, Node* ast, FILE* out) {
 		}
 	}
 
-	fprintf(out, "    call main\n");
+	fprintf(out, "    call _f_main\n");
 	fprintf(out, "    mov rdi, rax\n");
 	fprintf(out, "    mov rax, 60\n");
 	fprintf(out, "    syscall\n");

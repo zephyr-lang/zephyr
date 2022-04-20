@@ -30,10 +30,6 @@ void print_position(Token position) {
 	fprintf(stderr, ": ");
 }
 
-bool tokens_equal(Token a, Token b) {
-	return a.length == b.length && memcmp(a.start, b.start, a.length) == 0;
-}
-
 Type* lookup_type(Token name) {
 
 	for(size_t i = 0; i < definedTypeCount; i++) {
@@ -191,6 +187,23 @@ Node* lookup_field(Type* parent, Token name) {
 
 	print_position(name);
 	fprintf(stderr, "Type '%s' has no member '%.*s'\n", type_to_string(*parent), (int)name.length, name.start);
+	exit(1);
+
+	return NULL;
+}
+
+Node* lookup_method(Type* parent, Token name) {
+	assert(parent->type == DATA_TYPE_STRUCT);
+
+	for(int i = 0; i < parent->methodCount; i++) {
+		Token methodName = parent->methods[i]->function.name;
+		if(tokens_equal(methodName, name)) {
+			return parent->methods[i];
+		}
+	}
+
+	print_position(name);
+	fprintf(stderr, "Type '%s' has no method '%.*s'\n", type_to_string(*parent), (int)name.length, name.start);
 	exit(1);
 
 	return NULL;
@@ -367,6 +380,63 @@ void type_check_call(Parser* parser, Node* expr) {
 		if(!types_assignable(&argType, paramType)) {
 			print_position(expr->position);
 			fprintf(stderr, "Function argument %d expected type '%s' but got '%s'\n", i, type_to_string(*paramType), type_to_string(argType));
+			exit(1);
+		}
+	}
+
+	push_type_stack(&function->function.returnType);
+}
+
+void type_check_method_call(Parser* parser, Node* expr) {
+	type_check_expr(parser, expr->function.parent);
+
+	Type parentType = pop_type_stack();
+	Token name = expr->function.name;
+	Node* function;
+
+	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+		function = lookup_method(&parentType, name);
+	}
+	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+		parentType.indirection--;
+		function = lookup_method(&parentType, name);
+	}
+	else {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot access method on type '%s'\n", type_to_string(parentType));
+		exit(1);
+	}
+
+	expr->function.parentType = parentType;
+
+	if(function == NULL) {
+		print_position(expr->position);
+		fprintf(stderr, "Unknown method '%.*s' of type '%s'\n", (int)expr->variable.name.length, expr->variable.name.start, type_to_string(parentType));
+		exit(1);
+	}
+
+	if(function->type != AST_FUNCTION) {
+		print_position(expr->position);
+		fprintf(stderr, "Can only call functions\n");
+		exit(1);
+	}
+
+	if(function->function.argumentCount - 1 != expr->function.argumentCount) {
+		print_position(expr->position);
+		fprintf(stderr, "Call expected %d arguments but got %d\n", function->function.argumentCount - 1, expr->function.argumentCount);
+		exit(1);
+	}
+
+	for(int i = 1; i < function->function.argumentCount; i++) {
+		Node* arg = expr->function.arguments[i];
+		type_check_expr(parser, arg);
+
+		Type argType = pop_type_stack();
+		Type* paramType = &function->function.arguments[i]->variable.type;
+
+		if(!types_assignable(&argType, paramType)) {
+			print_position(expr->position);
+			fprintf(stderr, "Function argument %d expected type '%s' but got '%s'\n", i-1, type_to_string(*paramType), type_to_string(argType));
 			exit(1);
 		}
 	}
@@ -579,6 +649,9 @@ void type_check_expr(Parser* parser, Node* expr) {
 	}
 	else if(expr->type == AST_CALL) {
 		type_check_call(parser, expr);
+	}
+	else if(expr->type == AST_CALL_METHOD) {
+		type_check_method_call(parser, expr);
 	}
 	else if(expr->type == OP_TERNARY) {
 		type_check_ternary_expr(parser, expr);
@@ -903,8 +976,9 @@ void type_check(Parser* parser, Node* program) {
 		Node* node = program->block.children[i];
 
 		if(node->type == AST_FUNCTION) {
-			if(!node->function.hasImplicitBody)
+			if(!node->function.hasImplicitBody) {
 				type_check_function(parser, node);
+			}
 		}
 		else if(node->type == AST_DEFINE_GLOBAL_VAR) {
 			type_check_global_var(parser, node);

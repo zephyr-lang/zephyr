@@ -91,11 +91,27 @@ static bool match(Parser* parser, TokenType type) {
 
 bool allow_expr_stmt(Node* expr) {
 	return expr->type == AST_CALL ||
+	       expr->type == AST_CALL_METHOD ||
 	       expr->type == AST_ASSIGN_VAR ||
 	       expr->type == AST_ASSIGN_GLOBAL_VAR ||
 		   expr->type == OP_ASSIGN_SUBSCRIPT ||
 		   expr->type == OP_ASSIGN_DEREF ||
 		   expr->type == OP_ASSIGN_MEMBER;
+}
+
+//TODO: Remove duplicate code between parser and typechecker
+Type* parser_lookup_type(Parser* parser, Token name) {
+
+	for(size_t i = 0; i < parser->definedTypeCount; i++) {
+		Token typeName = parser->definedTypes[i].name;
+		if(tokens_equal(typeName, name)) {
+			return &parser->definedTypes[i];
+		}
+	}
+
+	error(parser, "Unknown Type\n");
+
+	return NULL;
 }
 
 static int64_t parse_constant(Parser* parser) {
@@ -166,24 +182,28 @@ Type parse_type(Parser* parser) {
 	return type;
 }
 
+Node* parse_call(Parser* parser, Token name) {
+	Node* call = new_node(AST_CALL, name);
+	call->function.name = name;
+	if(!check(parser, TOKEN_RIGHT_PAREN)) {
+		do {
+			Node* arg = parse_expression(parser);
+
+			call->function.arguments = realloc(call->function.arguments, ++call->function.argumentCount * sizeof(Node*));
+			call->function.arguments[call->function.argumentCount - 1] = arg;
+		} while(match(parser, TOKEN_COMMA));
+	}
+
+	consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
+	
+	return call;
+}
+
 Node* parse_identifier(Parser* parser) {
 	Token name = parser->previous;
 
 	if(match(parser, TOKEN_LEFT_PAREN)) {
-		Node* call = new_node(AST_CALL, name);
-		call->function.name = name;
-		if(!check(parser, TOKEN_RIGHT_PAREN)) {
-			do {
-				Node* arg = parse_expression(parser);
-
-				call->function.arguments = realloc(call->function.arguments, ++call->function.argumentCount * sizeof(Node*));
-				call->function.arguments[call->function.argumentCount - 1] = arg;
-			} while(match(parser, TOKEN_COMMA));
-		}
-
-		consume(parser, TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
-		
-		return call;
+		return parse_call(parser, name);
 	}
 
 	Node* access = new_node(AST_ACCESS_VAR, name);
@@ -269,12 +289,22 @@ Node* parse_member_access(Parser* parser) {
 		}
 		else {
 			Token memberName = consume(parser, TOKEN_IDENTIFIER, "Expected member name");
-
-			Node* member = new_node(OP_ACCESS_MEMBER, op);
-			member->member.name = memberName;
-			member->member.parent = left;
-			member->lvalue = LVALUE_MEMBER;
-			left = member;
+			
+			if(match(parser, TOKEN_LEFT_PAREN)) {
+				Node* call = parse_call(parser, memberName);
+				call->type = AST_CALL_METHOD;
+				call->function.name = memberName;
+				call->function.isMethod = true;
+				call->function.parent = left;
+				left = call;
+			}
+			else {
+				Node* member = new_node(OP_ACCESS_MEMBER, op);
+				member->member.name = memberName;
+				member->member.parent = left;
+				member->lvalue = LVALUE_MEMBER;
+				left = member;
+			}
 		}
 	}
 
@@ -758,10 +788,34 @@ Node* parse_function(Parser* parser) {
 	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected function name");
 
 	Node* function = new_node(AST_FUNCTION, name);
-	function->function.name = name;
 	function->function.arguments = NULL;
 	function->function.argumentCount = 0;
 
+	if(match(parser, TOKEN_DOT)) {
+		Type* parent = parser_lookup_type(parser, name);
+		if(parent == NULL) return NULL;
+		function->function.parentType = *parent;
+		function->function.isMethod = true;
+		Token methodName = consume(parser, TOKEN_IDENTIFIER, "Expected function name");
+
+		Token argName = (Token) { .length=4, .start="this", .type=TOKEN_IDENTIFIER, .line=0 };
+		Type type = (Type) { .type = DATA_TYPE_UNRESOLVED, .name = name, .indirection = 1 };
+
+		Node* arg = new_node(AST_DEFINE_VAR, argName);
+		arg->variable.name = argName;
+		arg->variable.type = type;
+
+		function->function.arguments = realloc(function->function.arguments, ++function->function.argumentCount * sizeof(Node*));
+		function->function.arguments[function->function.argumentCount - 1] = arg;
+
+		parent->methods = realloc(parent->methods, ++parent->methodCount * sizeof(Node*));
+		parent->methods[parent->methodCount - 1] = function;
+
+		name = methodName;
+	}
+
+	function->function.name = name;
+	
 	consume(parser, TOKEN_LEFT_PAREN, "Expected '(' after function name");
 
 	if(!check(parser, TOKEN_RIGHT_PAREN)) {
