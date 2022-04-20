@@ -550,4 +550,65 @@ function main(): int {
 }
 "
 
+assert_stdout "25" "
+struct Point {
+    x: int;
+    y: int;
+    sum: int;
+}
+
+function Point.calc_sum() {
+    this.sum = this.x + this.y;
+}
+
+function main(): int {
+    var p: Point;
+
+    p.x = 12;
+    p.y = 13;
+
+    p.calc_sum();
+
+    printu(p.sum); // 25
+
+    return 0;
+}
+"
+
+assert_stdout "2" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+struct Line {
+	a: Point*;
+	b: Point*;
+}
+
+function Line.gradient(): int {
+	return (this.a.y - this.b.y) / (this.a.x - this.b.x);
+}
+
+function main(): int {
+	var p1: Point;
+
+	p1.x = 13;
+	p1.y = 12;
+
+	var p2: Point;
+
+	p2.x = 10;
+	p2.y = 6;
+
+	var l: Line;
+	l.a = &p1;
+	l.b = &p2;
+
+	printu(l.gradient());
+
+	return 0;
+}
+"
+
 echo " Done"
