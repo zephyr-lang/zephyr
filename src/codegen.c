@@ -92,6 +92,11 @@ void generate_unary_rax(Node* expr, FILE* out) {
 
 			fprintf(out, "    lea rax, [rax+rbx*%d]\n", sizeof_type(&expr->unary->computedType));
 		}
+		else if(expr->unary->lvalue == LVALUE_MEMBER) {
+			generate_expr_rax(expr->unary->member.parent, out);
+			Node* field = expr->unary->member.memberRef;
+			fprintf(out, "    lea rax, [rax+%d]\n", field->variable.stackOffset);
+		}
 		else {
 			assert(0 && "Unreachable - unknown lvalue type");
 		}

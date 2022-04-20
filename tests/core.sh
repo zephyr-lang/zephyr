@@ -611,4 +611,52 @@ function main(): int {
 }
 "
 
+assert_stdout "24" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+function double(y: int*) {
+	*y = *y * 2;
+}
+
+function main(): int {
+	var p: Point;
+
+	p.x = 12;
+
+	double(&p.x);
+
+	printu(p.x);
+
+	return 0;
+}
+"
+
+assert_stdout "24" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+function double(y: int*) {
+	*y = *y * 2;
+}
+
+function main(): int {
+	var p: Point;
+
+	p.x = 12;
+
+	var pp = &p;
+
+	double(&pp.x);
+
+	printu(p.x);
+
+	return 0;
+}
+"
+
 echo " Done"
