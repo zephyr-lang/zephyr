@@ -14,7 +14,19 @@ function inc_success_test_count() {
 	fi
 }
 
+function inc_skipped_test_count() {
+	if [ -n ${TEST_SKIPPED_COUNT+x} ]
+	then
+		((TEST_SKIPPED_COUNT=TEST_SKIPPED_COUNT + 1))
+	fi
+}
+
 function assert_compilation_error() {
+	if [ "$2" = "SKIP" ]
+	then
+		inc_skipped_test_count
+		return
+	fi
 	inc_total_test_count
 	set +e
 	./build/zephyr -c "$1" -o ./build/test >/dev/null 2>&1
@@ -37,6 +49,12 @@ function assert_compilation_error() {
 }
 
 function assert_exit_code() {
+	if [ "$3" = "SKIP" ]
+	then
+		inc_skipped_test_count
+		return
+	fi
+
 	inc_total_test_count
 	set +e
 	./build/zephyr -c "$2" -o ./build/test
@@ -79,6 +97,11 @@ function assert_exit_code() {
 }
 
 function assert_stdout() {
+	if [ "$3" = "SKIP" ]
+	then
+		inc_skipped_test_count
+		return
+	fi
 	inc_total_test_count
 	set +e
 	./build/zephyr -c "$2" -o ./build/test

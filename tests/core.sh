@@ -468,7 +468,7 @@ function main(): int {
 	z = y;
 	return 0;
 }
-"
+" "SKIP"
 
 assert_compilation_error "
 struct Foo {
@@ -654,6 +654,58 @@ function main(): int {
 	double(&pp.x);
 
 	printu(p.x);
+
+	return 0;
+}
+"
+
+echo " Done"
+
+echo -n "Union: "
+
+assert_stdout "2" "
+union SInt {
+	char: i8;
+	short: i16;
+}
+
+function main(): int {
+	printu(sizeof(SInt));
+
+	return 0;
+}
+"
+
+assert_stdout "12" "
+union SInt {
+	char: i8;
+	short: i16;
+}
+
+function main(): int {
+	var si: SInt;
+
+	si.char = 12;
+
+	printu(si.char as int);
+
+	return 0;
+}
+"
+
+assert_stdout "15" "
+union SInt {
+	char: i8;
+	short: i16;
+}
+
+function main(): int {
+	var si: SInt;
+	var sip = &si;
+
+	sip.char = 15;
+
+	printu(sip.char as int);
 
 	return 0;
 }
