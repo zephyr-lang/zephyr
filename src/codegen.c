@@ -223,14 +223,14 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    mov rax, %ld\n", expr->literal.as.integer);
 	}
 	else if(expr->type == AST_ACCESS_VAR) {
-		if(expr->variable.type.isArray || sizeof_type(&expr->variable.type) > 8) {
+		if(expr->variable.type.isArray || is_structural_type(&expr->variable.type)) {
 			fprintf(out, "    lea rax, [rbp-%d]\n", expr->variable.stackOffset);
 		}
 		else
 		fprintf(out, "    %s %s, %s [rbp-%d]\n", type_movzx(&expr->variable.type), type_movzx_rax_subregister(&expr->variable.type), type_to_qualifier(&expr->variable.type), expr->variable.stackOffset);
 	}
 	else if(expr->type == AST_ASSIGN_VAR) {
-		if(sizeof_type(&expr->variable.type) > 8) {
+		if(is_structural_type(&expr->variable.type)) {
 			//TODO: Copy structs
 			fprintf(stderr, "Cannot copy structs (yet)\n");
 			exit(1);
@@ -239,14 +239,14 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    mov %s [rbp-%d], %s\n", type_to_qualifier(&expr->variable.type), expr->variable.stackOffset, type_to_rax_subregister(&expr->variable.type));
 	}
 	else if(expr->type == AST_ACCESS_GLOBAL_VAR) {
-		if(expr->variable.type.isArray || sizeof_type(&expr->variable.type) > 8)
+		if(expr->variable.type.isArray || is_structural_type(&expr->variable.type))
 			fprintf(out, "    lea rax, [_g_%.*s]\n", (int)expr->variable.name.length, expr->variable.name.start);
 		else
 			fprintf(out, "    %s %s, %s [_g_%.*s]\n", type_movzx(&expr->variable.type), type_movzx_rax_subregister(&expr->variable.type), type_to_qualifier(&expr->variable.type), 
 			        (int)expr->variable.name.length, expr->variable.name.start);
 	}
 	else if(expr->type == AST_ASSIGN_GLOBAL_VAR) {
-		if(sizeof_type(&expr->variable.type) > 8) {
+		if(is_structural_type(&expr->variable.type)) {
 			//TODO: Copy structs
 			fprintf(stderr, "Cannot copy structs (yet)\n");
 			exit(1);

@@ -101,7 +101,7 @@ bool is_void_type(Type* a) {
 
 bool is_structural_type(Type* a) {
 	resolve_type(a);
-	return a->type == DATA_TYPE_STRUCT && a->indirection == 0;
+	return (a->type == DATA_TYPE_STRUCT || a->type == DATA_TYPE_UNION) && a->indirection == 0;
 }
 
 int sizeof_type_var_offset(Type* type);
@@ -184,7 +184,7 @@ Node* lookup_variable(Parser* parser, Token name) {
 }
 
 Node* lookup_field(Type* parent, Token name) {
-	assert(parent->type == DATA_TYPE_STRUCT);
+	assert(parent->type == DATA_TYPE_STRUCT || parent->type == DATA_TYPE_UNION);
 
 	for(int i = 0; i < parent->fieldCount; i++) {
 		Token fieldName = parent->fields[i]->variable.name;
@@ -574,10 +574,10 @@ void type_check_access_member(Parser* parser, Node* expr) {
 	Token name = expr->member.name;
 	Node* field;
 
-	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+	if((parentType.type == DATA_TYPE_STRUCT || parentType.type == DATA_TYPE_UNION) && parentType.indirection == 0) {
 		field = lookup_field(&parentType, name);
 	}
-	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+	else if((parentType.type == DATA_TYPE_STRUCT || parentType.type == DATA_TYPE_UNION) && parentType.indirection == 1 && !parentType.isArray) {
 		parentType.indirection--;
 		expr->type = OP_ACCESS_MEMBER_PTR;
 		field = lookup_field(&parentType, name);
@@ -600,10 +600,10 @@ void type_check_assign_member(Parser* parser, Node* expr) {
 	Token name = expr->member.name;
 	Node* field;
 
-	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+	if((parentType.type == DATA_TYPE_STRUCT || parentType.type == DATA_TYPE_UNION) && parentType.indirection == 0) {
 		field = lookup_field(&parentType, name);
 	}
-	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+	else if((parentType.type == DATA_TYPE_STRUCT || parentType.type == DATA_TYPE_UNION) && parentType.indirection == 1 && !parentType.isArray) {
 		parentType.indirection--;
 		expr->type = OP_ASSIGN_MEMBER_PTR;
 		field = lookup_field(&parentType, name);
