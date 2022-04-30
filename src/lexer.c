@@ -113,6 +113,7 @@ static TokenType identifier_type(Lexer* lexer) {
 			}
 			break;
 		}
+		case 'u': return check_keyword(lexer, 1, 4, "nion", TOKEN_UNION);
 		case 'v': {
 			if(lexer->current - lexer->start > 1) {
 				switch(lexer->start[1]) {

@@ -46,6 +46,7 @@
 	F(AST_DEFINE_GLOBAL_VAR, "define gvar") \
 	F(AST_ACCESS_GLOBAL_VAR, "access gvar") \
 	F(AST_ASSIGN_GLOBAL_VAR, "assign gvar") \
+	F(AST_UNION, "union") \
 	F(AST_STRUCT, "struct") \
 	F(AST_MEMBER, "member") \
 	F(AST_EXPR_STMT, "expression statement") \
@@ -72,6 +73,7 @@ typedef enum DataType {
 	DATA_TYPE_I64,
 
 	DATA_TYPE_STRUCT,
+	DATA_TYPE_UNION,
 
 	DATA_TYPE_UNRESOLVED
 } DataType;

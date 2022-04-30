@@ -13,6 +13,7 @@ char* data_type_to_string(DataType type) {
 		case DATA_TYPE_I32: return "i32";
 		case DATA_TYPE_I64: return "i64";
 		case DATA_TYPE_UNRESOLVED:
+		case DATA_TYPE_UNION:
 		case DATA_TYPE_STRUCT: assert(0 && "Unreachable");
 	}
 	return "<unknown type>";
@@ -38,7 +39,7 @@ char* type_to_string(Type type) {
 	char* str = malloc(128); // Should be enough for now
 	char* baseType;
 
-	if(type.type == DATA_TYPE_STRUCT || type.type == DATA_TYPE_UNRESOLVED)
+	if(type.type == DATA_TYPE_STRUCT || type.type == DATA_TYPE_UNION || type.type == DATA_TYPE_UNRESOLVED)
 		baseType = struct_name_string(type);
 	else
 		baseType = data_type_to_string(type.type);
@@ -328,6 +329,14 @@ void print_ast_depth(Node* node, int depth) {
 			print_ast_depth(node->binary.lhs, depth + 1);
 			printf("\n");
 			print_ast_depth(node->binary.rhs, depth + 1);
+			break;
+		}
+
+		case AST_UNION: {
+			printf("union %.*s\n", (int)node->variable.name.length, node->variable.name.start);
+			for(int i = 0; i < node->computedType.fieldCount; i++) {
+				print_ast_depth(node->computedType.fields[i], depth + 1);
+			}
 			break;
 		}
 

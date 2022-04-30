@@ -902,6 +902,47 @@ Node* parse_struct_definition(Parser* parser) {
 	return strukt;
 }
 
+Node* parse_union_definition(Parser* parser) {
+	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected struct name");
+
+	consume(parser, TOKEN_LEFT_BRACE, "Expected '{' before struct body");
+
+	if(match(parser, TOKEN_RIGHT_BRACE)) error(parser, "Expected at least one struct member");
+
+	Type unionType = (Type) { .type = DATA_TYPE_UNION };
+
+	unionType.name = name;
+
+	do {
+		Token memName = consume(parser, TOKEN_IDENTIFIER, "Expected member name");
+		
+		consume(parser, TOKEN_COLON, "Expected ':' after member name");
+
+		Type memType = parse_type(parser);
+
+		consume(parser, TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		Node* member = new_node(AST_MEMBER, memName);
+		member->variable.name = memName;
+		member->variable.type = memType;
+
+		unionType.fields = realloc(unionType.fields, ++unionType.fieldCount * sizeof(Node*));
+		unionType.fields[unionType.fieldCount - 1] = member;
+	} while(!check(parser, TOKEN_RIGHT_BRACE));
+
+	consume(parser, TOKEN_RIGHT_BRACE, "Expected '}' after union body");
+
+	Node* vnion = new_node(AST_UNION, name);
+	vnion->computedType = unionType;
+	vnion->variable.name = name;
+
+	//TODO check for duplicate structure names
+	parser->definedTypes = realloc(parser->definedTypes, ++parser->definedTypeCount * sizeof(Type));
+	parser->definedTypes[parser->definedTypeCount - 1] = unionType;
+
+	return vnion;
+}
+
 void add_implicit_printu_function(Parser* parser) {
 	Token name = (Token) { .type = TOKEN_IDENTIFIER, .start = "printu", .length = 6, .line = 0 };
 	Node* function = new_node(AST_FUNCTION, name);
@@ -986,6 +1027,10 @@ Node* parse_program(Parser* parser) {
 		else if(match(parser, TOKEN_STRUCT)) {
 			Node* strukt = parse_struct_definition(parser);
 			node_add_child(program, strukt);
+		}
+		else if(match(parser, TOKEN_UNION)) {
+			Node* vnion = parse_union_definition(parser);
+			node_add_child(program, vnion);
 		}
 		else {
 			error_current(parser, "Expected function definition");

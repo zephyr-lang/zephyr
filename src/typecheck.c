@@ -122,6 +122,14 @@ int sizeof_type(Type* type) {
 			}
 			return size;
 		}
+		case DATA_TYPE_UNION: {
+			int size = 0;
+			for(int i = 0; i < type->fieldCount; i++) {
+				int memberSize = sizeof_type_var_offset(&type->fields[i]->variable.type);
+				size = memberSize > size ? memberSize : size;
+			}
+			return size;
+		}
 		case DATA_TYPE_VOID: assert(0 && "Not reached - sizeof_type(void)");
 		default: assert(0 && "Unreachable - sizeof_type");
 	}
@@ -997,6 +1005,22 @@ void type_check(Parser* parser, Node* program) {
 
 				field->variable.stackOffset = offset;
 				offset += sizeof_type_var_offset(&field->variable.type);
+
+				resolve_type(type);
+			}
+		}
+		else if(node->type == AST_UNION) {
+			for(int i = 0; i < node->computedType.fieldCount; i++) {
+				Node* field = node->computedType.fields[i];
+				Type* type = &field->variable.type;
+				
+				if(tokens_equal(type->name, node->computedType.name) && type->indirection == 0) {
+					print_position(field->variable.name);
+					fprintf(stderr, "A union cannot contain a member of itself (use a pointer instead)\n");
+					exit(1);
+				}
+
+				field->variable.stackOffset = 0;
 
 				resolve_type(type);
 			}
