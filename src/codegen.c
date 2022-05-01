@@ -405,13 +405,22 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    lea rdx, [rbp-%d]\n", expr->variable.stackOffset);
 		
 		generate_copy(expr->variable.type.fieldCount, expr->variable.type.fields, 0, 0, out);
-		fprintf(out, "   mov rax, rdx\n");
+		fprintf(out, "    mov rax, rdx\n");
+	}
+	else if(expr->type == OP_COPY_STRUCT_DEREF) {
+		generate_expr_rax(expr->binary.lhs, out);
+		fprintf(out, "    mov rdx, rax\n");
+		generate_expr_rax(expr->binary.rhs, out);
+		fprintf(out, "    mov rcx, rax\n");
+
+		generate_copy(expr->computedType.fieldCount, expr->computedType.fields, 0, 0, out);
+		fprintf(out, "    mov rax, rdx\n");
 	}
 	else if(expr->type == OP_COPY_STRUCT_MEMBER) {
-		generate_expr_rax(expr->member.value, out);
-		fprintf(out, "    mov rcx, rax\n");
 		generate_expr_rax(expr->member.parent, out);
 		fprintf(out, "    mov rdx, rax\n");
+		generate_expr_rax(expr->member.value, out);
+		fprintf(out, "    mov rcx, rax\n");
 		
 		Node* member = expr->member.memberRef;
 		int memberOffset = member->variable.stackOffset;

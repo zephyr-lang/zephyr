@@ -50,6 +50,7 @@
 	F(AST_ASSIGN_GLOBAL_VAR, "assign gvar") \
 	F(OP_COPY_STRUCT, "copy struct") \
 	F(OP_COPY_STRUCT_MEMBER, "copy struct member") \
+	F(OP_COPY_STRUCT_DEREF, "copy struct deref") \
 	F(AST_UNION, "union") \
 	F(AST_STRUCT, "struct") \
 	F(AST_MEMBER, "member") \

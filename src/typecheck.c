@@ -566,6 +566,10 @@ void type_check_assign_deref(Parser* parser, Node* expr) {
 		fprintf(stderr, "Cannot assign value of type '%s' to dereferenced type '%s'\n", type_to_string(valueType), type_to_string(refType));
 		exit(1);
 	}
+
+	if(is_structural_type(&valueType)) {
+		expr->type = OP_COPY_STRUCT_DEREF;
+	}
 	
 	expr->computedType = refType;
 	push_type_stack(&refType);
