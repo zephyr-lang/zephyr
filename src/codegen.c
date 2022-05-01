@@ -57,6 +57,20 @@ char* type_to_res(Type* type) {
 	assert(0 && "Unreachable - invalid size of type");
 }
 
+void generate_copy(int fieldCount, Node** fields, int parentOffset, int memberOffset, FILE* out) {
+	for(int i = 0; i < fieldCount; i++) {
+		Node* field = fields[i];
+		if(is_structural_type(&field->variable.type)) {
+			generate_copy(field->variable.type.fieldCount, field->variable.type.fields, field->variable.stackOffset, memberOffset, out);
+			continue;
+		}
+		fprintf(out, "    mov rax, %s [rcx+%d]\n", type_to_qualifier(&field->variable.type), 
+			    field->variable.stackOffset + parentOffset);
+		fprintf(out, "    mov %s [rdx+%d], rax\n", type_to_qualifier(&field->variable.type), 
+			    field->variable.stackOffset + parentOffset + memberOffset);
+	}
+}
+
 void generate_unary_rax(Node* expr, FILE* out) {
 	if(expr->type == OP_BWNOT) {
 		generate_expr_rax(expr->unary, out);
@@ -390,13 +404,7 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    mov rcx, rax\n");
 		fprintf(out, "    lea rdx, [rbp-%d]\n", expr->variable.stackOffset);
 		
-		for(int i = 0; i < expr->variable.type.fieldCount; i++) {
-			Node* field = expr->variable.type.fields[i];
-			fprintf(out, "    mov rax, %s [rcx+%d]\n", type_to_qualifier(&field->variable.type), 
-			        field->variable.stackOffset);
-			fprintf(out, "    mov %s [rdx+%d], rax\n", type_to_qualifier(&field->variable.type), 
-			        field->variable.stackOffset);
-		}
+		generate_copy(expr->variable.type.fieldCount, expr->variable.type.fields, 0, 0, out);
 		fprintf(out, "   mov rax, rdx\n");
 	}
 	else if(expr->type == OP_COPY_STRUCT_MEMBER) {
@@ -406,14 +414,9 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    mov rdx, rax\n");
 		
 		Node* member = expr->member.memberRef;
+		int memberOffset = member->variable.stackOffset;
 
-		for(int i = 0; i < member->variable.type.fieldCount; i++) {
-			Node* field = member->variable.type.fields[i];
-			fprintf(out, "    mov rax, %s [rcx+%d]\n", type_to_qualifier(&field->variable.type), 
-			        field->variable.stackOffset);
-			fprintf(out, "    mov %s [rdx+%d], rax\n", type_to_qualifier(&field->variable.type), 
-			        field->variable.stackOffset);
-		}
+		generate_copy(member->variable.type.fieldCount, member->variable.type.fields, 0, memberOffset, out);
 		fprintf(out, "    mov rax, rdx\n");
 	}
 	else {
