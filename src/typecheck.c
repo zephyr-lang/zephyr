@@ -618,8 +618,6 @@ void type_check_assign_member(Parser* parser, Node* expr) {
 		exit(1);
 	}
 
-
-
 	expr->member.memberRef = field;
 
 	Type fieldType = field->variable.type;
@@ -632,6 +630,10 @@ void type_check_assign_member(Parser* parser, Node* expr) {
 		print_position(expr->position);
 		fprintf(stderr, "Cannot assign type '%s' to member expecting '%s'\n", type_to_string(valueType), type_to_string(fieldType));
 		exit(1);
+	}
+
+	if(is_structural_type(&valueType)) {
+		expr->type = OP_COPY_STRUCT_MEMBER;
 	}
 
 	push_type_stack(&fieldType);

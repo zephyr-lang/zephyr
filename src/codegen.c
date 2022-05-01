@@ -399,6 +399,23 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		}
 		fprintf(out, "   mov rax, rdx\n");
 	}
+	else if(expr->type == OP_COPY_STRUCT_MEMBER) {
+		generate_expr_rax(expr->member.value, out);
+		fprintf(out, "    mov rcx, rax\n");
+		generate_expr_rax(expr->member.parent, out);
+		fprintf(out, "    mov rdx, rax\n");
+		
+		Node* member = expr->member.memberRef;
+
+		for(int i = 0; i < member->variable.type.fieldCount; i++) {
+			Node* field = member->variable.type.fields[i];
+			fprintf(out, "    mov rax, %s [rcx+%d]\n", type_to_qualifier(&field->variable.type), 
+			        field->variable.stackOffset);
+			fprintf(out, "    mov %s [rdx+%d], rax\n", type_to_qualifier(&field->variable.type), 
+			        field->variable.stackOffset);
+		}
+		fprintf(out, "    mov rax, rdx\n");
+	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));
 		exit(1);
