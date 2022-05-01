@@ -73,16 +73,11 @@ void generate_unary_rax(Node* expr, FILE* out) {
 		fprintf(out, "    movzx rax, al\n");
 	}
 	else if(expr->type == OP_ADDROF) {
-		if(expr->unary->lvalue == LVALUE_IDENTIFIER) {
-			if(expr->unary->type == AST_ACCESS_VAR) {
-				fprintf(out, "    lea rax, [rbp-%d]\n", expr->unary->variable.stackOffset);
-			}
-			else if(expr->unary->type == AST_ACCESS_GLOBAL_VAR) {
-				fprintf(out, "    lea rax, [_g_%.*s]\n", (int)expr->unary->variable.name.length, expr->unary->variable.name.start);
-			}
-			else {
-				assert(0 && "Unreachable - unhandled node type");
-			}
+		if(expr->unary->lvalue == LVALUE_LOCAL) {
+			fprintf(out, "    lea rax, [rbp-%d]\n", expr->unary->variable.stackOffset);
+		}
+		else if(expr->unary->lvalue == LVALUE_GLOBAL) {
+			fprintf(out, "    lea rax, [_g_%.*s]\n", (int)expr->unary->variable.name.length, expr->unary->variable.name.start);
 		}
 		else if(expr->unary->lvalue == LVALUE_SUBSCRIPT) {
 			generate_expr_rax(expr->unary->binary.lhs, out);
@@ -266,11 +261,6 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    %s %s, %s [rbp-%d]\n", type_movzx(&expr->variable.type), type_movzx_rax_subregister(&expr->variable.type), type_to_qualifier(&expr->variable.type), expr->variable.stackOffset);
 	}
 	else if(expr->type == AST_ASSIGN_VAR) {
-		if(is_structural_type(&expr->variable.type)) {
-			//TODO: Copy structs
-			fprintf(stderr, "Cannot copy structs (yet)\n");
-			exit(1);
-		}
 		generate_expr_rax(expr->variable.value, out);
 		fprintf(out, "    mov %s [rbp-%d], %s\n", type_to_qualifier(&expr->variable.type), expr->variable.stackOffset, type_to_rax_subregister(&expr->variable.type));
 	}
@@ -386,7 +376,7 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		    	    type_to_qualifier(&field->variable.type), field->variable.stackOffset);
 		}
 	}
-	else if(expr->type == OP_ASSIGN_MEMBER) {
+	else if(expr->type == OP_ASSIGN_MEMBER || expr->type == OP_ASSIGN_MEMBER_PTR) {
 		generate_expr_rax(expr->member.parent, out);
 		fprintf(out, "    push rax\n");
 		generate_expr_rax(expr->member.value, out);
@@ -395,14 +385,19 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    mov %s [rbx+%d], %s\n", type_to_qualifier(&field->variable.type), field->variable.stackOffset,
 		        type_to_rax_subregister(&field->variable.type));
 	}
-	else if(expr->type == OP_ASSIGN_MEMBER_PTR) {
-		generate_expr_rax(expr->member.parent, out);
-		fprintf(out, "    push rax\n");
-		generate_expr_rax(expr->member.value, out);
-		fprintf(out, "    pop rbx\n");
-		Node* field = expr->member.memberRef;
-		fprintf(out, "    mov %s [rbx+%d], %s\n", type_to_qualifier(&field->variable.type), field->variable.stackOffset,
-		        type_to_rax_subregister(&field->variable.type));
+	else if(expr->type == OP_COPY_STRUCT) {
+		generate_expr_rax(expr->variable.value, out);
+		fprintf(out, "    mov rcx, rax\n");
+		fprintf(out, "    lea rdx, [rbp-%d]\n", expr->variable.stackOffset);
+		
+		for(int i = 0; i < expr->variable.type.fieldCount; i++) {
+			Node* field = expr->variable.type.fields[i];
+			fprintf(out, "    mov rax, %s [rcx+%d]\n", type_to_qualifier(&field->variable.type), 
+			        field->variable.stackOffset);
+			fprintf(out, "    mov %s [rdx+%d], rax\n", type_to_qualifier(&field->variable.type), 
+			        field->variable.stackOffset);
+		}
+		fprintf(out, "   mov rax, rdx\n");
 	}
 	else {
 		fprintf(stderr, "Unsupported type '%s' in generate_expr_rax\n", node_type_to_string(expr->type));

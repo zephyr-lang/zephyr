@@ -48,6 +48,7 @@
 	F(AST_DEFINE_GLOBAL_VAR, "define gvar") \
 	F(AST_ACCESS_GLOBAL_VAR, "access gvar") \
 	F(AST_ASSIGN_GLOBAL_VAR, "assign gvar") \
+	F(OP_COPY_STRUCT, "copy struct") \
 	F(AST_UNION, "union") \
 	F(AST_STRUCT, "struct") \
 	F(AST_MEMBER, "member") \
@@ -100,7 +101,8 @@ typedef struct Type {
 
 typedef enum LValueType {
 	LVALUE_NONE = 0,
-	LVALUE_IDENTIFIER,
+	LVALUE_LOCAL,
+	LVALUE_GLOBAL,
 	LVALUE_SUBSCRIPT,
 	LVALUE_DEREF,
 	LVALUE_MEMBER

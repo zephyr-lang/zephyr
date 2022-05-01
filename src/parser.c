@@ -196,7 +196,7 @@ Node* parse_identifier(Parser* parser) {
 
 	Node* access = new_node(AST_ACCESS_VAR, name);
 	access->variable.name = name;
-	access->lvalue = LVALUE_IDENTIFIER;
+	access->lvalue = LVALUE_LOCAL;
 	return access;
 }
 
@@ -594,7 +594,7 @@ Node* parse_assignment_expression(Parser* parser) {
 		Node* right = parse_assignment_expression(parser);
 
 		switch(left->lvalue) {
-			case LVALUE_IDENTIFIER: {
+			case LVALUE_LOCAL: {
 				Token name = left->variable.name;
 				Node* assign = new_node(AST_ASSIGN_VAR, name);
 				assign->variable.name = name;
