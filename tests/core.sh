@@ -396,7 +396,7 @@ function main(): int {
 
 echo " Done"
 
-echo -n "Hello World: "
+echo -n "Syscall: "
 assert_stdout "Hello, World!" "
 function main(): int {	
 	syscall3(1, 1, \"Hello, World!\", 13);
@@ -407,20 +407,20 @@ function main(): int {
 	return 0;
 }
 "
-echo " Done"
 
-echo -n "Cast: "
-# NOTE: Little-endian specific
-assert_stdout "DCBA" "
+assert_compilation_error "
 function main(): int {
-	var i = 1094861636;
-	var ip = &i;
+	var x = syscall3(1, 1, \"Hello\", 5);
 
-	syscall3(1, 1, ip as i8*, 4);
+	printu(x);
 
 	return 0;
 }
 "
+
+echo " Done"
+
+echo -n "Cast: "
 assert_stdout "68" "
 function main(): int {
 	var i = 1094861636;

@@ -72,6 +72,8 @@ typedef enum DataType {
 	DATA_TYPE_I32,
 	DATA_TYPE_I64,
 
+	DATA_TYPE_ANY,
+
 	DATA_TYPE_STRUCT,
 	DATA_TYPE_UNION,
 

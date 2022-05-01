@@ -12,6 +12,7 @@ char* data_type_to_string(DataType type) {
 		case DATA_TYPE_I16: return "i16";
 		case DATA_TYPE_I32: return "i32";
 		case DATA_TYPE_I64: return "i64";
+		case DATA_TYPE_ANY: return "any";
 		case DATA_TYPE_UNRESOLVED:
 		case DATA_TYPE_UNION:
 		case DATA_TYPE_STRUCT: assert(0 && "Unreachable");

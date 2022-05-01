@@ -44,11 +44,11 @@ Node* add_implicit_syscall_function(char* sysName, int argCount) {
 		Token argTok = (Token) { .type = TOKEN_IDENTIFIER, .start = "arg", .length = 3, .line = 0 };
 		Node* arg = new_node(AST_DEFINE_VAR, argTok);
 		arg->variable.name = argTok;
-		arg->variable.type = (Type) { .type = DATA_TYPE_INT, .indirection = 0 };
-		function->function.arguments[1] = arg;
+		arg->variable.type = (Type) { .type = DATA_TYPE_ANY, .indirection = 0 };
+		function->function.arguments[i + 1] = arg;
 	}
 
-	function->function.returnType = (Type) {.type = DATA_TYPE_INT, .indirection = 0 };
+	function->function.returnType = (Type) {.type = DATA_TYPE_ANY, .indirection = 0 };
 
 	function->function.hasImplicitBody = true;
 

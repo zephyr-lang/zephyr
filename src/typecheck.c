@@ -80,6 +80,10 @@ bool types_assignable(Type* a, Type* b) {
 	resolve_type(a);
 	resolve_type(b);
 	
+	if(b->type == DATA_TYPE_ANY) {
+		return true;
+	}
+
 	if(type_is_integral(a) && type_is_integral(b)) {
 		return true;
 	}
@@ -115,6 +119,7 @@ int sizeof_type(Type* type) {
 		case DATA_TYPE_I16: return 2;
 		case DATA_TYPE_I32: return 4;
 		case DATA_TYPE_I64: return 8;
+		case DATA_TYPE_ANY: return 8;
 		case DATA_TYPE_STRUCT: {
 			int size = 0;
 			for(int i = 0; i < type->fieldCount; i++) {
