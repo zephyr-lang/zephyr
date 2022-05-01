@@ -659,6 +659,30 @@ function main(): int {
 }
 "
 
+assert_stdout "11
+42" "
+struct X {
+	type: int;
+
+	value: struct {
+		c: i8;
+		s: i16;
+	};
+
+}
+
+function main(): int {
+	var x: X;
+
+	x.value.c = 42;
+
+	printu(sizeof(X));
+	printu(x.value.c);
+
+	return 0;
+}
+"
+
 echo " Done"
 
 echo -n "Union: "
@@ -706,6 +730,30 @@ function main(): int {
 	sip.char = 15;
 
 	printu(sip.char as int);
+
+	return 0;
+}
+"
+
+assert_stdout "10
+42" "
+struct X {
+	type: int;
+
+	value: union {
+		c: i8;
+		s: i16;
+	};
+
+}
+
+function main(): int {
+	var x: X;
+
+	x.value.c = 42;
+
+	printu(sizeof(X));
+	printu(x.value.c);
 
 	return 0;
 }
