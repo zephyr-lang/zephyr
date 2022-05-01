@@ -164,3 +164,41 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "SC Logical: "
+
+assert_stdout "zz0
+zo1
+o1
+o1" "
+function z(): int { syscall3(1, 1, \"z\", 1); return 0; }
+function o(): int { syscall3(1, 1, \"o\", 1); return 1; }
+
+function main(): int {
+	printu(z() || z());
+	printu(z() || o());
+	printu(o() || z());
+	printu(o() || o());
+
+	return 0;
+}
+"
+
+assert_stdout "z0
+z0
+oz0
+oo1" "
+function z(): int { syscall3(1, 1, \"z\", 1); return 0; }
+function o(): int { syscall3(1, 1, \"o\", 1); return 1; }
+
+function main(): int {
+	printu(z() && z());
+	printu(z() && o());
+	printu(o() && z());
+	printu(o() && o());
+
+	return 0;
+}
+"
+
+echo " Done"
