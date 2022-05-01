@@ -19,6 +19,8 @@
 	F(OP_LESS_EQ, "<=") \
 	F(OP_GREATER, ">") \
 	F(OP_GREATER_EQ, ">=") \
+	F(OP_AND, "&&") \
+	F(OP_OR, "||") \
 	F(OP_BWNOT, "~") \
 	F(OP_NEG, "-") \
 	F(OP_NOT, "!") \

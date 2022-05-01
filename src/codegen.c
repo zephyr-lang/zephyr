@@ -136,9 +136,44 @@ void generate_shift_rax(Node* expr, FILE* out) {
 	}
 }
 
+void generate_logical_or_rax(Node* expr, FILE* out) {
+	int label = labelCount++;
+	generate_expr_rax(expr->binary.lhs, out);
+	fprintf(out, "    mov rcx, rax\n");
+	fprintf(out, "    mov rax, 1\n");
+	fprintf(out, "    test rcx, rcx\n");
+	fprintf(out, "    jne .l%d\n", label);
+	generate_expr_rax(expr->binary.rhs, out);
+	fprintf(out, "    test rax, rax\n");
+	fprintf(out, "    setne al\n");
+	fprintf(out, "    movzx rax, al\n");
+	fprintf(out, ".l%d:\n", label);
+}
+
+void generate_logical_and_rax(Node* expr, FILE* out) {
+	int label = labelCount++;
+	generate_expr_rax(expr->binary.lhs, out);
+	fprintf(out, "    test rax, rax\n");
+	fprintf(out, "    je .l%d\n", label);
+	generate_expr_rax(expr->binary.rhs, out);
+	fprintf(out, "    test rax, rax\n");
+	fprintf(out, "    setne al\n");
+	fprintf(out, "    movzx rax, al\n");
+	fprintf(out, ".l%d:\n", label);
+}
+
 void generate_binary_rax(Node* expr, FILE* out) {
 	if(expr->type == OP_LSH || expr->type == OP_RSH) {
 		generate_shift_rax(expr, out);
+		return;
+	}
+
+	else if(expr->type == OP_OR) {
+		generate_logical_or_rax(expr, out);
+		return;
+	}
+	else if(expr->type == OP_AND) {
+		generate_logical_and_rax(expr, out);
 		return;
 	}
 

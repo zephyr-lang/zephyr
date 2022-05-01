@@ -528,8 +528,40 @@ Node* parse_bwor(Parser* parser) {
 	return left;
 }
 
+Node* parse_and(Parser* parser) {
+	Node* left = parse_bwor(parser);
+
+	while(match(parser, TOKEN_AMP_AMP)) {
+		Token op = parser->previous;
+		Node* right = parse_bwor(parser);
+
+		Node* binary = new_node(OP_AND, op);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+Node* parse_or(Parser* parser) {
+	Node* left = parse_and(parser);
+
+	while(match(parser, TOKEN_BAR_BAR)) {
+		Token op = parser->previous;
+		Node* right = parse_and(parser);
+
+		Node* binary = new_node(OP_OR, op);
+		binary->binary.lhs = left;
+		binary->binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
 Node* parse_ternary_expression(Parser* parser) {
-	Node* condition = parse_bwor(parser);
+	Node* condition = parse_or(parser);
 
 	if(match(parser, TOKEN_QUESTION)) {
 		Token op = parser->previous;
