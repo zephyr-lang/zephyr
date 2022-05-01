@@ -8,6 +8,8 @@
 Node* parse_expression(Parser* parser);
 Node* parse_statement(Parser* parser);
 Node* parse_block(Parser* parser);
+Node* parse_union_definition(Parser* parser, bool member);
+Node* parse_struct_definition(Parser* parser, bool member);
 
 Parser new_parser(Lexer* lexer) {
 	Parser parser = {0};
@@ -861,8 +863,63 @@ Node* parse_function(Parser* parser) {
 	return function;
 }
 
-Node* parse_struct_definition(Parser* parser) {
-	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected struct name");
+void parse_member_definition(Parser* parser, Type* type) {
+	Token memName = consume(parser, TOKEN_IDENTIFIER, "Expected member name");
+
+	consume(parser, TOKEN_COLON, "Expected ':' after member name");
+
+	if(match(parser, TOKEN_UNION)) {
+		Node* vnion = parse_union_definition(parser, true);
+
+		consume(parser, TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		vnion->variable.name = memName;
+		vnion->computedType.name = memName;
+
+		Node* member = new_node(AST_MEMBER, memName);
+		member->variable.name = memName;
+		member->variable.type = vnion->computedType;
+		member->variable.value = vnion;
+
+		type->fields = realloc(type->fields, ++type->fieldCount * sizeof(Node*));
+		type->fields[type->fieldCount - 1] = member;
+	}
+	else if(match(parser, TOKEN_STRUCT)) {
+		Node* strukt = parse_struct_definition(parser, true);
+
+		consume(parser, TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		strukt->variable.name = memName;
+		strukt->computedType.name = memName;
+
+		Node* member = new_node(AST_MEMBER, memName);
+		member->variable.name = memName;
+		member->variable.type = strukt->computedType;
+		member->variable.value = strukt;
+
+		type->fields = realloc(type->fields, ++type->fieldCount * sizeof(Node*));
+		type->fields[type->fieldCount - 1] = member;
+	}
+	else {
+		Type memType = parse_type(parser);
+
+		consume(parser, TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		Node* member = new_node(AST_MEMBER, memName);
+		member->variable.name = memName;
+		member->variable.type = memType;
+
+		type->fields = realloc(type->fields, ++type->fieldCount * sizeof(Node*));
+		type->fields[type->fieldCount - 1] = member;
+	}
+}
+
+Node* parse_struct_definition(Parser* parser, bool member) {
+	Token name;
+
+	if(!member) {
+		name = consume(parser, TOKEN_IDENTIFIER, "Expected struct name");
+	}
 
 	consume(parser, TOKEN_LEFT_BRACE, "Expected '{' before struct body");
 
@@ -873,20 +930,7 @@ Node* parse_struct_definition(Parser* parser) {
 	structType.name = name;
 
 	do {
-		Token memName = consume(parser, TOKEN_IDENTIFIER, "Expected member name");
-		
-		consume(parser, TOKEN_COLON, "Expected ':' after member name");
-
-		Type memType = parse_type(parser);
-
-		consume(parser, TOKEN_SEMICOLON, "Expected ';' after member declaration");
-
-		Node* member = new_node(AST_MEMBER, memName);
-		member->variable.name = memName;
-		member->variable.type = memType;
-
-		structType.fields = realloc(structType.fields, ++structType.fieldCount * sizeof(Node*));
-		structType.fields[structType.fieldCount - 1] = member;
+		parse_member_definition(parser, &structType);
 	} while(!check(parser, TOKEN_RIGHT_BRACE));
 
 	consume(parser, TOKEN_RIGHT_BRACE, "Expected '}' after struct body");
@@ -894,40 +938,33 @@ Node* parse_struct_definition(Parser* parser) {
 	Node* strukt = new_node(AST_STRUCT, name);
 	strukt->computedType = structType;
 	strukt->variable.name = name;
-
-	//TODO check for duplicate structure names
-	parser->definedTypes = realloc(parser->definedTypes, ++parser->definedTypeCount * sizeof(Type));
-	parser->definedTypes[parser->definedTypeCount - 1] = structType;
+	
+	if(!member) {
+		//TODO check for duplicate structure names
+		parser->definedTypes = realloc(parser->definedTypes, ++parser->definedTypeCount * sizeof(Type));
+		parser->definedTypes[parser->definedTypeCount - 1] = structType;
+	}
 
 	return strukt;
 }
 
-Node* parse_union_definition(Parser* parser) {
-	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected struct name");
+Node* parse_union_definition(Parser* parser, bool member) {
+	Token name;
 
-	consume(parser, TOKEN_LEFT_BRACE, "Expected '{' before struct body");
+	if(!member) {
+		name = consume(parser, TOKEN_IDENTIFIER, "Expected union name");
+	}
 
-	if(match(parser, TOKEN_RIGHT_BRACE)) error(parser, "Expected at least one struct member");
+	consume(parser, TOKEN_LEFT_BRACE, "Expected '{' before union body");
+
+	if(match(parser, TOKEN_RIGHT_BRACE)) error(parser, "Expected at least one union member");
 
 	Type unionType = (Type) { .type = DATA_TYPE_UNION };
 
 	unionType.name = name;
 
 	do {
-		Token memName = consume(parser, TOKEN_IDENTIFIER, "Expected member name");
-		
-		consume(parser, TOKEN_COLON, "Expected ':' after member name");
-
-		Type memType = parse_type(parser);
-
-		consume(parser, TOKEN_SEMICOLON, "Expected ';' after member declaration");
-
-		Node* member = new_node(AST_MEMBER, memName);
-		member->variable.name = memName;
-		member->variable.type = memType;
-
-		unionType.fields = realloc(unionType.fields, ++unionType.fieldCount * sizeof(Node*));
-		unionType.fields[unionType.fieldCount - 1] = member;
+		parse_member_definition(parser, &unionType);
 	} while(!check(parser, TOKEN_RIGHT_BRACE));
 
 	consume(parser, TOKEN_RIGHT_BRACE, "Expected '}' after union body");
@@ -936,9 +973,11 @@ Node* parse_union_definition(Parser* parser) {
 	vnion->computedType = unionType;
 	vnion->variable.name = name;
 
-	//TODO check for duplicate structure names
-	parser->definedTypes = realloc(parser->definedTypes, ++parser->definedTypeCount * sizeof(Type));
-	parser->definedTypes[parser->definedTypeCount - 1] = unionType;
+	if(!member) {
+		//TODO check for duplicate structure names
+		parser->definedTypes = realloc(parser->definedTypes, ++parser->definedTypeCount * sizeof(Type));
+		parser->definedTypes[parser->definedTypeCount - 1] = unionType;
+	}
 
 	return vnion;
 }
@@ -1025,11 +1064,11 @@ Node* parse_program(Parser* parser) {
 			node_add_child(program, var);
 		}
 		else if(match(parser, TOKEN_STRUCT)) {
-			Node* strukt = parse_struct_definition(parser);
+			Node* strukt = parse_struct_definition(parser, false);
 			node_add_child(program, strukt);
 		}
 		else if(match(parser, TOKEN_UNION)) {
-			Node* vnion = parse_union_definition(parser);
+			Node* vnion = parse_union_definition(parser, false);
 			node_add_child(program, vnion);
 		}
 		else {

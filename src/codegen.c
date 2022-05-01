@@ -337,11 +337,18 @@ void generate_expr_rax(Node* expr, FILE* out) {
 	else if(expr->type == AST_CAST) {
 		generate_expr_rax(expr->unary, out);
 	}
-	else if(expr->type == OP_ACCESS_MEMBER) {
+	// Currently do the same - may change when copying is added
+	else if(expr->type == OP_ACCESS_MEMBER || expr->type == OP_ACCESS_MEMBER_PTR) {
 		generate_expr_rax(expr->member.parent, out);
 		Node* field = expr->member.memberRef;
-		fprintf(out, "    %s %s, %s [rax+%d]\n", type_movzx(&field->variable.type), type_movzx_rax_subregister(&field->variable.type),
-		        type_to_qualifier(&field->variable.type), field->variable.stackOffset);
+
+		if(is_structural_type(&field->variable.type)) {
+			fprintf(out, "    lea rax, [rax+%d]\n", field->variable.stackOffset);
+		}
+		else {
+			fprintf(out, "    %s %s, %s [rax+%d]\n", type_movzx(&field->variable.type), type_movzx_rax_subregister(&field->variable.type),
+		    	    type_to_qualifier(&field->variable.type), field->variable.stackOffset);
+		}
 	}
 	else if(expr->type == OP_ASSIGN_MEMBER) {
 		generate_expr_rax(expr->member.parent, out);
@@ -351,13 +358,6 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		Node* field = expr->member.memberRef;
 		fprintf(out, "    mov %s [rbx+%d], %s\n", type_to_qualifier(&field->variable.type), field->variable.stackOffset,
 		        type_to_rax_subregister(&field->variable.type));
-	}
-	// Currently does the same as above - may change when copying is added
-	else if(expr->type == OP_ACCESS_MEMBER_PTR) {
-		generate_expr_rax(expr->member.parent, out);
-		Node* field = expr->member.memberRef;
-		fprintf(out, "    %s %s, %s [rax+%d]\n", type_movzx(&field->variable.type), type_movzx_rax_subregister(&field->variable.type),
-		        type_to_qualifier(&field->variable.type), field->variable.stackOffset);
 	}
 	else if(expr->type == OP_ASSIGN_MEMBER_PTR) {
 		generate_expr_rax(expr->member.parent, out);
