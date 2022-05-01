@@ -377,3 +377,18 @@ void print_ast_depth(Node* node, int depth) {
 void print_ast(Node* ast) {
 	print_ast_depth(ast, 0);
 }
+
+Node* new_node(NodeType type, Token position) {
+	Node* node = calloc(1, sizeof(Node));
+	node->type = type;
+	node->position = position;
+	return node;
+}
+
+void node_add_child(Node* parent, Node* child) {
+	if(parent->block.size + 1 > parent->block.capacity) {
+		parent->block.capacity = parent->block.capacity < 8 ? 8 : parent->block.capacity * 2;
+		parent->block.children = realloc(parent->block.children, parent->block.capacity * sizeof(Node*));
+	}
+	parent->block.children[parent->block.size++] = child;
+}

@@ -200,3 +200,5 @@ char* node_type_to_string(NodeType type);
 char* type_to_string(Type type);
 bool is_unary_op(NodeType type);
 bool is_binary_op(NodeType type);
+Node* new_node(NodeType type, Token position);
+void node_add_child(Node* parent, Node* child);

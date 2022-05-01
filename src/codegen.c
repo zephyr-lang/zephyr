@@ -1,5 +1,6 @@
 #include "codegen.h"
 #include "typecheck.h"
+#include "builtin.h"
 #include <assert.h>
 
 void generate_expr_rax(Node* expr, FILE* out);
@@ -521,55 +522,10 @@ void generate_function(Node* function, FILE* out) {
 	generate_block(function->function.body, out);
 }
 
-void generate_implicit_printu_impl(FILE* out) {
-	fprintf(out, "_f_printu:\n");
-	fprintf(out, "		sub     rsp, 40\n");
-	fprintf(out, "		mov     eax, 10\n");
-	fprintf(out, "		mov     esi, 19\n");
-	fprintf(out, "		mov  r10, -3689348814741910323\n");
-	fprintf(out, "		mov     WORD [rsp+20], ax\n");
-	fprintf(out, "		lea     r8, [rsp+19]\n");
-	fprintf(out, ".L2:\n");
-	fprintf(out, "		mov     rax, rdi\n");
-	fprintf(out, "		movsxd  r9, esi\n");
-	fprintf(out, "		sub     r8, 1\n");
-	fprintf(out, "		sub     esi, 1\n");
-	fprintf(out, "		mul     r10\n");
-	fprintf(out, "		mov     rax, rdi\n");
-	fprintf(out, "		shr     rdx, 3\n");
-	fprintf(out, "		lea     rcx, [rdx+rdx*4]\n");
-	fprintf(out, "		add     rcx, rcx\n");
-	fprintf(out, "		sub     rax, rcx\n");
-	fprintf(out, "		mov     rcx, rdi\n");
-	fprintf(out, "		mov     rdi, rdx\n");
-	fprintf(out, "		add     eax, 48\n");
-	fprintf(out, "		mov     BYTE [r8+1], al\n");
-	fprintf(out, "		cmp     rcx, 9\n");
-	fprintf(out, "		ja      .L2\n");
-	fprintf(out, "		mov     rdi, 1\n");
-	fprintf(out, "		mov     edx, 20\n");
-	fprintf(out, "		mov     rax, 1\n");
-	fprintf(out, "		sub     edx, esi\n");
-	fprintf(out, "		lea     rsi, [rsp+r9]\n");
-	fprintf(out, "		syscall\n");
-	fprintf(out, "		add     rsp, 40\n");
-	fprintf(out, "		ret\n");
-}
-
-void generate_implicit_syscall3_impl(FILE* out) {
-	fprintf(out, "_f_syscall3:\n");
-	fprintf(out, "    mov rax, rdi\n");
-	fprintf(out, "    mov rdi, rsi\n");
-	fprintf(out, "    mov rsi, rdx\n");
-	fprintf(out, "    mov rdx, rcx\n");
-	fprintf(out, "    syscall\n");
-	fprintf(out, "    ret\n");
-}
-
 void generate_program(Parser* parser, Node* ast, FILE* out) {
 	fprintf(out, "section .text\n");
-	generate_implicit_printu_impl(out);
-	generate_implicit_syscall3_impl(out);
+	
+	write_builtin_functions(out);
 
 	for(size_t i = 0; i < ast->block.size; i++) {
 		if(ast->block.children[i]->type == AST_FUNCTION) {
