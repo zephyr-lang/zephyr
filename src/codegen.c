@@ -15,6 +15,10 @@ int ceil_multiple(int num, int n) {
 	return ((num + n - 1) / n) * n;
 }
 
+int min(int a, int b) {
+	return a < b ? a : b;
+}
+
 char* type_to_qualifier(Type* type) {
 	switch(sizeof_type(type)) {
 		case 1: return "BYTE";
@@ -291,22 +295,22 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		fprintf(out, "    mov %s [_g_%.*s], %s\n", type_to_qualifier(&expr->variable.type), (int)expr->variable.name.length, expr->variable.name.start, type_to_rax_subregister(&expr->variable.type));
 	}
 	else if(expr->type == AST_CALL) {
-		if(expr->function.argumentCount > 6) {
-			fprintf(stderr, "Functions cannot have more than 6 arguments (func '%.*s')\n", (int)expr->function.name.length, expr->function.name.start);
-			exit(1);
-		}
-
 		for(int i = 0; i < registersInUse; i++) {
 			fprintf(out, "    push %s\n", ARG_REGISTERS[i]);
 		}
 
 		int localRegUse = 0;
 
-		for(int i = 0; i < expr->function.argumentCount; i++) {
+		for(int i = 0; i < min(expr->function.argumentCount, 6); i++) {
 			generate_expr_rax(expr->function.arguments[i], out);
 			fprintf(out, "    mov %s, rax\n", ARG_REGISTERS[i]);
 			registersInUse++;
 			localRegUse++;
+		}
+
+		for(int i = 0; i < expr->function.argumentCount - 6; i++) {
+			generate_expr_rax(expr->function.arguments[i + 6], out);
+			fprintf(out, "    push rax\n");
 		}
 
 		registersInUse -= localRegUse;
@@ -318,22 +322,36 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		}
 	}
 	else if(expr->type == AST_CALL_METHOD) {
-		if(expr->function.argumentCount > 6) {
-			fprintf(stderr, "Methods cannot have more than 5 arguments (method '%.*s' of '%.*s')\n", (int)expr->function.name.length, expr->function.name.start,
-			        (int)expr->function.parentType.name.length, expr->function.parentType.name.start);
-			exit(1);
+		for(int i = 0; i < registersInUse; i++) {
+			fprintf(out, "    push %s\n", ARG_REGISTERS[i]);
 		}
 
 		generate_expr_rax(expr->function.parent, out);
 		fprintf(out, "    mov rdi, rax\n");
 
-		for(int i = 1; i < expr->function.argumentCount; i++) {
+		int localRegUse = 0;
+
+		for(int i = 0; i < min(expr->function.argumentCount, 5); i++) {
 			generate_expr_rax(expr->function.arguments[i], out);
-			fprintf(out, "    mov %s, rax\n", ARG_REGISTERS[i]);
+			fprintf(out, "    mov %s, rax\n", ARG_REGISTERS[i + 1]);
+			registersInUse++;
+			localRegUse++;
 		}
+
+		for(int i = 0; i < expr->function.argumentCount - 5; i++) {
+			generate_expr_rax(expr->function.arguments[i + 5], out);
+			fprintf(out, "    push rax\n");
+		}
+
+		registersInUse -= localRegUse;
+
 
 		fprintf(out, "    call _m_%.*s_%.*s\n",  (int)expr->function.parentType.name.length, expr->function.parentType.name.start, 
 		       (int)expr->function.name.length, expr->function.name.start);
+
+		for(int i = 0; i < registersInUse; i++) {
+			fprintf(out, "    pop %s\n", ARG_REGISTERS[registersInUse - i - 1]);
+		}
 	}
 	else if(expr->type == AST_STRING) {
 		fprintf(out, "    lea rax, [_s%d]\n", expr->literal.as.string.id);
@@ -574,18 +592,18 @@ void generate_function(Node* function, FILE* out) {
 
 	fprintf(out, "    push rbp\n");
 	fprintf(out, "    mov rbp, rsp\n");
-	
 	int stackDepth = ceil_multiple(function->function.localVariableStackOffset, 16);
-	if(stackDepth != 0)
+	if(stackDepth != 0) {
 		fprintf(out, "    sub rsp, %d\n", stackDepth);
-
-	if(function->function.argumentCount > 6) {
-		fprintf(stderr, "Functions cannot have more than 6 arguments (func '%.*s')\n", (int)function->function.name.length, function->function.name.start);
-		exit(1);
 	}
 
-	for(int i = 0; i < function->function.argumentCount; i++) {
+	for(int i = 0; i < min(function->function.argumentCount, 6); i++) {
 		fprintf(out, "    mov QWORD [rbp-%d], %s\n", function->function.arguments[i]->variable.stackOffset, ARG_REGISTERS[i]);
+	}
+
+	for(int i = 0; i < function->function.argumentCount - 6; i++) {
+		fprintf(out, "    mov rax, QWORD [rbp+%d]\n", 8 + (8 * (function->function.argumentCount - 6 - i)));
+		fprintf(out, "    mov QWORD [rbp-%d], rax\n", function->function.arguments[i + 6]->variable.stackOffset);
 	}
 
 	generate_block(function->function.body, out);

@@ -464,7 +464,7 @@ void type_check_method_call(Parser* parser, Node* expr) {
 	}
 
 	for(int i = 1; i < function->function.argumentCount; i++) {
-		Node* arg = expr->function.arguments[i];
+		Node* arg = expr->function.arguments[i - 1];
 		type_check_expr(parser, arg);
 
 		Type argType = pop_type_stack();
