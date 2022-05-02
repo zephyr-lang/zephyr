@@ -9,6 +9,7 @@ void generate_block(Node* block, FILE* out);
 
 static const char* ARG_REGISTERS[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 static int labelCount = 0;
+static int registersInUse = 0;
 
 int ceil_multiple(int num, int n) {
 	return ((num + n - 1) / n) * n;
@@ -286,11 +287,6 @@ void generate_expr_rax(Node* expr, FILE* out) {
 			        (int)expr->variable.name.length, expr->variable.name.start);
 	}
 	else if(expr->type == AST_ASSIGN_GLOBAL_VAR) {
-		if(is_structural_type(&expr->variable.type)) {
-			//TODO: Copy structs
-			fprintf(stderr, "Cannot copy structs (yet)\n");
-			exit(1);
-		}
 		generate_expr_rax(expr->variable.value, out);
 		fprintf(out, "    mov %s [_g_%.*s], %s\n", type_to_qualifier(&expr->variable.type), (int)expr->variable.name.length, expr->variable.name.start, type_to_rax_subregister(&expr->variable.type));
 	}
@@ -300,12 +296,26 @@ void generate_expr_rax(Node* expr, FILE* out) {
 			exit(1);
 		}
 
+		for(int i = 0; i < registersInUse; i++) {
+			fprintf(out, "    push %s\n", ARG_REGISTERS[i]);
+		}
+
+		int localRegUse = 0;
+
 		for(int i = 0; i < expr->function.argumentCount; i++) {
 			generate_expr_rax(expr->function.arguments[i], out);
 			fprintf(out, "    mov %s, rax\n", ARG_REGISTERS[i]);
+			registersInUse++;
+			localRegUse++;
 		}
 
+		registersInUse -= localRegUse;
+
 		fprintf(out, "    call _f_%.*s\n", (int)expr->function.name.length, expr->function.name.start);
+
+		for(int i = 0; i < registersInUse; i++) {
+			fprintf(out, "    pop %s\n", ARG_REGISTERS[registersInUse - i - 1]);
+		}
 	}
 	else if(expr->type == AST_CALL_METHOD) {
 		if(expr->function.argumentCount > 6) {
