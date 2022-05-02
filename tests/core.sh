@@ -760,3 +760,127 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Copying: "
+
+assert_stdout "10
+12" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+function main(): int {
+	var p1: Point;
+	p1.x = 10;
+	p1.y = 12;
+
+	var p2: Point;
+	p2 = p1;
+
+	printu(p2.x);
+	printu(p2.y);
+
+	return 0;
+}
+"
+
+assert_stdout "10
+12
+20
+24" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+struct Line {
+	a: Point;
+	b: Point;
+}
+
+function main(): int {
+	var p1: Point;
+	p1.x = 10;
+	p1.y = 12;
+
+	var p2: Point;
+	p2.x = 20;
+	p2.y = 24;
+
+	var l: Line;
+	l.a = p1;
+	l.b = p2;
+
+	printu(l.a.x);
+	printu(l.a.y);
+	printu(l.b.x);
+	printu(l.b.y);
+
+	return 0;
+}
+"
+
+assert_stdout "10
+12
+20
+24" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+struct Line {
+	a: Point;
+	b: Point;
+}
+
+function main(): int {
+	var p1: Point;
+	p1.x = 10;
+	p1.y = 12;
+
+	var p2: Point;
+	p2.x = 20;
+	p2.y = 24;
+
+	var l: Line;
+	l.a = p1;
+	l.b = p2;
+
+	var l1: Line;
+	l1 = l;
+
+	printu(l1.a.x);
+	printu(l1.a.y);
+	printu(l1.b.x);
+	printu(l1.b.y);
+
+	return 0;
+}
+"
+
+assert_stdout "10
+12" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+function main(): int {
+	var p: Point;
+	p.x = 10;
+	p.y = 12;
+
+	var p1: Point;
+
+	var pp = &p1;
+	*pp = p;
+	printu(pp.x);
+	printu(pp.y);
+
+	return 0;
+}
+"
+
+echo " Done"
