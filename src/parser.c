@@ -716,6 +716,26 @@ Node* parse_var_declaration(Parser* parser) {
 	return var;
 }
 
+Node* parse_const_declaration(Parser* parser) {
+	Token name = consume(parser, TOKEN_IDENTIFIER, "Expected constant name");
+
+	consume(parser, TOKEN_EQ, "Expected '=' after constant name");
+
+	int64_t val = parse_constant(parser);
+
+	consume(parser, TOKEN_SEMICOLON, "Expected ';' after constant declaration");
+
+	Node* constant = new_node(AST_DEFINE_CONST, name);
+	constant->constant.name = name;
+	constant->constant.value = val;
+
+	//TODO check for duplicate constant names
+	parser->constants = realloc(parser->constants, ++parser->constantCount * sizeof(Node*));
+	parser->constants[parser->constantCount - 1] = constant;
+
+	return constant;
+}
+
 Node* parse_while_statement(Parser* parser) {
 	Node* whileStmt = new_node(AST_WHILE, parser->previous);
 
@@ -1075,6 +1095,10 @@ Node* parse_program(Parser* parser) {
 			Node* var = parse_var_declaration(parser);
 			var->type = AST_DEFINE_GLOBAL_VAR;
 			node_add_child(program, var);
+		}
+		else if(match(parser, TOKEN_CONST)) {
+			Node* constant = parse_const_declaration(parser);
+			node_add_child(program, constant);
 		}
 		else if(match(parser, TOKEN_STRUCT)) {
 			Node* strukt = parse_struct_definition(parser, false);

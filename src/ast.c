@@ -253,6 +253,12 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_DEFINE_CONST: {
+			printf("const %.*s = %ld", (int)node->constant.name.length, node->constant.name.start, node->constant.value);
+			printf("\n");
+			break;
+		}
+
 		case AST_CALL: {
 			printf("(call %.*s", (int)node->function.name.length, node->function.name.start);
 			for(int i = 0; i < node->function.argumentCount; i++) {

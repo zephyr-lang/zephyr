@@ -178,6 +178,13 @@ Node* lookup_variable(Parser* parser, Token name) {
 		}
 	}
 
+	for(int i = 0; i < parser->constantCount; i++) {
+		Token varName = parser->constants[i]->constant.name;
+		if(tokens_equal(varName, name)) {
+			return parser->constants[i];
+		}
+	}
+
 	for(int i = 0; i < parser->functionCount; i++) {
 		Token funcName = parser->functions[i]->function.name;
 		if(tokens_equal(funcName, name)) {
@@ -310,6 +317,15 @@ void type_check_access_var(Parser* parser, Node* expr) {
 
 		push_type_stack(&expr->variable.type);
 	}
+	else if(variable->type == AST_DEFINE_CONST) {
+		int64_t value = variable->constant.value;
+
+		expr->type = AST_INT_LITERAL;
+		expr->literal.type = *intType;
+		expr->literal.as.integer = value;
+
+		push_type_stack(intType);
+	}
 	else {
 		print_position(expr->position);
 		fprintf(stderr, "Can only access variables\n");
@@ -353,6 +369,11 @@ void type_check_assign_var(Parser* parser, Node* expr) {
 		expr->variable.type = variable->variable.type;
 
 		push_type_stack(&expr->variable.type);
+	}
+	else if(variable->type == AST_DEFINE_CONST) {
+		print_position(expr->position);
+		fprintf(stderr, "Cannot re-assign constant values\n");
+		exit(1);
 	}
 	else {
 		print_position(expr->position);
@@ -1000,6 +1021,9 @@ void type_check(Parser* parser, Node* program) {
 		}
 		else if(node->type == AST_DEFINE_GLOBAL_VAR) {
 			type_check_global_var(parser, node);
+		}
+		else if(node->type == AST_DEFINE_CONST) {
+			// Do nothing - parser verifies that this is an integer.
 		}
 		else if(node->type == AST_STRUCT) {
 			int offset = 0;

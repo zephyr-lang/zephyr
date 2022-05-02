@@ -43,6 +43,7 @@
 	F(TOKEN_IDENTIFIER, "identifier")     \
                                           \
 	F(TOKEN_AS, "as")                     \
+	F(TOKEN_CONST, "const")               \
 	F(TOKEN_ELSE, "else")                 \
 	F(TOKEN_IF, "if")                     \
 	F(TOKEN_IMPORT, "import")             \

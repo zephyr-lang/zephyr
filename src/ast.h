@@ -48,6 +48,7 @@
 	F(AST_DEFINE_GLOBAL_VAR, "define gvar") \
 	F(AST_ACCESS_GLOBAL_VAR, "access gvar") \
 	F(AST_ASSIGN_GLOBAL_VAR, "assign gvar") \
+	F(AST_DEFINE_CONST, "define const") \
 	F(OP_COPY_STRUCT, "copy struct") \
 	F(OP_COPY_STRUCT_MEMBER, "copy struct member") \
 	F(OP_COPY_STRUCT_DEREF, "copy struct deref") \
@@ -191,6 +192,11 @@ typedef struct Node {
 
 			int stackOffset;
 		} variable;
+
+		struct {
+			Token name;
+			int64_t value;
+		} constant;
 
 		struct {
 			Token name;

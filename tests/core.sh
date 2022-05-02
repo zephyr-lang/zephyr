@@ -468,7 +468,7 @@ function main(): int {
 	z = y;
 	return 0;
 }
-" "SKIP"
+"
 
 assert_compilation_error "
 struct Foo {
@@ -879,6 +879,29 @@ function main(): int {
 	printu(pp.x);
 	printu(pp.y);
 
+	return 0;
+}
+"
+
+echo " Done"
+
+echo -n "Constants: "
+
+assert_stdout "12" "
+const x = 12;
+
+function main(): int {
+	printu(x);
+	return 0;
+}
+"
+
+assert_compilation_error "
+const x = 12;
+
+function main(): int {
+	x = 13;
+	printu(x);
 	return 0;
 }
 "
