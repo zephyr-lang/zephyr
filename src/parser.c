@@ -159,6 +159,10 @@ Type parse_type(Parser* parser) {
 			type = (Type) { .type = DATA_TYPE_I64, .indirection = 0 };
 			break;
 		}
+		case TOKEN_ANY: {
+			type = (Type) { .type = DATA_TYPE_ANY, .indirection = 0 };
+			break;
+		}
 		case TOKEN_IDENTIFIER: {
 			type = (Type) { .type = DATA_TYPE_UNRESOLVED, .indirection = 0, .name = parser->previous };
 			break;
@@ -753,6 +757,10 @@ Node* parse_while_statement(Parser* parser) {
 Node* parse_for_statement(Parser* parser) {
 	Node* forStmt = new_node(AST_FOR, parser->previous);
 
+	Node* block = new_node(AST_BLOCK, parser->previous);
+	block->block.parent = parser->currentBlock;
+	parser->currentBlock = block;
+
 	consume(parser, TOKEN_LEFT_PAREN, "Expected '(' after for");
 
 	if(match(parser, TOKEN_SEMICOLON)) {
@@ -780,7 +788,11 @@ Node* parse_for_statement(Parser* parser) {
 
 	forStmt->loop.body = parse_statement(parser);
 
-	return forStmt;
+	node_add_child(block, forStmt);
+
+	parser->currentBlock = block->block.parent;
+
+	return block;
 }
 
 Node* parse_statement(Parser* parser) {

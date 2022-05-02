@@ -386,10 +386,12 @@ void generate_expr_rax(Node* expr, FILE* out) {
 	}
 	else if(expr->type == OP_ASSIGN_SUBSCRIPT) {
 		generate_expr_rax(expr->ternary.lhs, out);
-		fprintf(out, "    mov rbx, rax\n");
+		fprintf(out, "    push rax\n");
 		generate_expr_rax(expr->ternary.mid, out);
-		fprintf(out, "    mov rcx, rax\n");
+		fprintf(out, "    push rax\n");
 		generate_expr_rax(expr->ternary.rhs, out);
+		fprintf(out, "    pop rcx\n");
+		fprintf(out, "    pop rbx\n");
 
 		fprintf(out, "    mov %s [rbx+rcx*%d], %s\n", type_to_qualifier(&expr->computedType), sizeof_type(&expr->computedType), 
 		        type_to_rax_subregister(&expr->computedType));

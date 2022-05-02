@@ -82,8 +82,12 @@ bool type_is_integral(Type* a) {
 bool types_assignable(Type* a, Type* b) {
 	resolve_type(a);
 	resolve_type(b);
-	
-	if(b->type == DATA_TYPE_ANY) {
+
+	if(b->type == DATA_TYPE_ANY && b->indirection == 0) {
+		return true;
+	}
+
+	if(b->type == DATA_TYPE_ANY && a->indirection == b->indirection) {
 		return true;
 	}
 
@@ -561,7 +565,7 @@ void type_check_assign_subscript(Parser* parser, Node* expr) {
 	type_check_expr(parser, expr->ternary.rhs);
 	Type rhs = pop_type_stack();
 	
-	if(!types_assignable(&rhs, &index)) {
+	if(!types_assignable(&rhs, &itemType)) {
 		print_position(expr->position);
 		fprintf(stderr, "Cannot assign value of type '%s' to array of elements '%s'\n", type_to_string(rhs), type_to_string(itemType));
 		exit(1);
@@ -683,7 +687,7 @@ void type_check_expr(Parser* parser, Node* expr) {
 	else if(expr->type == AST_STRING) {
 		push_type_stack(&expr->literal.type);
 	}
-	else if(expr->type == AST_ACCESS_VAR) {
+	else if(expr->type == AST_ACCESS_VAR || expr->type == AST_ACCESS_GLOBAL_VAR) {
 		type_check_access_var(parser, expr);
 	}
 	else if(expr->type == AST_ASSIGN_VAR) {
