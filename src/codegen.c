@@ -387,7 +387,7 @@ void generate_expr_rax(Node* expr, FILE* out) {
 	else if(expr->type == AST_CAST) {
 		generate_expr_rax(expr->unary, out);
 	}
-	// Currently do the same - may change when copying is added
+	// Two different instructions is redundant
 	else if(expr->type == OP_ACCESS_MEMBER || expr->type == OP_ACCESS_MEMBER_PTR) {
 		generate_expr_rax(expr->member.parent, out);
 		Node* field = expr->member.memberRef;

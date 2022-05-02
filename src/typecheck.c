@@ -8,6 +8,9 @@
 void type_check_expr(Parser* parser, Node* expr);
 void type_check_block(Parser* parser, Node* block);
 
+// Defined in codegen.c
+int ceil_multiple(int num, int n);
+
 static Type typeStack[128];
 static int typeStackDepth = 0;
 
@@ -924,7 +927,8 @@ void type_check_function(Parser* parser, Node* function) {
 			exit(1);
 		}
 
-		stackOffset += sizeof_type(&arg->variable.type);
+		//FIXME Have the correct qualifiers and registers used in codegen.c for arguments
+		stackOffset += ceil_multiple(sizeof_type(&arg->variable.type), 8);
 
 		arg->variable.stackOffset = stackOffset;
 	}
