@@ -23,6 +23,12 @@ typedef struct Parser {
 	Type* definedTypes;
 	size_t definedTypeCount;
 
+	Lexer** lexerStack;
+	size_t lexerStackCount;
+
+	char** openedFiles;
+	size_t openedFilesCount;
+
 	bool error;
 	bool panic;
 } Parser;

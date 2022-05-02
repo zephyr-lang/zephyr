@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "builtin.h"
+#include "file.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -65,6 +66,17 @@ static Token consume(Parser* parser, TokenType type, const char* message) {
 
 	error_current(parser, message);
 	return parser->current;
+}
+
+static Token peek(Parser* parser) {
+	char* start = parser->lexer->start;
+	char* current = start;
+	size_t line = parser->lexer->line;
+	Token tok = lexer_next(parser->lexer);
+	parser->lexer->start = start;
+	parser->lexer->current = current;
+	parser->lexer->line = line;
+	return tok;
 }
 
 static bool check(Parser* parser, TokenType type) {
@@ -1000,6 +1012,44 @@ Node* parse_union_definition(Parser* parser, bool member) {
 	return vnion;
 }
 
+void parse_import(Parser* parser) {
+	Token path = consume(parser, TOKEN_STRING, "Expected import path");
+	consume(parser, TOKEN_SEMICOLON, "Expected ';' after import");
+
+	char* spath = malloc(path.length - 2 + 1);
+	memcpy(spath, path.start + 1, path.length - 1);
+	spath[path.length - 2] = '\0';
+
+	for(size_t i = 0; i < parser->lexerStackCount; i++) {
+		Lexer* lexer = parser->lexerStack[i];
+		if(strcmp(spath, lexer->filename) == 0) {
+			error(parser, "Circular import detected");
+			return;
+		}
+	}
+
+	for(size_t i = 0; i < parser->openedFilesCount; i++) {
+		if(strcmp(spath, parser->openedFiles[i]) == 0) {
+			// Do nothing: already opened
+			return;
+		}
+	}
+
+	size_t size;
+	char* source = read_file(spath, &size);
+
+	Lexer* lexer = new_lexer(spath, source);
+
+	parser->lexerStack = realloc(parser->lexerStack, ++parser->lexerStackCount * sizeof(Lexer*));
+	parser->lexerStack[parser->lexerStackCount - 1] = lexer;
+
+	parser->openedFiles = realloc(parser->openedFiles, ++parser->openedFilesCount * sizeof(char*));
+	parser->openedFiles[parser->openedFilesCount - 1] = spath;
+
+	parser->lexer = lexer;
+	advance(parser);
+}
+
 Node* parse_program(Parser* parser) {
 	advance(parser);
 	Node* program = new_node(AST_PROGRAM, parser->current);
@@ -1011,6 +1061,10 @@ Node* parse_program(Parser* parser) {
 		parser->functions = realloc(parser->functions, ++parser->functionCount * sizeof(Node*));
 		parser->functions[parser->functionCount - 1] = builtins[i];
 	}
+
+	parser->lexerStack = realloc(parser->lexerStack, 1 * sizeof(Lexer*));
+	parser->lexerStack[0] = parser->lexer;
+	parser->lexerStackCount = 1;
 
 	while(!match(parser, TOKEN_EOF)) {
 		if(match(parser, TOKEN_FUNCTION)) {
@@ -1030,9 +1084,24 @@ Node* parse_program(Parser* parser) {
 			Node* vnion = parse_union_definition(parser, false);
 			node_add_child(program, vnion);
 		}
+		else if(match(parser, TOKEN_IMPORT)) {
+			parse_import(parser);
+		}
 		else {
-			error_current(parser, "Expected function definition");
+			error_current(parser, "Expected definition");
 			break;
+		}
+
+		Token tok = parser->current;
+		bool changedLexer = false;
+		while(tok.type == TOKEN_EOF && parser->lexerStackCount > 0) {
+			changedLexer = true;
+			parser->lexerStackCount--;
+			parser->lexer = parser->lexerStack[parser->lexerStackCount];
+			tok = peek(parser);
+		}
+		if(changedLexer) {
+			advance(parser);
 		}
 	}
 

@@ -11,41 +11,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "typecheck.h"
-
-char* read_file(const char* filename, size_t* size) {
-	FILE* file;
-	file = fopen(filename, "rb");
-
-	if (file == NULL) {
-		fprintf(stderr, "Could not open file \"%s\"\n", filename);
-		exit(1);
-	}
-
-	fseek(file, 0L, SEEK_END);
-
-	size_t fileSize = ftell(file);
-	rewind(file);
-
-	char* charBuffer = (char*)malloc(fileSize + 1);
-	if (charBuffer == NULL) {
-		fprintf(stderr, "Not enough memory to read \"%s\"\n", filename);
-		exit(1);
-	}
-	size_t bytesRead = fread(charBuffer, sizeof(char), fileSize, file);
-	if (bytesRead < fileSize) {
-		fprintf(stderr, "Could not read file \"%s\"\n", filename);
-		exit(1);
-	}
-
-	charBuffer[bytesRead] = '\0';
-
-	fclose(file);
-
-	if(size != NULL)
-		*size = fileSize;
-
-	return charBuffer;
-}
+#include "file.h"
 
 static char* filepath = NULL;
 static char* outFile = NULL;
@@ -134,9 +100,9 @@ int main(int argc, char const *argv[]) {
 	size_t length;
 	char* source = cli_source != NULL ? cli_source : read_file(filepath, &length);
 
-	Lexer lexer = new_lexer(filepath == NULL ? "cli" : filepath, source);
+	Lexer* lexer = new_lexer(filepath == NULL ? "cli" : filepath, source);
 
-	Parser parser = new_parser(&lexer);
+	Parser parser = new_parser(lexer);
 
 	Node* ast = parse_program(&parser);
 

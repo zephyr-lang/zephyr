@@ -10,5 +10,5 @@ typedef struct Lexer {
 	const char* filename;
 } Lexer;
 
-Lexer new_lexer(const char* filename, char* source);
+Lexer* new_lexer(const char* filename, char* source);
 Token lexer_next(Lexer* lexer);

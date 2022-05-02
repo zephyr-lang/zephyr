@@ -4,12 +4,12 @@
 #include <string.h>
 #include "token.h"
 
-Lexer new_lexer(const char* filename, char* source) {
-	Lexer lexer = {0};
-	lexer.start = source;
-	lexer.current = source;
-	lexer.line = 1;
-	lexer.filename = filename;
+Lexer* new_lexer(const char* filename, char* source) {
+	Lexer* lexer = malloc(sizeof(Lexer));
+	lexer->start = source;
+	lexer->current = source;
+	lexer->line = 1;
+	lexer->filename = filename;
 
 	return lexer;
 }
@@ -86,6 +86,7 @@ static TokenType identifier_type(Lexer* lexer) {
 				switch(lexer->start[1]) {
 					case 'f': return check_keyword(lexer, 2, 0, "", TOKEN_IF);
 					case 'n': return check_keyword(lexer, 2, 1, "t", TOKEN_INT);
+					case 'm': return check_keyword(lexer, 2, 4, "port", TOKEN_IMPORT);
 					case '8': return check_keyword(lexer, 2, 0, "", TOKEN_I8);
 					case '1': return check_keyword(lexer, 2, 1, "6", TOKEN_I16);
 					case '3': return check_keyword(lexer, 2, 1, "2", TOKEN_I32);

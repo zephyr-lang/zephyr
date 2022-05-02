@@ -45,6 +45,7 @@
 	F(TOKEN_AS, "as")                     \
 	F(TOKEN_ELSE, "else")                 \
 	F(TOKEN_IF, "if")                     \
+	F(TOKEN_IMPORT, "import")             \
 	F(TOKEN_INT, "int")                   \
 	F(TOKEN_I8, "i8")                     \
 	F(TOKEN_I16, "i16")                   \
