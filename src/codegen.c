@@ -668,6 +668,9 @@ void generate_program(Parser* parser, Node* ast, FILE* out) {
 		}
 	}
 
+	fprintf(out, "    pop rdi\n");
+	fprintf(out, "    mov rsi, rsp\n");
+
 	fprintf(out, "    call _f_main\n");
 	fprintf(out, "    mov rdi, rax\n");
 	fprintf(out, "    mov rax, 60\n");
