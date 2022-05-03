@@ -288,6 +288,11 @@ void type_check_binary(Parser* parser, Node* expr) {
 	type_check_expr(parser, expr->binary.rhs);
 	Type right = pop_type_stack();
 
+	if((expr->type == OP_EQUAL || expr->type == OP_NOT_EQUAL) && left.indirection > 0 && right.indirection > 0 && types_assignable(&left, &right)) {
+		push_type_stack(intType);
+		return;
+	}
+
 	if(!types_assignable(&left, intType) || !types_assignable(&right, intType)) {
 		print_position(expr->position);
 		fprintf(stderr, "Cannot perform operation '%s' on types '%s' and '%s'\n", node_type_to_string(expr->type), type_to_string(left), type_to_string(right));
