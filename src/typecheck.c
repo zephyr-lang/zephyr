@@ -87,7 +87,7 @@ bool types_assignable(Type* a, Type* b) {
 		return true;
 	}
 
-	if(b->type == DATA_TYPE_ANY && a->indirection == b->indirection) {
+	if((a->type == DATA_TYPE_ANY || b->type == DATA_TYPE_ANY) && a->indirection == b->indirection) {
 		return true;
 	}
 
@@ -615,7 +615,6 @@ void type_check_access_member(Parser* parser, Node* expr) {
 	}
 	else if((parentType.type == DATA_TYPE_STRUCT || parentType.type == DATA_TYPE_UNION) && parentType.indirection == 1 && !parentType.isArray) {
 		parentType.indirection--;
-		expr->type = OP_ACCESS_MEMBER_PTR;
 		field = lookup_field(&parentType, name);
 	}
 	else {
@@ -641,7 +640,6 @@ void type_check_assign_member(Parser* parser, Node* expr) {
 	}
 	else if((parentType.type == DATA_TYPE_STRUCT || parentType.type == DATA_TYPE_UNION) && parentType.indirection == 1 && !parentType.isArray) {
 		parentType.indirection--;
-		expr->type = OP_ASSIGN_MEMBER_PTR;
 		field = lookup_field(&parentType, name);
 	}
 	else {

@@ -48,7 +48,7 @@ Node* add_implicit_syscall_function(char* sysName, int argCount) {
 		function->function.arguments[i + 1] = arg;
 	}
 
-	function->function.returnType = (Type) {.type = DATA_TYPE_ANY, .indirection = 0 };
+	function->function.returnType = (Type) {.type = DATA_TYPE_INT, .indirection = 0 };
 
 	function->function.hasImplicitBody = true;
 

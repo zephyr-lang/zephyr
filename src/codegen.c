@@ -408,7 +408,7 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		generate_expr_rax(expr->unary, out);
 	}
 	// Two different instructions is redundant
-	else if(expr->type == OP_ACCESS_MEMBER || expr->type == OP_ACCESS_MEMBER_PTR) {
+	else if(expr->type == OP_ACCESS_MEMBER) {
 		generate_expr_rax(expr->member.parent, out);
 		Node* field = expr->member.memberRef;
 
@@ -420,7 +420,7 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		    	    type_to_qualifier(&field->variable.type), field->variable.stackOffset);
 		}
 	}
-	else if(expr->type == OP_ASSIGN_MEMBER || expr->type == OP_ASSIGN_MEMBER_PTR) {
+	else if(expr->type == OP_ASSIGN_MEMBER) {
 		generate_expr_rax(expr->member.parent, out);
 		fprintf(out, "    push rax\n");
 		generate_expr_rax(expr->member.value, out);
