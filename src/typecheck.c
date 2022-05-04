@@ -87,7 +87,7 @@ bool types_assignable(Type* a, Type* b) {
 		return true;
 	}
 
-	if((a->type == DATA_TYPE_ANY || b->type == DATA_TYPE_ANY) && a->indirection == b->indirection) {
+	if((a->type == DATA_TYPE_ANY || b->type == DATA_TYPE_ANY) && a->indirection >= 1 && b->indirection >= 1) {
 		return true;
 	}
 

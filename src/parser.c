@@ -1130,10 +1130,10 @@ Node* parse_program(Parser* parser) {
 
 		Token tok = parser->current;
 		bool changedLexer = false;
-		while(tok.type == TOKEN_EOF && parser->lexerStackCount > 0) {
+		while(tok.type == TOKEN_EOF && parser->lexerStackCount > 1) {
 			changedLexer = true;
 			parser->lexerStackCount--;
-			parser->lexer = parser->lexerStack[parser->lexerStackCount];
+			parser->lexer = parser->lexerStack[parser->lexerStackCount - 1];
 			tok = peek(parser);
 		}
 		if(changedLexer) {
