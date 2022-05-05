@@ -77,6 +77,7 @@ typedef struct Token {
 	const char *start;
 	size_t length;
 	size_t line;
+	const char* filename;
 } Token;
 
 char* token_type_to_string(TokenType type);

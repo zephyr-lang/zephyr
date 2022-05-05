@@ -48,6 +48,7 @@ static Token make_token(Lexer* lexer, TokenType type) {
 	token.start = lexer->start;
 	token.length = lexer->current - lexer->start;
 	token.line = lexer->line;
+	token.filename = lexer->filename;
 	return token;
 }
 
@@ -57,6 +58,7 @@ static Token error_token(Lexer* lexer, const char* message) {
 	token.start = message;
 	token.length = strlen(message);
 	token.line = lexer->line;
+	token.filename = lexer->filename;
 	return token;
 }
 

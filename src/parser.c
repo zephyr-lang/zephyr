@@ -22,7 +22,7 @@ Parser new_parser(Lexer* lexer) {
 static void error_at_token(Parser* parser, Token* token, const char* message) {
 	if(parser->panic) return;
 	parser->panic = true;
-	fprintf(stderr, "[%zu] Error", token->line);
+	fprintf(stderr, "[%s:%zu] Error", token->filename, token->line);
 
 	if(token->type == TOKEN_EOF) {
 		fprintf(stderr, " @ EOF");

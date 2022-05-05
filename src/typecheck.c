@@ -22,7 +22,7 @@ static Type* voidType = &(Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
 static Type* i8Type = &(Type) { .type = DATA_TYPE_I8, .indirection = 0 };
 
 void print_position(Token position) {
-	fprintf(stderr, "[%zu] Error ", position.line);
+	fprintf(stderr, "[%s:%zu] Error ", position.filename, position.line);
 
 	if(position.type == TOKEN_EOF) {
 		fprintf(stderr, "@ EOF");
