@@ -376,6 +376,11 @@ void print_ast_depth(Node* node, int depth) {
 			break;
 		}
 
+		case AST_CONTINUE: {
+			printf("continue\n");
+			break;
+		}
+
 		default: {
 			fprintf(stderr, "Cannot handle type '%s' in print_ast_depth\n", node_type_to_string(node->type));
 			break;

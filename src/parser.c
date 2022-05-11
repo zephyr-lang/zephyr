@@ -796,7 +796,13 @@ Node* parse_for_statement(Parser* parser) {
 }
 
 Node* parse_statement(Parser* parser) {
-	if(match(parser, TOKEN_IF)) {
+	if(match(parser, TOKEN_CONTINUE)) {
+		Token pos = parser->previous;
+		consume(parser, TOKEN_SEMICOLON, "Expected ';' after 'continue'");
+		Node* kontinue = new_node(AST_CONTINUE, pos);
+		return kontinue;
+	}
+	else if(match(parser, TOKEN_IF)) {
 		return parse_if_statement(parser);
 	}
 	else if(match(parser, TOKEN_FOR)) {

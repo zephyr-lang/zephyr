@@ -84,6 +84,7 @@ static TokenType identifier_type(Lexer* lexer) {
 	if(match_keyword(lexer, "as")) return TOKEN_AS;
 	if(match_keyword(lexer, "any")) return TOKEN_ANY;
 	if(match_keyword(lexer, "const")) return TOKEN_CONST;
+	if(match_keyword(lexer, "continue")) return TOKEN_CONTINUE;
 	if(match_keyword(lexer, "else")) return TOKEN_ELSE;
 	if(match_keyword(lexer, "if")) return TOKEN_IF;
 	if(match_keyword(lexer, "int")) return TOKEN_INT;

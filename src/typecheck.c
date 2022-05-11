@@ -21,6 +21,8 @@ static Type* intType = &(Type) { .type = DATA_TYPE_INT, .indirection = 0 };
 static Type* voidType = &(Type) { .type = DATA_TYPE_VOID, .indirection = 0 };
 static Type* i8Type = &(Type) { .type = DATA_TYPE_I8, .indirection = 0 };
 
+static bool checkingLoop = false;
+
 void print_position(Token position) {
 	fprintf(stderr, "[%s:%zu] Error ", position.filename, position.line);
 
@@ -834,6 +836,9 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		parser->currentBlock->block.hasReturned = trueHasReturned && falseHasReturned;
 	}
 	else if(stmt->type == AST_FOR) {
+		bool wasCheckingLoop = checkingLoop;
+		checkingLoop = true;
+
 		if(stmt->loop.initial != NULL) type_check_statement(parser, stmt->loop.initial);
 		if(stmt->loop.condition != NULL) {
 			type_check_expr(parser, stmt->loop.condition);
@@ -851,8 +856,13 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		}
 
 		type_check_statement(parser, stmt->loop.body);
+
+		checkingLoop = wasCheckingLoop;
 	}
 	else if(stmt->type == AST_WHILE) {
+		bool wasCheckingLoop = checkingLoop;
+		checkingLoop = true;
+
 		type_check_expr(parser, stmt->conditional.condition);
 
 		Type conditionType = pop_type_stack();
@@ -864,6 +874,8 @@ void type_check_statement(Parser* parser, Node* stmt) {
 		}
 
 		type_check_statement(parser, stmt->conditional.doTrue);
+
+		checkingLoop = wasCheckingLoop;
 	}
 	else if(stmt->type == AST_RETURN) {
 		Type returnType;
@@ -886,6 +898,13 @@ void type_check_statement(Parser* parser, Node* stmt) {
 	}
 	else if(stmt->type == AST_DEFINE_VAR) {
 		type_check_define_var(parser, stmt);
+	}
+	else if(stmt->type == AST_CONTINUE) {
+		if(!checkingLoop) {
+			print_position(stmt->position);
+			fprintf(stderr, "Cannot use 'continue' outside of a loop\n");
+			exit(1);
+		}
 	}
 	else if(stmt->type == AST_EXPR_STMT) {
 		type_check_expr(parser, stmt->unary);

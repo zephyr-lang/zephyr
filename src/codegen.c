@@ -10,6 +10,7 @@ void generate_block(Node* block, FILE* out);
 static const char* ARG_REGISTERS[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 static int labelCount = 0;
 static int registersInUse = 0;
+static int continueLabel = 0;
 
 int ceil_multiple(int num, int n) {
 	return ((num + n - 1) / n) * n;
@@ -491,6 +492,14 @@ void generate_for_statement(Node* forStmt, FILE* out) {
 	bool hasCondition = forStmt->loop.condition != NULL;
 	int condLabel = labelCount++;
 	int bodyLabel = labelCount++;
+	int iterationLabel;
+
+	continueLabel = condLabel;
+
+	if(forStmt->loop.iteration != NULL) {
+		iterationLabel = labelCount++;
+		continueLabel = iterationLabel;
+	}
 
 	if(hasCondition)
 		fprintf(out, "    jmp .l%d\n", condLabel);
@@ -499,8 +508,10 @@ void generate_for_statement(Node* forStmt, FILE* out) {
 
 	generate_statement(forStmt->loop.body, out);
 
-	if(forStmt->loop.iteration != NULL)
+	if(forStmt->loop.iteration != NULL) {
+		fprintf(out, ".l%d:\n", iterationLabel);
 		generate_expr_rax(forStmt->loop.iteration, out);
+	}
 
 	if(hasCondition) {
 		fprintf(out, ".l%d:\n", condLabel);
@@ -516,6 +527,8 @@ void generate_for_statement(Node* forStmt, FILE* out) {
 void generate_while_statement(Node* whileStmt, FILE* out) {
 	int condLabel = labelCount++;
 	int bodyLabel = labelCount++;
+
+	continueLabel = condLabel;
 
 	fprintf(out, "    jmp .l%d\n", condLabel);
 	fprintf(out, ".l%d:\n", bodyLabel);
@@ -561,6 +574,9 @@ void generate_statement(Node* stmt, FILE* out) {
 				}
 			}
 		}
+	}
+	else if(stmt->type == AST_CONTINUE) {
+		fprintf(out, "    jmp .l%d\n", continueLabel);
 	}
 	else if(stmt->type == AST_EXPR_STMT) {
 		generate_expr_rax(stmt->unary, out);
