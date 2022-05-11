@@ -72,72 +72,36 @@ static bool is_alpha(char c) {
 		c == '_';
 }
 
-static TokenType check_keyword(Lexer* lexer, size_t start, size_t length, const char* rest, TokenType type) {
-	if(lexer->current - lexer->start == start + length && memcmp(lexer->start + start, rest, length) == 0) {
-		return type;
+static bool match_keyword(Lexer* lexer, const char* keyword) {
+	int length = strlen(keyword);
+	if(lexer->current - lexer->start == length && memcmp(lexer->start, keyword, length) == 0) {
+		return true;
 	}
-	return TOKEN_IDENTIFIER;
+	return false;
 }
 
 static TokenType identifier_type(Lexer* lexer) {
-	switch(lexer->start[0]) {
-		case 'a': {
-			if(lexer->current - lexer->start > 1) {
-				switch(lexer->start[1]) {
-					case 's': return check_keyword(lexer, 2, 0, "", TOKEN_AS);
-					case 'n': return check_keyword(lexer, 2, 1, "y", TOKEN_ANY);
-				}
-			}
-			break;
-		}
-		case 'c': return check_keyword(lexer, 1, 4, "onst", TOKEN_CONST);
-		case 'e': return check_keyword(lexer, 1, 3, "lse", TOKEN_ELSE);
-		case 'i': {
-			if(lexer->current - lexer->start > 1) {
-				switch(lexer->start[1]) {
-					case 'f': return check_keyword(lexer, 2, 0, "", TOKEN_IF);
-					case 'n': return check_keyword(lexer, 2, 1, "t", TOKEN_INT);
-					case 'm': return check_keyword(lexer, 2, 4, "port", TOKEN_IMPORT);
-					case '8': return check_keyword(lexer, 2, 0, "", TOKEN_I8);
-					case '1': return check_keyword(lexer, 2, 1, "6", TOKEN_I16);
-					case '3': return check_keyword(lexer, 2, 1, "2", TOKEN_I32);
-					case '6': return check_keyword(lexer, 2, 1, "4", TOKEN_I64);
-				}
-			}
-			break;
-		}
-		case 'f': {
-			if(lexer->current - lexer->start > 1) {
-				switch(lexer->start[1]) {
-					case 'u': return check_keyword(lexer, 2, 6, "nction", TOKEN_FUNCTION);
-					case 'o': return check_keyword(lexer, 2, 1, "r", TOKEN_FOR);
-				}
-			}
-			break;
-		}
-		case 'r': return check_keyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
-		case 's': {
-			if(lexer->current - lexer->start > 1) {
-				switch(lexer->start[1]) {
-					case 'i': return check_keyword(lexer, 2, 4, "zeof", TOKEN_SIZEOF);
-					case 't': return check_keyword(lexer, 2, 4, "ruct", TOKEN_STRUCT);
-				}
-			}
-			break;
-		}
-		case 'u': return check_keyword(lexer, 1, 4, "nion", TOKEN_UNION);
-		case 'v': {
-			if(lexer->current - lexer->start > 1) {
-				switch(lexer->start[1]) {
-					case 'a': return check_keyword(lexer, 2, 1, "r", TOKEN_VAR);
-					case 'o': return check_keyword(lexer, 2, 2, "id", TOKEN_VOID);
-				}
-			}
-			break;
-		}
-		case 'w': return check_keyword(lexer, 1, 4, "hile", TOKEN_WHILE);
-		default: break;
-	}
+	if(match_keyword(lexer, "as")) return TOKEN_AS;
+	if(match_keyword(lexer, "any")) return TOKEN_ANY;
+	if(match_keyword(lexer, "const")) return TOKEN_CONST;
+	if(match_keyword(lexer, "else")) return TOKEN_ELSE;
+	if(match_keyword(lexer, "if")) return TOKEN_IF;
+	if(match_keyword(lexer, "int")) return TOKEN_INT;
+	if(match_keyword(lexer, "import")) return TOKEN_IMPORT;
+	if(match_keyword(lexer, "i8")) return TOKEN_I8;
+	if(match_keyword(lexer, "i16")) return TOKEN_I16;
+	if(match_keyword(lexer, "i32")) return TOKEN_I32;
+	if(match_keyword(lexer, "i64")) return TOKEN_I64;
+	if(match_keyword(lexer, "for")) return TOKEN_FOR;
+	if(match_keyword(lexer, "function")) return TOKEN_FUNCTION;
+	if(match_keyword(lexer, "return")) return TOKEN_RETURN;
+	if(match_keyword(lexer, "sizeof")) return TOKEN_SIZEOF;
+	if(match_keyword(lexer, "struct")) return TOKEN_STRUCT;
+	if(match_keyword(lexer, "union")) return TOKEN_UNION;
+	if(match_keyword(lexer, "var")) return TOKEN_VAR;
+	if(match_keyword(lexer, "void")) return TOKEN_VOID;
+	if(match_keyword(lexer, "while")) return TOKEN_WHILE;
+
 	return TOKEN_IDENTIFIER;
 }
 
