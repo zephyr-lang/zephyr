@@ -11,6 +11,7 @@ static const char* ARG_REGISTERS[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 static int labelCount = 0;
 static int registersInUse = 0;
 static int continueLabel = 0;
+static int breakLabel = 0;
 
 int ceil_multiple(int num, int n) {
 	return ((num + n - 1) / n) * n;
@@ -492,9 +493,11 @@ void generate_for_statement(Node* forStmt, FILE* out) {
 	bool hasCondition = forStmt->loop.condition != NULL;
 	int condLabel = labelCount++;
 	int bodyLabel = labelCount++;
+	int endLabel = labelCount++;
 	int iterationLabel;
 
 	continueLabel = condLabel;
+	breakLabel = endLabel;
 
 	if(forStmt->loop.iteration != NULL) {
 		iterationLabel = labelCount++;
@@ -522,13 +525,17 @@ void generate_for_statement(Node* forStmt, FILE* out) {
 	else {
 		fprintf(out, "    jmp .l%d\n", bodyLabel);
 	}
+
+	fprintf(out, ".l%d:\n", breakLabel);
 }
 
 void generate_while_statement(Node* whileStmt, FILE* out) {
 	int condLabel = labelCount++;
 	int bodyLabel = labelCount++;
+	int endLabel = labelCount++;
 
 	continueLabel = condLabel;
+	breakLabel = endLabel;
 
 	fprintf(out, "    jmp .l%d\n", condLabel);
 	fprintf(out, ".l%d:\n", bodyLabel);
@@ -539,6 +546,8 @@ void generate_while_statement(Node* whileStmt, FILE* out) {
 	generate_expr_rax(whileStmt->conditional.condition, out);
 	fprintf(out, "    test rax, rax\n");
 	fprintf(out, "    jne .l%d\n", bodyLabel);
+
+	fprintf(out, ".l%d:\n", breakLabel);
 }
 
 void generate_statement(Node* stmt, FILE* out) {
@@ -574,6 +583,9 @@ void generate_statement(Node* stmt, FILE* out) {
 				}
 			}
 		}
+	}
+	else if(stmt->type == AST_BREAK) {
+		fprintf(out, "    jmp .l%d\n", breakLabel);
 	}
 	else if(stmt->type == AST_CONTINUE) {
 		fprintf(out, "    jmp .l%d\n", continueLabel);

@@ -899,6 +899,13 @@ void type_check_statement(Parser* parser, Node* stmt) {
 	else if(stmt->type == AST_DEFINE_VAR) {
 		type_check_define_var(parser, stmt);
 	}
+	else if(stmt->type == AST_BREAK) {
+		if(!checkingLoop) {
+			print_position(stmt->position);
+			fprintf(stderr, "Cannot use 'break' outside of a loop\n");
+			exit(1);
+		}
+	}
 	else if(stmt->type == AST_CONTINUE) {
 		if(!checkingLoop) {
 			print_position(stmt->position);

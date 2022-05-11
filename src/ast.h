@@ -57,6 +57,7 @@
 	F(AST_IF, "if") \
 	F(AST_FOR, "for") \
 	F(AST_WHILE, "while") \
+	F(AST_BREAK, "break") \
 	F(AST_CONTINUE, "continue") \
 	F(AST_RETURN, "return") \
 	F(AST_FUNCTION, "function") \

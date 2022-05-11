@@ -796,7 +796,13 @@ Node* parse_for_statement(Parser* parser) {
 }
 
 Node* parse_statement(Parser* parser) {
-	if(match(parser, TOKEN_CONTINUE)) {
+	if(match(parser, TOKEN_BREAK)) {
+		Token pos = parser->previous;
+		consume(parser, TOKEN_SEMICOLON, "Expected ';' after 'break'");
+		Node* breac = new_node(AST_BREAK, pos);
+		return breac;
+	}
+	else if(match(parser, TOKEN_CONTINUE)) {
 		Token pos = parser->previous;
 		consume(parser, TOKEN_SEMICOLON, "Expected ';' after 'continue'");
 		Node* kontinue = new_node(AST_CONTINUE, pos);

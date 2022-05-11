@@ -44,6 +44,7 @@
                                           \
 	F(TOKEN_AS, "as")                     \
 	F(TOKEN_ANY, "any")                   \
+	F(TOKEN_BREAK, "break")               \
 	F(TOKEN_CONST, "const")               \
 	F(TOKEN_CONTINUE, "continue")         \
 	F(TOKEN_ELSE, "else")                 \

@@ -83,6 +83,7 @@ static bool match_keyword(Lexer* lexer, const char* keyword) {
 static TokenType identifier_type(Lexer* lexer) {
 	if(match_keyword(lexer, "as")) return TOKEN_AS;
 	if(match_keyword(lexer, "any")) return TOKEN_ANY;
+	if(match_keyword(lexer, "break")) return TOKEN_BREAK;
 	if(match_keyword(lexer, "const")) return TOKEN_CONST;
 	if(match_keyword(lexer, "continue")) return TOKEN_CONTINUE;
 	if(match_keyword(lexer, "else")) return TOKEN_ELSE;
