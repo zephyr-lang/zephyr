@@ -202,3 +202,71 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Continue: "
+
+assert_stdout "0
+1
+2
+4
+5
+6
+7
+8
+9" "
+function main(): int {
+
+	for(var i = 0; i < 10; i = i + 1) {
+		if(i == 3) continue;
+		printu(i);
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "1
+2
+4
+5
+6
+7
+8
+9
+10" "
+function main(): int {
+
+	for(var i = 0; i < 10;) {
+		i = i + 1;
+		if(i == 3) continue;
+		printu(i);
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "1
+2
+3
+4
+6
+7
+8
+9
+10" "
+function main(): int {
+
+	var i = 0;
+
+	while(i < 10) {
+		i = i + 1;
+		if(i == 5) continue;
+		printu(i);
+	}
+
+	return 0;
+}
+"
+
+echo " Done"

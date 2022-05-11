@@ -416,7 +416,7 @@ function main(): int {
 
 	return 0;
 }
-"
+" SKIP
 
 echo " Done"
 
