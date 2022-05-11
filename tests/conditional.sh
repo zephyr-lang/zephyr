@@ -270,3 +270,45 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Break: "
+
+assert_stdout "0
+1
+2
+3
+4" "
+function main(): int {
+
+	for(var i = 0 ; i < 10; i = i + 1) {
+		if(i == 5) break;
+		printu(i);
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "0
+1
+2
+3
+4
+5
+6
+7" "
+function main(): int {
+
+	var i = 0;
+	while(i < 10) {
+		if(i == 8) break;
+		printu(i);
+
+		i = i + 1;
+	}
+
+	return 0;
+}
+"
+
+echo " Done"
