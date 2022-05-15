@@ -22,6 +22,7 @@ var OP_LESS_EQ = __nt_count = __nt_count + 1;
 var OP_GREATER = __nt_count = __nt_count + 1;
 var OP_GREATER_EQ = __nt_count = __nt_count + 1;
 var AST_INT_LITERAL = __nt_count = __nt_count + 1;
+var AST_CALL = __nt_count = __nt_count + 1;
 var AST_DEFINE_VAR = __nt_count = __nt_count + 1;
 var AST_ACCESS_VAR = __nt_count = __nt_count + 1;
 var AST_ASSIGN_VAR = __nt_count = __nt_count + 1;
@@ -55,6 +56,8 @@ struct Node {
 			name: Token*;
 			returnType: Type;
 			body: Node*;
+
+			arguments: Vector*;
 
 			variables: Vector*;
 			currentStackOffset: int;
@@ -114,6 +117,11 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_GREATER) return ">";
 	if(type == OP_GREATER_EQ) return ">=";
 	if(type == AST_INT_LITERAL) return "int literal";
+	if(type == AST_CALL) return "call";
+	if(type == AST_DEFINE_VAR) return "define var";
+	if(type == AST_ACCESS_VAR) return "access var";
+	if(type == AST_ASSIGN_VAR) return "assign var";
+	if(type == AST_EXPR_STMT) return "expr stmt";
 	if(type == AST_RETURN) return "return";
 	if(type == AST_FUNCTION) return "function";
 	if(type == AST_BLOCK) return "block";
@@ -175,8 +183,20 @@ function print_ast_depth(node: Node*, depth: int) {
 		putsln("}");
 	}
 	else if(node.type == AST_FUNCTION) {
-		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(&node.v.funktion.returnType));
+		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(&node.v.funktion.returnType)); putln();
+		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+			var arg: Node* = node.v.funktion.arguments.at(i);
+			puts("("); put_token_string(arg.v.variable.name); puts(": "); puts(type_to_string(&arg.v.variable.type)); puts(") ");
+		}
 		print_ast_depth(node.v.funktion.body, depth + 1);
+	}
+	else if(node.type == AST_CALL) {
+		puts("call "); put_token_string(node.v.funktion.name); putln();
+		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+			var arg: Node* = node.v.funktion.arguments.at(i);
+			putln();
+			print_ast_depth(arg, depth + 1);
+		}
 	}
 	else if(node.type == AST_EXPR_STMT) {
 		putsln("pop");

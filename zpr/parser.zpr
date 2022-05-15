@@ -9,6 +9,7 @@ struct Parser {
 	previous: Token*;
 
 	currentFunction: Node*;
+	functions: Vector*;
 
 	error: int;
 	panic: int;
@@ -17,6 +18,7 @@ struct Parser {
 function new_parser(lexer: Lexer*): Parser* {
 	var parser: Parser* = malloc(sizeof(Parser));
 	parser.lexer = lexer;
+	parser.functions = new_vector();
 	return parser;
 }
 
@@ -97,6 +99,22 @@ function Parser.lookup_variable(name: Token*): Node* {
 			return variable;
 		}
 	}
+
+	for(var i = 0; i < this.currentFunction.v.funktion.arguments.size; i = i + 1) {
+		var arg: Node* = this.currentFunction.v.funktion.arguments.at(i);
+
+		if(arg.v.variable.name.equals(name)) {
+			return arg;
+		}
+	}
+
+	for(var i = 0; i < this.functions.size; i = i + 1) {
+		var func: Node* = this.functions.at(i);
+		if(func.v.funktion.name.equals(name)) {
+			return func;
+		}
+	}
+
 	return null;
 }
 
@@ -122,6 +140,11 @@ function Parser.parse_identifier(): Node* {
 	}
 
 	if(this.match(TOKEN_EQ)) {
+		if(variable.type != AST_DEFINE_VAR) {
+			this.error("Can only assign to variables");
+			return null;
+		}
+
 		var value = this.parse_expression();
 
 		var assign = new_node(AST_ASSIGN_VAR);
@@ -130,6 +153,36 @@ function Parser.parse_identifier(): Node* {
 		assign.v.variable.type = variable.v.variable.type;
 		assign.v.variable.value = value;
 		return assign;
+	}
+	else if(this.match(TOKEN_LEFT_PAREN)) {
+		var call = new_node(AST_CALL);
+		call.v.funktion.name = name;
+		call.v.funktion.arguments = new_vector();
+
+		if(!this.check(TOKEN_RIGHT_PAREN)) {
+			var arg = this.parse_expression();
+
+			call.v.funktion.arguments.push(arg);
+
+			while(this.match(TOKEN_COMMA)) {
+				var arg = this.parse_expression();
+
+				call.v.funktion.arguments.push(arg);
+			}
+		}
+
+		this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
+
+		if(call.v.funktion.arguments.size != variable.v.funktion.arguments.size) {
+			this.error("Argument count mismatch");
+		}
+
+		return call;
+	}
+
+	if(variable.type != AST_DEFINE_VAR) {
+		this.error("Can only access variables");
+		return null;
 	}
 
 	var access = new_node(AST_ACCESS_VAR);
@@ -398,6 +451,8 @@ function Parser.parse_statement(): Node* {
 	else if(this.match(TOKEN_IDENTIFIER)) {
 		var expr = this.parse_identifier();
 
+		if(expr == null) return null;
+
 		if(expr.type == AST_ACCESS_VAR) {
 			this.error_current("Expected statement");
 		}
@@ -432,7 +487,42 @@ function Parser.parse_block(): Node* {
 function Parser.parse_function(): Node* {
 	var name = this.consume(TOKEN_IDENTIFIER, "Expected function name");
 
+	var funktion = new_node(AST_FUNCTION);
+	funktion.v.funktion.name = name;
+	funktion.v.funktion.arguments = new_vector();
+
 	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after function name");
+	
+	if(!this.check(TOKEN_RIGHT_PAREN)) {
+		var argName = this.consume(TOKEN_IDENTIFIER, "Expected parameter name");
+		this.consume(TOKEN_COLON, "Expected ':' after parameter name");
+		var type = this.parse_type();
+
+		var arg = new_node(AST_DEFINE_VAR);
+		arg.v.variable.name = argName;
+		var dtype = *type;
+		arg.v.variable.type = dtype;
+
+		arg.v.variable.stackOffset = funktion.v.funktion.currentStackOffset = funktion.v.funktion.currentStackOffset + 8;
+
+		funktion.v.funktion.arguments.push(arg);
+
+		while(this.match(TOKEN_COMMA)) {
+			var argName = this.consume(TOKEN_IDENTIFIER, "Expected parameter name");
+			this.consume(TOKEN_COLON, "Expected ':' after parameter name");
+			var type = this.parse_type();
+
+			var arg = new_node(AST_DEFINE_VAR);
+			arg.v.variable.name = argName;
+			var dtype = *type;
+			arg.v.variable.type = dtype;
+
+			arg.v.variable.stackOffset = funktion.v.funktion.currentStackOffset = funktion.v.funktion.currentStackOffset + 8;
+
+			funktion.v.funktion.arguments.push(arg);
+		}
+	}
+
 	this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after function parameters");
 
 	var type: Type*;
@@ -446,14 +536,13 @@ function Parser.parse_function(): Node* {
 
 	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before function body");
 
-	var funktion = new_node(AST_FUNCTION);
-	funktion.v.funktion.name = name;
 	var dtype = *type;
 	funktion.v.funktion.returnType = dtype;
-	funktion.v.funktion.currentStackOffset = 0;
 	funktion.v.funktion.variables = new_vector();
 
 	this.currentFunction = funktion;
+
+	this.functions.push(funktion);
 
 	var body = this.parse_block();
 

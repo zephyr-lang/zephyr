@@ -8,6 +8,7 @@ var TOKEN_LEFT_BRACE = __tk_count = __tk_count + 1;
 var TOKEN_RIGHT_BRACE = __tk_count = __tk_count + 1;
 var TOKEN_COLON = __tk_count = __tk_count + 1;
 var TOKEN_SEMICOLON = __tk_count = __tk_count + 1;
+var TOKEN_COMMA = __tk_count = __tk_count + 1;
 var TOKEN_TILDE = __tk_count = __tk_count + 1;
 var TOKEN_MINUS = __tk_count = __tk_count + 1;
 var TOKEN_BANG = __tk_count = __tk_count + 1;
@@ -56,6 +57,7 @@ function token_type_to_string(type: int): i8* {
 	if(type == TOKEN_RIGHT_BRACE) return "right-brace";
 	if(type == TOKEN_COLON) return "colon";
 	if(type == TOKEN_SEMICOLON) return "semicolon";
+	if(type == TOKEN_COMMA) return "comma";
 	if(type == TOKEN_TILDE) return "tilde";
 	if(type == TOKEN_MINUS) return "minus";
 	if(type == TOKEN_BANG) return "bang";

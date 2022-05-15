@@ -2,6 +2,12 @@ import "std/core.zpr";
 import "std/io.zpr";
 import "zpr/ast.zpr";
 
+var ARG_REGISTERS: i8*[6] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
+
+function ceil_multiple(num: int, n: int): int {
+	return ((num + n - 1) / n) * n;
+}
+
 function cmp_suffix(type: int): i8* {
 	if(type == OP_EQUAL) return "e";
 	if(type == OP_NOT_EQUAL) return "ne";
@@ -105,6 +111,20 @@ function generate_expr_rax(expr: Node*, out: File*) {
 
 		out.puts("    mov QWORD [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("], rax");
 	}
+	else if(expr.type == AST_CALL) {
+		if(expr.v.funktion.arguments.size > 6) {
+			eputsln("Functions cannot have more than 6 arguments");
+			eput_token_string(expr.v.funktion.name); eputln();
+			exit(1);
+		}
+
+		for(var i = 0; i < expr.v.funktion.arguments.size; i = i + 1) {
+			generate_expr_rax(expr.v.funktion.arguments.at(i), out);
+			out.puts("    mov "); out.puts(ARG_REGISTERS[i]); out.putsln(", rax");
+		}
+
+		out.puts("    call "); out.put_token_string(expr.v.funktion.name); out.putln();
+	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
 		exit(1);
@@ -114,7 +134,7 @@ function generate_expr_rax(expr: Node*, out: File*) {
 function generate_statement(stmt: Node*, out: File*) {
 	if(stmt.type == AST_RETURN) {
 		generate_expr_rax(stmt.v.unary, out);
-		out.putsln("    pop rbp");
+		out.putsln("    leave");
 		out.putsln("    ret");
 	}
 	else if(stmt.type == AST_DEFINE_VAR) {
@@ -145,6 +165,22 @@ function generate_function(funktion: Node*, out: File*) {
 
 	out.putsln("    push rbp");
 	out.putsln("    mov rbp, rsp");
+
+	var stackDepth = ceil_multiple(funktion.v.funktion.currentStackOffset, 16);
+	if(stackDepth != 0) {
+		out.puts("    sub rsp, "); out.putd(stackDepth); out.putln();
+	}
+	
+	if(funktion.v.funktion.arguments.size > 6) {
+		eputsln("Functions cannot have more than 6 arguments");
+		eput_token_string(funktion.v.funktion.name);
+		exit(1);
+	}
+
+	for(var i = 0; i < funktion.v.funktion.arguments.size; i = i + 1) {
+		out.puts("mov QWORD [rbp-"); out.putd((funktion.v.funktion.arguments.at(i) as Node*).v.variable.stackOffset); out.puts("], "); out.putsln(ARG_REGISTERS[i]);
+	}
+
 	generate_block(funktion.v.funktion.body, out);
 }
 

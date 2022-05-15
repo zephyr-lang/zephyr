@@ -160,6 +160,7 @@ function Lexer.next(): Token* {
 	if(c == '}') return this.make_token(TOKEN_RIGHT_BRACE);
 	if(c == ':') return this.make_token(TOKEN_COLON);
 	if(c == ';') return this.make_token(TOKEN_SEMICOLON);
+	if(c == ',') return this.make_token(TOKEN_COMMA);
 	if(c == '~') return this.make_token(TOKEN_TILDE);
 	if(c == '-') return this.make_token(TOKEN_MINUS);
 	if(c == '!') return this.make_token(this.match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);
