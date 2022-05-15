@@ -73,9 +73,15 @@ function main(argc: int, argv: i8**): int {
 		m_outFile = "./a.out";
 	}
 
-	var sourceFile = fopen(m_cliSource != null ? m_cliSource : m_filepath, 'r');
-	var source = sourceFile.slurp(null);
-	sourceFile.close();
+	var source: i8*;
+	if(m_cliSource != null) {
+		source = m_cliSource;
+	}
+	else {
+		var sourceFile = fopen(m_filepath, 'r');
+		source = sourceFile.slurp(null);
+		sourceFile.close();
+	}
 
 	var lexer = new_lexer(m_filepath == null ? "cli" : m_filepath, source);
 
@@ -88,7 +94,8 @@ function main(argc: int, argv: i8**): int {
 	if(parser.error)
 		return 1;
 
-	print_ast(ast);
+	if(m_dumpAst)
+		print_ast(ast);
 
 	var asmFile: i8[1024];
 

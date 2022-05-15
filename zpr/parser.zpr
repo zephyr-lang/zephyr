@@ -167,7 +167,7 @@ function Parser.parse_term(): Node* {
 	return left;
 }
 
-function Parser.parse_expression(): Node* {
+function Parser.parse_arithmetic(): Node* {
 	var left = this.parse_term();
 
 	while(this.match(TOKEN_PLUS) || this.match(TOKEN_MINUS)) {
@@ -186,6 +186,127 @@ function Parser.parse_expression(): Node* {
 	}
 
 	return left;
+}
+
+function Parser.parse_shift(): Node* {
+	var left = this.parse_arithmetic();
+
+	while(this.match(TOKEN_LSH) || this.match(TOKEN_RSH)) {
+		var op = this.previous.type;
+
+		var right = this.parse_arithmetic();
+
+		var type: int;
+		if(op == TOKEN_LSH) type = OP_LSH;
+		else if(op == TOKEN_RSH) type = OP_RSH;
+
+		var binary = new_node(type);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_comparison(): Node* {
+	var left = this.parse_shift();
+
+	while(this.match(TOKEN_LESS) || this.match(TOKEN_LEQ)
+	     || this.match(TOKEN_GREATER) || this.match(TOKEN_GEQ)) {
+		var op = this.previous.type;
+
+		var right = this.parse_shift();
+
+		var type: int;
+		if(op == TOKEN_LESS) type = OP_LSH;
+		else if(op == TOKEN_LEQ) type = OP_LESS_EQ;
+		else if(op == TOKEN_GREATER) type = OP_GREATER;
+		else if(op == TOKEN_GEQ) type = OP_GREATER_EQ;
+
+		var binary = new_node(type);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_equality(): Node* {
+	var left = this.parse_comparison();
+
+	while(this.match(TOKEN_EQEQ) || this.match(TOKEN_BANG_EQ)) {
+		var op = this.previous.type;
+
+		var right = this.parse_comparison();
+
+		var type: int;
+		if(op == TOKEN_EQEQ) type = OP_EQUAL;
+		else if(op == TOKEN_BANG_EQ) type = OP_NOT_EQUAL;
+
+		var binary = new_node(type);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_bwand(): Node* {
+	var left = this.parse_equality();
+
+	while(this.match(TOKEN_AMP)) {
+		var op = this.previous.type;
+
+		var right = this.parse_equality();
+
+		var binary = new_node(OP_BWAND);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_xor(): Node* {
+	var left = this.parse_bwand();
+
+	while(this.match(TOKEN_XOR)) {
+		var op = this.previous.type;
+
+		var right = this.parse_bwand();
+
+		var binary = new_node(OP_XOR);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_bwor(): Node* {
+	var left = this.parse_xor();
+
+	while(this.match(TOKEN_BAR)) {
+		var op = this.previous.type;
+
+		var right = this.parse_xor();
+
+		var binary = new_node(OP_BWOR);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_expression(): Node* {
+	return this.parse_bwor();
 }
 
 function Parser.parse_return_statement(): Node* {
@@ -262,7 +383,7 @@ function Parser.parse_program(): Node* {
 			program.add_child(funktion);
 		}
 		else {
-			this.error("Expected definition");
+			this.error_current("Expected definition");
 			break;
 		}
 	}
