@@ -1,0 +1,271 @@
+import "std/core.zpr";
+import "zpr/types.zpr";
+import "zpr/lexer.zpr";
+import "zpr/ast.zpr";
+
+struct Parser {
+	lexer: Lexer*;
+	current: Token*;
+	previous: Token*;
+
+	error: int;
+	panic: int;
+}
+
+function new_parser(lexer: Lexer*): Parser* {
+	var parser: Parser* = malloc(sizeof(Parser));
+	parser.lexer = lexer;
+	return parser;
+}
+
+function new_node(type: int): Node* {
+	var node: Node* = malloc(sizeof(Node));
+	node.type = type;
+	return node;
+}
+
+function Node.add_child(child: Node*) {
+	this.v.block.children.push(child);
+}
+
+function Parser.error_at_token(token: Token*, message: i8*) {
+	if(this.panic) return;
+	this.panic = true;
+	eputs("["); eputd(token.line); eputs("] Error");
+
+	if(token.type == TOKEN_EOF) {
+		eputs(" @ EOF");
+	}
+	else if(token.type == TOKEN_ERROR) {
+		// No value to print
+	}
+	else {
+		eputs(" @ '"); eput_token_string(token); eputs("'");
+	}
+
+	eputs(": "); eputsln(message);
+
+	this.error = true;
+}
+
+function Parser.error(message: i8*) {
+	this.error_at_token(this.previous, message);
+}
+
+function Parser.error_current(message: i8*) {
+	this.error_at_token(this.current, message);
+}
+
+function Parser.advance() {
+	this.previous = this.current;
+
+	for(;;) {
+		this.current = this.lexer.next();
+		if(this.current.type != TOKEN_ERROR) break;
+
+		this.error_current(this.current.start);
+	}
+}
+
+function Parser.consume(type: int, message: i8*): Token* {
+	if(this.current.type == type) {
+		this.advance();
+		return this.previous;
+	}
+
+	this.error_current(message);
+	return this.current;
+}
+
+function Parser.check(type: int): int {
+	return this.current.type == type;
+}
+
+function Parser.match(type: int): int {
+	if(!this.check(type)) return false;
+	this.advance();
+	return true;
+}
+
+function Parser.parse_type(): Type* {
+	this.advance();
+
+	var type = new_type();
+
+	if(this.previous.type == TOKEN_INT) type.type = DATA_TYPE_INT;
+	else if(this.previous.type == TOKEN_VOID) type.type = DATA_TYPE_VOID;
+	else {
+		this.error("Expected type");
+	}
+	return type;
+}
+
+function Parser.parse_value(): Node* {
+	if(this.match(TOKEN_INT_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return null;
+
+		var literalNode = new_node(AST_INT_LITERAL);
+		var type = *INT_TYPE;
+		literalNode.v.literal.type = type;
+		literalNode.v.literal.az.integer = atoi(literal.start);
+
+		return literalNode;
+	}
+	else if(this.match(TOKEN_LEFT_PAREN)) {
+		var expr = this.parse_expression();
+		this.consume(TOKEN_RIGHT_PAREN, "Expected closing ')' after expression");
+		return expr;
+	}
+
+	this.error_current("Expected value");
+	return null;
+}
+
+function Parser.parse_unary(): Node* {
+	if(this.match(TOKEN_TILDE)) {
+		var expr = this.parse_unary();
+		var bwnot = new_node(OP_BWNOT);
+		bwnot.v.unary = expr;
+		return bwnot;
+	}
+	else if(this.match(TOKEN_MINUS)) {
+		var expr = this.parse_unary();
+		var neg = new_node(OP_NEG);
+		neg.v.unary = expr;
+		return neg;
+	}
+	else if(this.match(TOKEN_BANG)) {
+		var expr = this.parse_unary();
+		var not = new_node(OP_NOT);
+		not.v.unary = expr;
+		return not;
+	}
+
+	return this.parse_value();
+}
+
+function Parser.parse_term(): Node* {
+	var left = this.parse_unary();
+
+	while(this.match(TOKEN_STAR) || this.match(TOKEN_SLASH) || this.match(TOKEN_PERCENT)) {
+		var op = this.previous.type;
+
+		var right = this.parse_unary();
+
+		var type: int;
+		if(op == TOKEN_STAR) type = OP_MUL;
+		else if(op == TOKEN_SLASH) type = OP_DIV;
+		else if(op == TOKEN_PERCENT) type = OP_MOD;
+
+		var binary = new_node(type);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_expression(): Node* {
+	var left = this.parse_term();
+
+	while(this.match(TOKEN_PLUS) || this.match(TOKEN_MINUS)) {
+		var op = this.previous.type;
+
+		var right = this.parse_term();
+
+		var type: int;
+		if(op == TOKEN_PLUS) type = OP_ADD;
+		else if(op == TOKEN_MINUS) type = OP_SUB;
+
+		var binary = new_node(type);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_return_statement(): Node* {
+	var returnStmt = new_node(AST_RETURN);
+	returnStmt.v.unary = this.parse_expression();
+
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after return statement");
+
+	return returnStmt;
+}
+
+function Parser.parse_statement(): Node* {
+	if(this.match(TOKEN_RETURN)) {
+		return this.parse_return_statement();
+	}
+
+	this.error_current("Expected statement");
+
+	return null;
+}
+
+function Parser.parse_block(): Node* {
+	var block = new_node(AST_BLOCK);
+	block.v.block.children = new_vector();
+
+	while(!this.check(TOKEN_RIGHT_BRACE)) {
+		var stmt = this.parse_statement();
+		if(this.error) break;
+		block.add_child(stmt);
+	}
+
+	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after block");
+
+	return block;
+}
+
+function Parser.parse_function(): Node* {
+	var name = this.consume(TOKEN_IDENTIFIER, "Expected function name");
+
+	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after function name");
+	this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after function parameters");
+
+	var type: Type*;
+
+	if(this.match(TOKEN_COLON)) {
+		type = this.parse_type();
+	}
+	else {
+		type = VOID_TYPE;
+	}
+
+	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before function body");
+
+	var body = this.parse_block();
+
+	var funktion = new_node(AST_FUNCTION);
+	funktion.v.funktion.name = name;
+	var dtype = *type;
+	funktion.v.funktion.returnType = dtype;
+	funktion.v.funktion.body = body;
+
+	return funktion;
+}
+
+function Parser.parse_program(): Node* {
+	var program = new_node(AST_PROGRAM);
+	program.v.block.children = new_vector();
+
+	this.advance();
+
+	while(!this.match(TOKEN_EOF)) {
+		if(this.match(TOKEN_FUNCTION)) {
+			var funktion = this.parse_function();
+			program.add_child(funktion);
+		}
+		else {
+			this.error("Expected definition");
+			break;
+		}
+	}
+
+	return program;
+}

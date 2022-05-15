@@ -1,0 +1,146 @@
+import "std/core.zpr";
+import "std/string.zpr";
+import "zpr/token.zpr";
+
+struct Lexer {
+	start: i8*;
+	current: i8*;
+
+	line: int;
+
+	filename: i8*;
+}
+
+function new_lexer(filename: i8*, source: i8*): Lexer* {
+	var lexer: Lexer* = malloc(sizeof(Lexer));
+	lexer.start = source;
+	lexer.current = source;
+	lexer.line = 1;
+	lexer.filename = filename;
+
+	return lexer;
+}
+
+function Lexer.is_at_end(): int {
+	return *this.current == 0;
+}
+
+function Lexer.advance(): i8 {
+	this.current = &this.current[1];
+	return this.current[-1];
+}
+
+function Lexer.peek(): i8 {
+	return *this.current;
+}
+
+// Will return the character *after* the current one without consuming anything.
+// E.g., given the string "abc", with the start pointer at the start of the string,
+// peek() will return the "a" and peek_next() will return the "b"
+function Lexer.peek_next(): i8 {
+	if(this.is_at_end()) return 0;
+	return this.current[1];
+}
+
+function Lexer.make_token(type: int): Token* {
+	var token: Token* = malloc(sizeof(Token));
+	token.type = type;
+	token.start = this.start;
+	token.length = (this.current as int) - (this.start as int);
+	token.line = this.line;
+	return token;
+}
+
+function Lexer.error_token(message: i8*): Token* {
+	var token: Token* = malloc(sizeof(Token));
+	token.type = TOKEN_ERROR;
+	token.start = message;
+	token.length = strlen(message);
+	token.line = this.line;
+	return token;
+}
+
+function is_digit(c: i8): int {
+	return '0' <= c && c <= '9';
+}
+
+function is_alpha(c: i8): int {
+	return ('a' <= c && c <= 'z') ||
+	       ('A' <= c && c <= 'Z') ||
+		   c == '_';
+}
+
+function Lexer.match_keyword(keyword: i8*): int {
+	var length = strlen(keyword);
+	return (this.current as int) - (this.start as int) == length && memeq(this.start, keyword, length);
+}
+
+function Lexer.identifier_type(): int {
+	if(this.match_keyword("int")) return TOKEN_INT;
+	if(this.match_keyword("function")) return TOKEN_FUNCTION;
+	if(this.match_keyword("return")) return TOKEN_RETURN;
+	if(this.match_keyword("void")) return TOKEN_VOID;
+	return TOKEN_IDENTIFIER;
+}
+
+function Lexer.skip_whitespace() {
+	for(;;) {
+		var c = this.peek();
+
+		if(c == ' ' || c == 13 || c == 9) {
+			this.advance();
+		}
+		else if(c == 10) {
+			this.line = this.line + 1;
+			this.advance();
+		}
+		else if(c == '/') {
+			if(this.peek_next() == '/') {
+				while(this.peek() != 10 && !this.is_at_end()) this.advance();
+			}
+			else return;
+		}
+		else {
+			return;
+		}
+	}
+}
+
+function Lexer.number(): Token* {
+	while(is_digit(this.peek())) this.advance();
+	return this.make_token(TOKEN_INT_LITERAL);
+}
+
+function Lexer.identifier(): Token* {
+	while(is_alpha(this.peek()) || is_digit(this.peek())) this.advance();
+	return this.make_token(this.identifier_type());
+}
+
+function Lexer.next(): Token* {
+	this.skip_whitespace();
+
+	this.start = this.current;
+
+	if(this.is_at_end()) return this.make_token(TOKEN_EOF);
+	
+	var c = this.advance();
+
+	if(is_alpha(c)) return this.identifier();
+	if(is_digit(c)) return this.number();
+
+	if(c == '(') return this.make_token(TOKEN_LEFT_PAREN);
+	if(c == ')') return this.make_token(TOKEN_RIGHT_PAREN);
+	if(c == '{') return this.make_token(TOKEN_LEFT_BRACE);
+	if(c == '}') return this.make_token(TOKEN_RIGHT_BRACE);
+	if(c == ':') return this.make_token(TOKEN_COLON);
+	if(c == ';') return this.make_token(TOKEN_SEMICOLON);
+	if(c == '~') return this.make_token(TOKEN_TILDE);
+	if(c == '-') return this.make_token(TOKEN_MINUS);
+	if(c == '!') return this.make_token(TOKEN_BANG);
+	if(c == '+') return this.make_token(TOKEN_PLUS);
+	if(c == '*') return this.make_token(TOKEN_STAR);
+	if(c == '/') return this.make_token(TOKEN_SLASH);
+	if(c == '%') return this.make_token(TOKEN_PERCENT);
+
+	return this.error_token("Unexpected character");
+}

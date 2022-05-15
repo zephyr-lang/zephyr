@@ -1,0 +1,141 @@
+import "std/vector.zpr";
+
+// Updating this list requires updating node_type_to_string
+var __nt_count = -1;
+var OP_BWNOT = __nt_count = __nt_count + 1;
+var OP_NEG = __nt_count = __nt_count + 1;
+var OP_NOT = __nt_count = __nt_count + 1;
+var OP_ADD = __nt_count = __nt_count + 1;
+var OP_SUB = __nt_count = __nt_count + 1;
+var OP_MUL = __nt_count = __nt_count + 1;
+var OP_DIV = __nt_count = __nt_count + 1;
+var OP_MOD = __nt_count = __nt_count + 1;
+var AST_INT_LITERAL = __nt_count = __nt_count + 1;
+var AST_RETURN = __nt_count = __nt_count + 1;
+var AST_FUNCTION = __nt_count = __nt_count + 1;
+var AST_BLOCK = __nt_count = __nt_count + 1;
+var AST_PROGRAM = __nt_count = __nt_count + 1;
+
+// Updating this list requires updating data_type_to_string
+var __dt_count = 0;
+var DATA_TYPE_VOID = 0;
+var DATA_TYPE_INT = __dt_count = __dt_count + 1;
+
+struct Type {
+	type: int; // DataType
+}
+
+struct Node {
+	type: int; // NodeType
+
+	v: union {
+		unary: Node*;
+
+		binary: struct {
+			lhs: Node*;
+			rhs: Node*;
+		};
+
+		funktion: struct {
+			name: Token*;
+			returnType: Type;
+			body: Node*;
+		};
+
+		block: struct {
+			children: Vector*;
+		};
+
+		literal: struct {
+			type: Type;
+
+			az: union {
+				integer: int;
+			};
+		};
+	};
+}
+
+function data_type_to_string(type: int): i8* {
+	if(type == DATA_TYPE_VOID) return "void";
+	if(type == DATA_TYPE_INT) return "int";
+
+	return "<unknown type>";
+}
+
+function node_type_to_string(type: int): i8* {
+	if(type == OP_BWNOT) return "~";
+	if(type == OP_NEG) return "-";
+	if(type == OP_NOT) return "!";
+	if(type == OP_ADD) return "+";
+	if(type == OP_SUB) return "-";
+	if(type == OP_MUL) return "*";
+	if(type == OP_DIV) return "/";
+	if(type == OP_MOD) return "%";
+	if(type == AST_INT_LITERAL) return "int literal";
+	if(type == AST_RETURN) return "return";
+	if(type == AST_FUNCTION) return "function";
+	if(type == AST_BLOCK) return "block";
+	if(type == AST_PROGRAM) return "program";
+
+	return "<unknown node type>";
+}
+
+function is_unary_op(type: int): int {
+	return (
+		type == OP_BWNOT ||
+		type == OP_NEG ||
+		type == OP_NOT
+	);
+}
+
+function is_binary_op(type: int): int {
+	return (
+		type == OP_ADD ||
+		type == OP_SUB ||
+		type == OP_MUL ||
+		type == OP_DIV ||
+		type == OP_MOD
+	);
+}
+
+function print_ast_depth(node: Node*, depth: int) {
+	for(var i = 0; i < depth; i = i + 1) puts("  ");
+
+	if(is_unary_op(node.type)) {
+		putsln(node_type_to_string(node.type));
+		print_ast_depth(node.v.unary, depth + 1);
+	}
+	else if(is_binary_op(node.type)) {
+		putsln(node_type_to_string(node.type));
+		print_ast_depth(node.v.binary.lhs, depth + 1);
+		putln();
+		print_ast_depth(node.v.binary.rhs, depth + 1);
+	}
+	else if(node.type == AST_PROGRAM) {
+		for(var i = 0; i < node.v.block.children.size; i = i + 1)
+			print_ast_depth(node.v.block.children.at(i), depth);
+	}
+	else if(node.type == AST_BLOCK) {
+		putsln("{");
+		for(var i = 0; i < node.v.block.children.size; i = i + 1)
+			print_ast_depth(node.v.block.children.at(i), depth + 1);
+		putsln("}");
+	}
+	else if(node.type == AST_FUNCTION) {
+		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(data_type_to_string(node.v.funktion.returnType.type));
+		print_ast_depth(node.v.funktion.body, depth + 1);
+	}
+	else if(node.type == AST_RETURN) {
+		putsln("return");
+		print_ast_depth(node.v.unary, depth + 1);
+		putln();
+	}
+	else if(node.type == AST_INT_LITERAL) {
+		puts("(literal "); putd(node.v.literal.az.integer); puts(")");
+	}
+}
+
+function print_ast(ast: Node*) {
+	print_ast_depth(ast, 0);
+}

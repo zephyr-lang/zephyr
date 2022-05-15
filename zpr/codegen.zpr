@@ -1,0 +1,110 @@
+import "std/core.zpr";
+import "std/io.zpr";
+import "zpr/ast.zpr";
+
+function generate_unary_rax(expr: Node*, out: File*) {
+	if(expr.type == OP_BWNOT) {
+		generate_expr_rax(expr.v.unary, out);
+		out.putsln("    not rax");
+	}
+	else if(expr.type == OP_NEG) {
+		generate_expr_rax(expr.v.unary, out);
+		out.putsln("    neg rax");
+	}
+	else if(expr.type == OP_NOT) {
+		generate_expr_rax(expr.v.unary, out);
+		out.putsln("    test rax, rax");
+		out.putsln("    sete al");
+		out.putsln("    movzx rax, al");
+	}
+}
+
+function generate_binary_rax(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    pop rax");
+
+	if(expr.type == OP_ADD) {
+		out.putsln("    add rax, rcx");
+	}
+	else if(expr.type == OP_SUB) {
+		out.putsln("    sub rax, rcx");
+	}
+	else if(expr.type == OP_MUL) {
+		out.putsln("    imul rax, rcx");
+	}
+	else if(expr.type == OP_DIV) {
+		out.putsln("    cqo");
+		out.putsln("    idiv rcx");
+	}
+	else if(expr.type == OP_MOD) {
+		out.putsln("    cqo");
+		out.putsln("    idiv rcx");
+		out.putsln("    mov rax, rdx");
+	}
+
+}
+
+function generate_expr_rax(expr: Node*, out: File*) {
+	if(is_unary_op(expr.type)) {
+		generate_unary_rax(expr, out);
+	}
+	else if(is_binary_op(expr.type)) {
+		generate_binary_rax(expr, out);
+	}
+	else if(expr.type == AST_INT_LITERAL) {
+		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
+	}
+	else {
+		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
+		exit(1);
+	}
+}
+
+function generate_statement(stmt: Node*, out: File*) {
+	if(stmt.type == AST_RETURN) {
+		generate_expr_rax(stmt.v.unary, out);
+		out.putsln("    ret");
+	}
+	else {
+		eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();
+		exit(1);
+	}
+}
+
+function generate_block(block: Node*, out: File*) {
+	for(var i = 0; i < block.v.block.children.size; i = i + 1) {
+		generate_statement(block.v.block.children.at(i), out);
+	}
+}
+
+function generate_function(funktion: Node*, out: File*) {
+	out.puts("global "); out.put_token_string(funktion.v.funktion.name); out.putln();
+	out.put_token_string(funktion.v.funktion.name); out.putsln(":");
+
+	generate_block(funktion.v.funktion.body, out);
+}
+
+function generate_program(ast: Node*, out: File*) {
+	for(var i = 0; i < ast.v.block.children.size; i = i + 1) {
+		var node: Node* = ast.v.block.children.at(i);
+		if(node.type == AST_FUNCTION) {
+			generate_function(node, out);
+		}
+		else {
+			eputs("Unsupported type in generate_program - "); eputs(node_type_to_string(node.type)); eputln();
+			exit(1);
+		}
+	}
+
+	// Entry point of _start -> calls main and exits (via syscall)
+	// Uses main's return value as the exit code
+	out.putsln("global _start");
+	out.putsln("_start:");
+	out.putsln("    call main");
+	out.putsln("    mov rdi, rax");
+	out.putsln("    mov rax, 60");
+	out.putsln("    syscall");
+}
