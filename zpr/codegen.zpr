@@ -97,6 +97,14 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	else if(expr.type == AST_INT_LITERAL) {
 		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
 	}
+	else if(expr.type == AST_ACCESS_VAR) {
+		out.puts("    mov rax, QWORD [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+	}
+	else if(expr.type == AST_ASSIGN_VAR) {
+		generate_expr_rax(expr.v.variable.value, out);
+
+		out.puts("    mov QWORD [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("], rax");
+	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
 		exit(1);
@@ -106,7 +114,18 @@ function generate_expr_rax(expr: Node*, out: File*) {
 function generate_statement(stmt: Node*, out: File*) {
 	if(stmt.type == AST_RETURN) {
 		generate_expr_rax(stmt.v.unary, out);
+		out.putsln("    pop rbp");
 		out.putsln("    ret");
+	}
+	else if(stmt.type == AST_DEFINE_VAR) {
+		if(stmt.v.variable.value != null) {
+			generate_expr_rax(stmt.v.variable.value, out);
+
+			out.puts("    mov QWORD [rbp-"); out.putd(stmt.v.variable.stackOffset); out.putsln("], rax");
+		}
+	}
+	else if(stmt.type == AST_EXPR_STMT) {
+		generate_expr_rax(stmt.v.unary, out);
 	}
 	else {
 		eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();
@@ -124,6 +143,8 @@ function generate_function(funktion: Node*, out: File*) {
 	out.puts("global "); out.put_token_string(funktion.v.funktion.name); out.putln();
 	out.put_token_string(funktion.v.funktion.name); out.putsln(":");
 
+	out.putsln("    push rbp");
+	out.putsln("    mov rbp, rsp");
 	generate_block(funktion.v.funktion.body, out);
 }
 

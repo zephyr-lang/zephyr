@@ -8,6 +8,8 @@ struct Parser {
 	current: Token*;
 	previous: Token*;
 
+	currentFunction: Node*;
+
 	error: int;
 	panic: int;
 }
@@ -87,17 +89,54 @@ function Parser.match(type: int): int {
 	return true;
 }
 
+function Parser.lookup_variable(name: Token*): Node* {
+	for(var i = 0; i < this.currentFunction.v.funktion.variables.size; i = i + 1) {
+		var variable: Node* = this.currentFunction.v.funktion.variables.at(i);
+
+		if(variable.v.variable.name.equals(name)) {
+			return variable;
+		}
+	}
+	return null;
+}
+
 function Parser.parse_type(): Type* {
 	this.advance();
 
 	var type = new_type();
 
 	if(this.previous.type == TOKEN_INT) type.type = DATA_TYPE_INT;
-	else if(this.previous.type == TOKEN_VOID) type.type = DATA_TYPE_VOID;
 	else {
 		this.error("Expected type");
 	}
 	return type;
+}
+
+function Parser.parse_identifier(): Node* {
+	var name = this.previous;
+	var variable = this.lookup_variable(name);
+
+	if(variable == null) {
+		this.error("Unknown variable in current scope");
+		return null;
+	}
+
+	if(this.match(TOKEN_EQ)) {
+		var value = this.parse_expression();
+
+		var assign = new_node(AST_ASSIGN_VAR);
+		assign.v.variable.name = name;
+		assign.v.variable.stackOffset = variable.v.variable.stackOffset;
+		assign.v.variable.type = variable.v.variable.type;
+		assign.v.variable.value = value;
+		return assign;
+	}
+
+	var access = new_node(AST_ACCESS_VAR);
+	access.v.variable.name = name;
+	access.v.variable.stackOffset = variable.v.variable.stackOffset;
+	access.v.variable.type = variable.v.variable.type;
+	return access;
 }
 
 function Parser.parse_value(): Node* {
@@ -111,6 +150,9 @@ function Parser.parse_value(): Node* {
 		literalNode.v.literal.az.integer = atoi(literal.start);
 
 		return literalNode;
+	}
+	else if(this.match(TOKEN_IDENTIFIER)) {
+		return this.parse_identifier();
 	}
 	else if(this.match(TOKEN_LEFT_PAREN)) {
 		var expr = this.parse_expression();
@@ -318,9 +360,53 @@ function Parser.parse_return_statement(): Node* {
 	return returnStmt;
 }
 
+function Parser.parse_var_declaration(): Node* {
+	var name = this.consume(TOKEN_IDENTIFIER, "Expected variable name");
+
+	this.consume(TOKEN_COLON, "Expected ':' after variable name");
+
+	var type = this.parse_type();
+
+	var value: Node* = null;
+
+	if(this.match(TOKEN_EQ)) {
+		value = this.parse_expression();
+	}
+
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration");
+
+	var variable = new_node(AST_DEFINE_VAR);
+	variable.v.variable.name = name;
+
+	variable.v.variable.stackOffset = this.currentFunction.v.funktion.currentStackOffset = this.currentFunction.v.funktion.currentStackOffset + 8;
+	var dtype = *type;
+	variable.v.variable.type = dtype;
+	variable.v.variable.value = value;
+
+	this.currentFunction.v.funktion.variables.push(variable);
+
+	return variable;
+}
+
 function Parser.parse_statement(): Node* {
 	if(this.match(TOKEN_RETURN)) {
 		return this.parse_return_statement();
+	}
+	else if(this.match(TOKEN_VAR)) {
+		return this.parse_var_declaration();
+	}
+	else if(this.match(TOKEN_IDENTIFIER)) {
+		var expr = this.parse_identifier();
+
+		if(expr.type == AST_ACCESS_VAR) {
+			this.error_current("Expected statement");
+		}
+
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after expression");
+
+		var exprStmt = new_node(AST_EXPR_STMT);
+		exprStmt.v.unary = expr;
+		return exprStmt;
 	}
 
 	this.error_current("Expected statement");
@@ -352,7 +438,7 @@ function Parser.parse_function(): Node* {
 	var type: Type*;
 
 	if(this.match(TOKEN_COLON)) {
-		type = this.parse_type();
+		type = this.match(TOKEN_VOID) ? VOID_TYPE : this.parse_type();
 	}
 	else {
 		type = VOID_TYPE;
@@ -360,12 +446,17 @@ function Parser.parse_function(): Node* {
 
 	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before function body");
 
-	var body = this.parse_block();
-
 	var funktion = new_node(AST_FUNCTION);
 	funktion.v.funktion.name = name;
 	var dtype = *type;
 	funktion.v.funktion.returnType = dtype;
+	funktion.v.funktion.currentStackOffset = 0;
+	funktion.v.funktion.variables = new_vector();
+
+	this.currentFunction = funktion;
+
+	var body = this.parse_block();
+
 	funktion.v.funktion.body = body;
 
 	return funktion;

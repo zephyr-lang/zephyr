@@ -86,6 +86,7 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("int")) return TOKEN_INT;
 	if(this.match_keyword("function")) return TOKEN_FUNCTION;
 	if(this.match_keyword("return")) return TOKEN_RETURN;
+	if(this.match_keyword("var")) return TOKEN_VAR;
 	if(this.match_keyword("void")) return TOKEN_VOID;
 	return TOKEN_IDENTIFIER;
 }
