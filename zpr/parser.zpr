@@ -353,8 +353,29 @@ function Parser.parse_bwor(): Node* {
 	return left;
 }
 
+function Parser.parse_ternary_expression(): Node* {
+	var condition = this.parse_bwor();
+
+	if(this.match(TOKEN_QUESTION)) {
+		var op = this.previous;
+		var doTrue = this.parse_expression();
+
+		this.consume(TOKEN_COLON, "Expected ':' after true branch of ternary expression");
+
+		var doFalse = this.parse_expression();
+
+		var ternary = new_node(OP_TERNARY, op);
+		ternary.v.conditional.condition = condition;
+		ternary.v.conditional.doTrue = doTrue;
+		ternary.v.conditional.doFalse = doFalse;
+		return ternary;
+	}
+
+	return condition;
+}
+
 function Parser.parse_expression(): Node* {
-	return this.parse_bwor();
+	return this.parse_ternary_expression();
 }
 
 function Parser.parse_return_statement(): Node* {

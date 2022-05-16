@@ -176,6 +176,31 @@ function Parser.type_check_call(expr: Node*) {
 	tc_typeStack.push(&funktion.v.funktion.returnType);
 }
 
+function Parser.type_check_ternary_expr(expr: Node*) {
+	this.type_check_expr(expr.v.conditional.condition);
+	var condition: Type* = tc_typeStack.pop();
+
+	if(!condition.assignable(INT_TYPE)) {
+		expr.print_position();
+		eputs("Cannot use type '"); eputs(type_to_string(condition)); eputsln("as a condition");
+		exit(1);
+	}
+
+	this.type_check_expr(expr.v.conditional.doTrue);
+	var doTrue: Type* = tc_typeStack.pop();
+
+	this.type_check_expr(expr.v.conditional.doFalse);
+	var doFalse: Type* = tc_typeStack.pop();
+
+	if(!doTrue.assignable(doFalse)) {
+		expr.print_position();
+		eputs("Cannot conditionally return differing types '"); eputs(type_to_string(doTrue)); eputs("' and '"); eputs(type_to_string(doFalse)); eputsln("'");
+		exit(1);
+	}
+
+	tc_typeStack.push(doTrue);
+}
+
 function Parser.type_check_expr(expr: Node*) {
 	if(is_unary_op(expr.type)) {
 		this.type_check_unary(expr);
@@ -194,6 +219,9 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == AST_CALL) {
 		this.type_check_call(expr);
+	}
+	else if(expr.type == OP_TERNARY) {
+		this.type_check_ternary_expr(expr);
 	}
 	else {
 		eputsln("Unreachable - type_check_expr");

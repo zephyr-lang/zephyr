@@ -1,6 +1,6 @@
 import "std/vector.zpr";
 
-// Updating this list requires updating node_type_to_string
+// Updating this list requires updating node_type_to_string and print_ast_depth
 var __nt_count = -1;
 var OP_BWNOT = __nt_count = __nt_count + 1;
 var OP_NEG = __nt_count = __nt_count + 1;
@@ -21,6 +21,7 @@ var OP_LESS = __nt_count = __nt_count + 1;
 var OP_LESS_EQ = __nt_count = __nt_count + 1;
 var OP_GREATER = __nt_count = __nt_count + 1;
 var OP_GREATER_EQ = __nt_count = __nt_count + 1;
+var OP_TERNARY = __nt_count = __nt_count + 1;
 var AST_INT_LITERAL = __nt_count = __nt_count + 1;
 var AST_CALL = __nt_count = __nt_count + 1;
 var AST_DEFINE_VAR = __nt_count = __nt_count + 1;
@@ -51,6 +52,12 @@ struct Node {
 		binary: struct {
 			lhs: Node*;
 			rhs: Node*;
+		};
+
+		conditional: struct {
+			condition: Node*;
+			doTrue: Node*;
+			doFalse: Node*;
 		};
 
 		funktion: struct {
@@ -117,6 +124,7 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_LESS_EQ) return "<=";
 	if(type == OP_GREATER) return ">";
 	if(type == OP_GREATER_EQ) return ">=";
+	if(type == OP_TERNARY) return "?";
 	if(type == AST_INT_LITERAL) return "int literal";
 	if(type == AST_CALL) return "call";
 	if(type == AST_DEFINE_VAR) return "define var";
@@ -226,6 +234,14 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == AST_INT_LITERAL) {
 		puts("(literal "); putd(node.v.literal.az.integer); puts(")");
+	}
+	else if(node.type == OP_TERNARY) {
+		putsln("?");
+		print_ast_depth(node.v.conditional.condition, depth + 1);
+		putln();
+		print_ast_depth(node.v.conditional.doTrue, depth + 1);
+		putsln(":");
+		print_ast_depth(node.v.conditional.doFalse, depth + 1);
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));
