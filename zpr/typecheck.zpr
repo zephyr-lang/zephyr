@@ -4,7 +4,7 @@ import "std/vector.zpr";
 var tc_typeStack = new_vector();
 
 function Type.assignable(b: Type*): int {
-	return this.type == b.type;
+	return this.type == b.type && this.indirection == b.indirection;
 }
 
 function Type.size(): int {
@@ -69,7 +69,48 @@ function Parser.lookup_same_scope_variable(name: Token*): Node* {
 	return this.lookup_scope_variable(name, this.currentBlock);
 }
 
+function Parser.type_check_addrof(expr: Node*) {
+	if(!expr.v.unary.lvalue) {
+		expr.print_position();
+		eputsln("Expected lvalue as operand for unary '&'");
+		exit(1);
+	}
+
+	this.type_check_expr(expr.v.unary);
+	var type: Type* = tc_typeStack.pop();
+
+	var addrType = copy_type(type);
+	addrType.indirection = addrType.indirection + 1;
+
+	tc_typeStack.push(addrType);
+}
+
+function Parser.type_check_deref(expr: Node*) {
+	this.type_check_expr(expr.v.unary);
+	var type: Type* = tc_typeStack.pop();
+
+	if(type.indirection == 0) {
+		expr.print_position();
+		eputs("Cannot dereference non-pointer type '"); eputs(type_to_string(type)); eputsln("'");
+		exit(1);
+	}
+
+	var derefType = copy_type(type);
+	derefType.indirection = derefType.indirection - 1;
+
+	tc_typeStack.push(derefType);
+}
+
 function Parser.type_check_unary(expr: Node*) {
+	if(expr.type == OP_ADDROF) {
+		this.type_check_addrof(expr);
+		return;
+	}
+	else if(expr.type == OP_DEREF) {
+		this.type_check_deref(expr);
+		return;
+	}
+
 	this.type_check_expr(expr.v.unary);
 
 	var type: Type* = tc_typeStack.top();
@@ -116,7 +157,7 @@ function Parser.type_check_access_var(expr: Node*) {
 	expr.v.variable.type = variable.v.variable.type;
 	expr.v.variable.stackOffset = variable.v.variable.stackOffset;
 
-	tc_typeStack.push(&expr.v.variable.type);
+	tc_typeStack.push(expr.v.variable.type);
 }
 
 function Parser.type_check_assign_var(expr: Node*) {
@@ -138,9 +179,9 @@ function Parser.type_check_assign_var(expr: Node*) {
 
 	var valueType: Type* = tc_typeStack.pop();
 
-	if(!valueType.assignable(&variable.v.variable.type)) {
+	if(!valueType.assignable(variable.v.variable.type)) {
 		expr.print_position();
-		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(&variable.v.variable.type));
+		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(variable.v.variable.type));
 		eputsln("'");
 		exit(1);
 	}
@@ -148,7 +189,7 @@ function Parser.type_check_assign_var(expr: Node*) {
 	expr.v.variable.type = variable.v.variable.type;
 	expr.v.variable.stackOffset = variable.v.variable.stackOffset;
 
-	tc_typeStack.push(&expr.v.variable.type);
+	tc_typeStack.push(expr.v.variable.type);
 }
 
 function Parser.type_check_call(expr: Node*) {
@@ -179,7 +220,7 @@ function Parser.type_check_call(expr: Node*) {
 		var argType: Type* = tc_typeStack.pop();
 		
 		var param: Node* = funktion.v.funktion.arguments.at(i);
-		var paramType = &param.v.variable.type;
+		var paramType = param.v.variable.type;
 
 		if(!argType.assignable(paramType)) {
 			expr.print_position();
@@ -188,7 +229,7 @@ function Parser.type_check_call(expr: Node*) {
 		}
 	}
 
-	tc_typeStack.push(&funktion.v.funktion.returnType);
+	tc_typeStack.push(funktion.v.funktion.returnType);
 }
 
 function Parser.type_check_ternary_expr(expr: Node*) {
@@ -245,7 +286,7 @@ function Parser.type_check_expr(expr: Node*) {
 }
 
 function Parser.type_check_define_var(stmt: Node*) {
-	var declType = &stmt.v.variable.type;
+	var declType = stmt.v.variable.type;
 
 	var name = stmt.v.variable.name;
 
@@ -344,7 +385,7 @@ function Parser.type_check_statement(stmt: Node*) {
 		this.type_check_expr(stmt.v.unary);
 
 		var returnType: Type* = tc_typeStack.pop();
-		var expectedType = &this.currentFunction.v.funktion.returnType;
+		var expectedType = this.currentFunction.v.funktion.returnType;
 		if(!returnType.assignable(expectedType)) {
 			stmt.print_position();
 			eputs("Cannot return type '"); eputs(type_to_string(returnType)); eputs("' from function expecting '"); eputs(type_to_string(expectedType));

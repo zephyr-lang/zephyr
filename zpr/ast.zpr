@@ -22,6 +22,8 @@ var OP_LESS_EQ = __nt_count = __nt_count + 1;
 var OP_GREATER = __nt_count = __nt_count + 1;
 var OP_GREATER_EQ = __nt_count = __nt_count + 1;
 var OP_TERNARY = __nt_count = __nt_count + 1;
+var OP_ADDROF = __nt_count = __nt_count + 1;
+var OP_DEREF = __nt_count = __nt_count + 1;
 var AST_INT_LITERAL = __nt_count = __nt_count + 1;
 var AST_CALL = __nt_count = __nt_count + 1;
 var AST_DEFINE_VAR = __nt_count = __nt_count + 1;
@@ -43,11 +45,17 @@ var DATA_TYPE_INT = __dt_count = __dt_count + 1;
 
 struct Type {
 	type: int; // DataType
+	indirection: int;
 }
+
+var __lv_count = -1;
+var LVALUE_NONE = __lv_count = __lv_count + 1;
+var LVALUE_IDENTIFIER = __lv_count = __lv_count + 1;
 
 struct Node {
 	type: int; // NodeType
 	position: Token*;
+	lvalue: int;
 
 	v: union {
 		unary: Node*;
@@ -72,7 +80,7 @@ struct Node {
 
 		funktion: struct {
 			name: Token*;
-			returnType: Type;
+			returnType: Type*;
 			body: Node*;
 			hasImplicitBody: int;
 
@@ -90,7 +98,7 @@ struct Node {
 		};
 
 		literal: struct {
-			type: Type;
+			type: Type*;
 
 			az: union {
 				integer: int;
@@ -99,7 +107,7 @@ struct Node {
 
 		variable: struct {
 			name: Token*;
-			type: Type;
+			type: Type*;
 			value: Node*;
 
 			stackOffset: int;
@@ -115,7 +123,14 @@ function data_type_to_string(type: int): i8* {
 }
 
 function type_to_string(type: Type*): i8* {
-	return data_type_to_string(type.type);
+	var baseType = data_type_to_string(type.type);
+	var str: i8* = malloc(strlen(baseType) + type.indirection + 1);
+	strcpy(str, baseType);
+
+	for(var i = 0; i < type.indirection; i = i + 1) {
+		strcat(str, "*");
+	}
+	return str;
 }
 
 function node_type_to_string(type: int): i8* {
@@ -139,6 +154,8 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_GREATER) return ">";
 	if(type == OP_GREATER_EQ) return ">=";
 	if(type == OP_TERNARY) return "?";
+	if(type == OP_ADDROF) return "&";
+	if(type == OP_DEREF) return "*";
 	if(type == AST_INT_LITERAL) return "int literal";
 	if(type == AST_CALL) return "call";
 	if(type == AST_DEFINE_VAR) return "define var";
@@ -160,7 +177,9 @@ function is_unary_op(type: int): int {
 	return (
 		type == OP_BWNOT ||
 		type == OP_NEG ||
-		type == OP_NOT
+		type == OP_NOT ||
+		type == OP_ADDROF ||
+		type == OP_DEREF
 	);
 }
 
@@ -210,10 +229,10 @@ function print_ast_depth(node: Node*, depth: int) {
 		putsln("}");
 	}
 	else if(node.type == AST_FUNCTION) {
-		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(&node.v.funktion.returnType));
+		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(node.v.funktion.returnType));
 		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
 			var arg: Node* = node.v.funktion.arguments.at(i);
-			puts("("); put_token_string(arg.v.variable.name); puts(": "); puts(type_to_string(&arg.v.variable.type)); puts(") ");
+			puts("("); put_token_string(arg.v.variable.name); puts(": "); puts(type_to_string(arg.v.variable.type)); puts(") ");
 		}
 		if(node.v.funktion.arguments.size > 0) putln();
 		if(!node.v.funktion.hasImplicitBody)
@@ -285,7 +304,7 @@ function print_ast_depth(node: Node*, depth: int) {
 		putln();
 	}
 	else if(node.type == AST_DEFINE_VAR) {
-		puts("var "); put_token_string(node.v.variable.name); puts(": "); putsln(type_to_string(&node.v.variable.type));
+		puts("var "); put_token_string(node.v.variable.name); puts(": "); putsln(type_to_string(node.v.variable.type));
 		if(node.v.variable.value != null) {
 			print_ast_depth(node.v.variable.value, depth + 1);
 			putln();

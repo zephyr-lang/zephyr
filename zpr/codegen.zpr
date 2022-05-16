@@ -22,6 +22,22 @@ function cmp_suffix(type: int): i8* {
 	return null;
 }
 
+function generate_addrof_rax(expr: Node*, out: File*) {
+	if(expr.v.unary.lvalue == LVALUE_IDENTIFIER) {
+		out.puts("    lea rax, [rbp-"); out.putd(expr.v.unary.v.variable.stackOffset); out.putsln("]");
+	}
+	else {
+		eputs("Unsupported lvalue in generate_addrof_rax - "); eputd(expr.v.unary.lvalue); eputln();
+		exit(1);
+	}
+}
+
+function generate_deref_rax(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.unary, out);
+
+	out.putsln("    mov rax, QWORD [rax]");
+}
+
 function generate_unary_rax(expr: Node*, out: File*) {
 	if(expr.type == OP_BWNOT) {
 		generate_expr_rax(expr.v.unary, out);
@@ -36,6 +52,12 @@ function generate_unary_rax(expr: Node*, out: File*) {
 		out.putsln("    test rax, rax");
 		out.putsln("    sete al");
 		out.putsln("    movzx rax, al");
+	}
+	else if(expr.type == OP_ADDROF) {
+		generate_addrof_rax(expr, out);
+	}
+	else if(expr.type == OP_DEREF) {
+		generate_deref_rax(expr, out);
 	}
 	else {
 		eputs("Unsupported type in generate_unary_rax - "); eputs(node_type_to_string(expr.type)); eputln();
