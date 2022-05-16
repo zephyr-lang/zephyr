@@ -296,9 +296,26 @@ function Parser.type_check_if_statement(stmt: Node*) {
 		this.type_check_statement(stmt.v.conditional.doFalse);
 }
 
+function Parser.type_check_while_statement(stmt: Node*) {
+	this.type_check_expr(stmt.v.conditional.condition);
+
+	var conditionType: Type* = tc_typeStack.pop();
+
+	if(!conditionType.assignable(INT_TYPE)) {
+		stmt.print_position();
+		eputs("Expected condition to be type 'int' but got '"); eputs(type_to_string(conditionType)); eputsln("'");
+		exit(1);
+	}
+
+	this.type_check_statement(stmt.v.conditional.doTrue);
+}
+
 function Parser.type_check_statement(stmt: Node*) {
 	if(stmt.type == AST_IF) {
 		this.type_check_if_statement(stmt);
+	}
+	else if(stmt.type == AST_WHILE) {
+		this.type_check_while_statement(stmt);
 	}
 	else if(stmt.type == AST_RETURN) {
 		this.type_check_expr(stmt.v.unary);

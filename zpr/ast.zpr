@@ -29,6 +29,7 @@ var AST_ACCESS_VAR = __nt_count = __nt_count + 1;
 var AST_ASSIGN_VAR = __nt_count = __nt_count + 1;
 var AST_EXPR_STMT = __nt_count = __nt_count + 1;
 var AST_IF = __nt_count = __nt_count + 1;
+var AST_WHILE = __nt_count = __nt_count + 1;
 var AST_RETURN = __nt_count = __nt_count + 1;
 var AST_FUNCTION = __nt_count = __nt_count + 1;
 var AST_BLOCK = __nt_count = __nt_count + 1;
@@ -137,6 +138,7 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_ASSIGN_VAR) return "assign var";
 	if(type == AST_EXPR_STMT) return "expr stmt";
 	if(type == AST_IF) return "if";
+	if(type == AST_WHILE) return "while";
 	if(type == AST_RETURN) return "return";
 	if(type == AST_FUNCTION) return "function";
 	if(type == AST_BLOCK) return "block";
@@ -234,6 +236,13 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.v.conditional.doFalse, depth + 1);
 			putln();
 		}
+	}
+	else if(node.type == AST_WHILE) {
+		putsln("while");
+		print_ast_depth(node.v.conditional.condition, depth + 1);
+		putln();
+		print_ast_depth(node.v.conditional.doTrue, depth + 1);
+		putln();
 	}
 	else if(node.type == AST_RETURN) {
 		putsln("return");

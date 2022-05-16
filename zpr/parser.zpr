@@ -269,7 +269,7 @@ function Parser.parse_comparison(): Node* {
 		var right = this.parse_shift();
 
 		var type: int;
-		if(op.type == TOKEN_LESS) type = OP_LSH;
+		if(op.type == TOKEN_LESS) type = OP_LESS;
 		else if(op.type == TOKEN_LEQ) type = OP_LESS_EQ;
 		else if(op.type == TOKEN_GREATER) type = OP_GREATER;
 		else if(op.type == TOKEN_GEQ) type = OP_GREATER_EQ;
@@ -398,6 +398,20 @@ function Parser.parse_if_statement(): Node* {
 	return ifStmt;
 }
 
+function Parser.parse_while_statement(): Node* {
+	var whileStmt = new_node(AST_WHILE, this.previous);
+
+	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after while");
+
+	whileStmt.v.conditional.condition = this.parse_expression();
+
+	this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after while condition");
+
+	whileStmt.v.conditional.doTrue = this.parse_statement();
+
+	return whileStmt;
+}
+
 function Parser.parse_return_statement(): Node* {
 	var returnStmt = new_node(AST_RETURN, this.previous);
 	returnStmt.v.unary = this.parse_expression();
@@ -440,6 +454,9 @@ function Parser.parse_statement(): Node* {
 	}
 	else if(this.match(TOKEN_VAR)) {
 		return this.parse_var_declaration();
+	}
+	else if(this.match(TOKEN_WHILE)) {
+		return this.parse_while_statement();
 	}
 	else if(this.match(TOKEN_IDENTIFIER)) {
 		var expr = this.parse_identifier();

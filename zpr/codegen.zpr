@@ -177,9 +177,27 @@ function generate_if_statement(ifStmt: Node*, out: File*) {
 	}
 }
 
+function generate_while_statement(whileStmt: Node*, out: File*) {
+	var condLabel = cg_lableCount = cg_lableCount + 1;
+	var bodyLabel = cg_lableCount = cg_lableCount + 1;
+
+	out.puts("    jmp .l"); out.putd(condLabel); out.putln();
+	out.puts(".l"); out.putd(bodyLabel); out.putsln(":");
+
+	generate_statement(whileStmt.v.conditional.doTrue, out);
+
+	out.puts(".l"); out.putd(condLabel); out.putsln(":");
+	generate_expr_rax(whileStmt.v.conditional.condition, out);
+	out.putsln("    test rax, rax");
+	out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
+}
+
 function generate_statement(stmt: Node*, out: File*) {
 	if(stmt.type == AST_IF) {
 		generate_if_statement(stmt, out);
+	}
+	else if(stmt.type == AST_WHILE) {
+		generate_while_statement(stmt, out);
 	}
 	else if(stmt.type == AST_RETURN) {
 		generate_expr_rax(stmt.v.unary, out);
