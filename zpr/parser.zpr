@@ -412,6 +412,39 @@ function Parser.parse_while_statement(): Node* {
 	return whileStmt;
 }
 
+function Parser.parse_for_statement(): Node* {
+	var forStmt = new_node(AST_FOR, this.previous);
+
+	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after for");
+
+	if(this.match(TOKEN_SEMICOLON)) {
+		// No initialiser clause
+	}
+	else if(this.match(TOKEN_VAR)) {
+		forStmt.v.loop.initial = this.parse_var_declaration();
+	}
+	else if(this.match(TOKEN_IDENTIFIER)) {
+		forStmt.v.loop.initial = this.parse_statement();
+	}
+	else {
+		this.error_current("Expected for initializer clause");
+	}
+
+	if(!this.match(TOKEN_SEMICOLON)) {
+		forStmt.v.loop.condition = this.parse_expression();
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after condition");
+	}
+
+	if(!this.match(TOKEN_RIGHT_PAREN)) {
+		forStmt.v.loop.iteration = this.parse_expression();
+		this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after for clauses");
+	}
+
+	forStmt.v.loop.body = this.parse_statement();
+
+	return forStmt;
+}
+
 function Parser.parse_return_statement(): Node* {
 	var returnStmt = new_node(AST_RETURN, this.previous);
 	returnStmt.v.unary = this.parse_expression();
@@ -448,6 +481,9 @@ function Parser.parse_var_declaration(): Node* {
 function Parser.parse_statement(): Node* {
 	if(this.match(TOKEN_IF)) {
 		return this.parse_if_statement();
+	}
+	else if(this.match(TOKEN_FOR)) {
+		return this.parse_for_statement();
 	}
 	else if(this.match(TOKEN_RETURN)) {
 		return this.parse_return_statement();

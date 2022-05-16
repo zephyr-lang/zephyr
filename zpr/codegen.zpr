@@ -192,12 +192,45 @@ function generate_while_statement(whileStmt: Node*, out: File*) {
 	out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
 }
 
+function generate_for_statement(forStmt: Node*, out: File*) {
+	if(forStmt.v.loop.initial != null)
+		generate_statement(forStmt.v.loop.initial, out);
+
+	var hasCondition = forStmt.v.loop.condition != null;
+	var condLabel = cg_lableCount = cg_lableCount + 1;
+	var bodyLabel = cg_lableCount = cg_lableCount + 1;
+
+	if(hasCondition) {
+		out.puts("    jmp .l"); out.putd(condLabel); out.putln();
+	}
+	
+	out.puts(".l"); out.putd(bodyLabel); out.putsln(":");
+
+	generate_statement(forStmt.v.loop.body, out);
+
+	if(forStmt.v.loop.iteration != null)
+		generate_expr_rax(forStmt.v.loop.iteration, out);
+
+	if(hasCondition) {
+		out.puts(".l"); out.putd(condLabel); out.putsln(":");
+		generate_expr_rax(forStmt.v.loop.condition, out);
+		out.putsln("    test rax, rax");
+		out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
+	}
+	else {
+		out.puts("    jmp .l"); out.putd(bodyLabel); out.putln();
+	}
+}
+
 function generate_statement(stmt: Node*, out: File*) {
 	if(stmt.type == AST_IF) {
 		generate_if_statement(stmt, out);
 	}
 	else if(stmt.type == AST_WHILE) {
 		generate_while_statement(stmt, out);
+	}
+	else if(stmt.type == AST_FOR) {
+		generate_for_statement(stmt, out);
 	}
 	else if(stmt.type == AST_RETURN) {
 		generate_expr_rax(stmt.v.unary, out);
