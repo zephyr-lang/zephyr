@@ -298,6 +298,18 @@ function Parser.type_check_define_var(stmt: Node*) {
 		exit(1);
 	}
 
+	if(declType.type == DATA_TYPE_VOID && stmt.v.variable.value == null) {
+		stmt.print_position();
+		eputsln("Cannot infer type to variable without initial value");
+		exit(1);
+	}
+
+	if(declType.type == DATA_TYPE_VOID) {
+		this.type_check_expr(stmt.v.variable.value);
+		stmt.v.variable.type = tc_typeStack.pop();
+		declType = stmt.v.variable.type;
+	}
+
 	stmt.v.variable.stackOffset = this.currentBlock.v.block.currentStackOffset = this.currentBlock.v.block.currentStackOffset + declType.size();
 
 	if(stmt.v.variable.stackOffset > this.currentFunction.v.funktion.localVariableStackOffset) {

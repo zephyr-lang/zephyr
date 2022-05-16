@@ -476,9 +476,11 @@ function Parser.parse_return_statement(): Node* {
 function Parser.parse_var_declaration(): Node* {
 	var name = this.consume(TOKEN_IDENTIFIER, "Expected variable name");
 
-	this.consume(TOKEN_COLON, "Expected ':' after variable name");
+	var type = VOID_TYPE;
 
-	var type = this.parse_type();
+	if(this.match(TOKEN_COLON)) {
+		type = this.parse_type();
+	}
 
 	var value: Node* = null;
 
