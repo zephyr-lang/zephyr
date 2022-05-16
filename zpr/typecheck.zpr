@@ -361,6 +361,7 @@ function Parser.type_check_function(funktion: Node*) {
 
 function Parser.type_check(program: Node*) {
 	for(var i = 0; i < this.functions.size; i = i + 1) {
-		this.type_check_function(this.functions.at(i));
+		if(!((this.functions.at(i) as Node*).v.funktion.hasImplicitBody))
+			this.type_check_function(this.functions.at(i));
 	}
 }

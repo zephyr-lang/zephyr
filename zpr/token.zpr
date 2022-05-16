@@ -1,4 +1,5 @@
 import "std/core.zpr";
+import "std/string.zpr";
 
 // Updating this list requires updating token_type_to_string
 var __tk_count = 0;
@@ -126,4 +127,13 @@ function print_token(token: Token*) {
 
 function Token.equals(b: Token*): int {
 	return this.length == b.length && memeq(this.start, b.start, this.length);
+}
+
+function synthetic_token(type: int, value: i8*): Token* {
+	var token: Token* = malloc(sizeof(Token));
+	token.line = 0;
+	token.type = type;
+	token.start = value;
+	token.length = strlen(value);
+	return token;
 }

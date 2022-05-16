@@ -544,11 +544,35 @@ function Parser.parse_function(): Node* {
 	return funktion;
 }
 
+function Parser.add_implicit_printu_function() {
+	var name = synthetic_token(TOKEN_IDENTIFIER, "printu");
+	var funktion = new_node(AST_FUNCTION, name);
+	funktion.v.funktion.name = name;
+
+	funktion.v.funktion.arguments = new_vector();
+
+	var valTok = synthetic_token(TOKEN_IDENTIFIER, "value");
+	var val = new_node(AST_DEFINE_VAR, valTok);
+	val.v.variable.name = valTok;
+	var intT = *INT_TYPE;
+	val.v.variable.type = intT;
+	funktion.v.funktion.arguments.push(val);
+
+	var voidT = *VOID_TYPE;
+	funktion.v.funktion.returnType = voidT;
+
+	funktion.v.funktion.hasImplicitBody = true;
+
+	this.functions.push(funktion);
+}
+
 function Parser.parse_program(): Node* {
 	var program = new_node(AST_PROGRAM, this.current);
 	program.v.block.children = new_vector();
 
 	this.advance();
+
+	this.add_implicit_printu_function();
 
 	while(!this.match(TOKEN_EOF)) {
 		if(this.match(TOKEN_FUNCTION)) {

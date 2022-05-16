@@ -236,7 +236,44 @@ function generate_function(funktion: Node*, out: File*) {
 	generate_block(funktion.v.funktion.body, out);
 }
 
+function generate_implicit_printu_impl(out: File*) {
+	out.putsln("printu:");
+	out.putsln("		sub     rsp, 40");
+	out.putsln("		mov     eax, 10");
+	out.putsln("		mov     esi, 19");
+	out.putsln("		mov  r10, -3689348814741910323");
+	out.putsln("		mov     WORD [rsp+20], ax");
+	out.putsln("		lea     r8, [rsp+19]");
+	out.putsln(".L2:");
+	out.putsln("		mov     rax, rdi");
+	out.putsln("		movsxd  r9, esi");
+	out.putsln("		sub     r8, 1");
+	out.putsln("		sub     esi, 1");
+	out.putsln("		mul     r10");
+	out.putsln("		mov     rax, rdi");
+	out.putsln("		shr     rdx, 3");
+	out.putsln("		lea     rcx, [rdx+rdx*4]");
+	out.putsln("		add     rcx, rcx");
+	out.putsln("		sub     rax, rcx");
+	out.putsln("		mov     rcx, rdi");
+	out.putsln("		mov     rdi, rdx");
+	out.putsln("		add     eax, 48");
+	out.putsln("		mov     BYTE [r8+1], al");
+	out.putsln("		cmp     rcx, 9");
+	out.putsln("		ja      .L2");
+	out.putsln("		mov     rdi, 1");
+	out.putsln("		mov     edx, 20");
+	out.putsln("		mov     rax, 1");
+	out.putsln("		sub     edx, esi");
+	out.putsln("		lea     rsi, [rsp+r9]");
+	out.putsln("		syscall");
+	out.putsln("		add     rsp, 40");
+	out.putsln("		ret");
+}
+
 function generate_program(ast: Node*, out: File*) {
+	generate_implicit_printu_impl(out);
+
 	for(var i = 0; i < ast.v.block.children.size; i = i + 1) {
 		var node: Node* = ast.v.block.children.at(i);
 		if(node.type == AST_FUNCTION) {

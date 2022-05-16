@@ -65,6 +65,7 @@ struct Node {
 			name: Token*;
 			returnType: Type;
 			body: Node*;
+			hasImplicitBody: int;
 
 			arguments: Vector*;
 
@@ -204,7 +205,8 @@ function print_ast_depth(node: Node*, depth: int) {
 			puts("("); put_token_string(arg.v.variable.name); puts(": "); puts(type_to_string(&arg.v.variable.type)); puts(") ");
 		}
 		if(node.v.funktion.arguments.size > 0) putln();
-		print_ast_depth(node.v.funktion.body, depth);
+		if(!node.v.funktion.hasImplicitBody)
+			print_ast_depth(node.v.funktion.body, depth);
 	}
 	else if(node.type == AST_CALL) {
 		puts("call "); put_token_string(node.v.funktion.name); putln();
