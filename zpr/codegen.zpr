@@ -119,10 +119,10 @@ function generate_ternary_rax(expr: Node*, out: File*) {
 	generate_expr_rax(expr.v.conditional.doTrue, out);
 	out.puts("    jmp .l"); out.putd(endLabel); out.putln();
 
-	out.puts(".l"); out.putd(falseLabel); out.putln();
+	out.puts(".l"); out.putd(falseLabel); out.putsln(":");
 	generate_expr_rax(expr.v.conditional.doFalse, out);
 
-	out.puts(".l"); out.putd(endLabel); out.putln();
+	out.puts(".l"); out.putd(endLabel); out.putsln(":");
 }
 
 function generate_expr_rax(expr: Node*, out: File*) {
@@ -155,8 +155,33 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	}
 }
 
+function generate_if_statement(ifStmt: Node*, out: File*) {
+	generate_expr_rax(ifStmt.v.conditional.condition, out);
+	out.putsln("    test rax, rax");
+	var falseLabel = cg_lableCount = cg_lableCount + 1;
+	var endLabel = cg_lableCount = cg_lableCount + 1;
+
+	out.puts("    je .l"); out.putd(falseLabel); out.putln();
+
+	generate_statement(ifStmt.v.conditional.doTrue, out);
+
+	if(ifStmt.v.conditional.doFalse != null) {
+		out.puts("    jmp .l"); out.putd(endLabel); out.putln();
+	}
+
+	out.puts(".l"); out.putd(falseLabel); out.putsln(":");
+
+	if(ifStmt.v.conditional.doFalse != null) {
+		generate_statement(ifStmt.v.conditional.doFalse, out);
+		out.puts(".l"); out.putd(endLabel); out.putsln(":");
+	}
+}
+
 function generate_statement(stmt: Node*, out: File*) {
-	if(stmt.type == AST_RETURN) {
+	if(stmt.type == AST_IF) {
+		generate_if_statement(stmt, out);
+	}
+	else if(stmt.type == AST_RETURN) {
 		generate_expr_rax(stmt.v.unary, out);
 		out.putsln("    leave");
 		out.putsln("    ret");
