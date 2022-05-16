@@ -1,0 +1,274 @@
+import "std/core.zpr";
+import "std/vector.zpr";
+
+var tc_typeStack = new_vector();
+
+function Type.assignable(b: Type*): int {
+	return this.type == b.type;
+}
+
+function Type.size(): int {
+	if(this.type == DATA_TYPE_INT) return 8;
+
+	eputsln("Unreachable - VOID_TYPE.size");
+	exit(1);
+	return 0;
+}
+
+function Node.print_position() {
+	eputs("["); eputd(this.position.line); eputs("] Error ");
+
+	if(this.position.type == TOKEN_EOF) {
+		eputs("@ EOF");
+	}
+	else {
+		eputs("@ '"); eput_token_string(this.position); eputs("'");
+	}
+	eputs(": ");
+}
+
+function Parser.lookup_variable(name: Token*): Node* {
+	for(var i = 0; i < this.currentFunction.v.funktion.variables.size; i = i + 1) {
+		var variable: Node* = this.currentFunction.v.funktion.variables.at(i);
+
+		if(variable.v.variable.name.equals(name)) {
+			return variable;
+		}
+	}
+
+	for(var i = 0; i < this.currentFunction.v.funktion.arguments.size; i = i + 1) {
+		var arg: Node* = this.currentFunction.v.funktion.arguments.at(i);
+
+		if(arg.v.variable.name.equals(name)) {
+			return arg;
+		}
+	}
+
+	for(var i = 0; i < this.functions.size; i = i + 1) {
+		var func: Node* = this.functions.at(i);
+		if(func.v.funktion.name.equals(name)) {
+			return func;
+		}
+	}
+
+	return null;
+}
+
+function Parser.type_check_unary(expr: Node*) {
+	this.type_check_expr(expr.v.unary);
+
+	var type: Type* = tc_typeStack.top();
+
+	if(!type.assignable(INT_TYPE)) {
+		expr.print_position();
+		eputs("Cannot perform operation '"); eputs(node_type_to_string(expr.type)); eputs("' on type '"); eputs(type_to_string(type)); eputsln("'");
+		exit(1);
+	}
+}
+
+function Parser.type_check_binary(expr: Node*) {
+	this.type_check_expr(expr.v.binary.lhs);
+	var left: Type* = tc_typeStack.pop();
+
+	this.type_check_expr(expr.v.binary.rhs);
+	var right: Type* = tc_typeStack.pop();
+
+	if(!left.assignable(INT_TYPE) || !right.assignable(INT_TYPE)) {
+		expr.print_position();
+		eputs("Cannot perform operation '"); eputs(node_type_to_string(expr.type)); eputs("' on types '"); eputs(type_to_string(left));
+		eputs("' and '"); eputs(type_to_string(right)); eputsln("'");
+		exit(1);
+	}
+
+	tc_typeStack.push(left);
+}
+
+function Parser.type_check_access_var(expr: Node*) {
+	var variable = this.lookup_variable(expr.v.variable.name);
+
+	if(variable == null) {
+		expr.print_position();
+		eputs("Unknown variable '"); eput_token_string(expr.v.variable.name); eputsln("' in current scope");
+		exit(1);
+	}
+
+	if(variable.type != AST_DEFINE_VAR) {
+		expr.print_position();
+		eputsln("Can only access variables");
+		exit(1);
+	}
+
+	expr.v.variable.type = variable.v.variable.type;
+	expr.v.variable.stackOffset = variable.v.variable.stackOffset;
+
+	tc_typeStack.push(&expr.v.variable.type);
+}
+
+function Parser.type_check_assign_var(expr: Node*) {
+	var variable = this.lookup_variable(expr.v.variable.name);
+
+	if(variable == null) {
+		expr.print_position();
+		eputs("Unknown variable '"); eput_token_string(expr.v.variable.name); eputsln("' in current scope");
+		exit(1);
+	}
+
+	if(variable.type != AST_DEFINE_VAR) {
+		expr.print_position();
+		eputsln("Can only assign variables");
+		exit(1);
+	}
+
+	this.type_check_expr(expr.v.variable.value);
+
+	var valueType: Type* = tc_typeStack.pop();
+
+	if(!valueType.assignable(&variable.v.variable.type)) {
+		expr.print_position();
+		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(&variable.v.variable.type));
+		eputsln("'");
+		exit(1);
+	}
+
+	expr.v.variable.type = variable.v.variable.type;
+	expr.v.variable.stackOffset = variable.v.variable.stackOffset;
+
+	tc_typeStack.push(&expr.v.variable.type);
+}
+
+function Parser.type_check_call(expr: Node*) {
+	var funktion = this.lookup_variable(expr.v.funktion.name);
+
+	if(funktion == null) {
+		expr.print_position();
+		eputs("Unknown variable '"); eput_token_string(expr.v.variable.name); eputsln("' in current scope");
+		exit(1);
+	}
+
+	if(funktion.type != AST_FUNCTION) {
+		expr.print_position();
+		eputsln("Can only call functions");
+		exit(1);
+	}
+
+	if(funktion.v.funktion.arguments.size != expr.v.funktion.arguments.size) {
+		expr.print_position();
+		eputs("Call expected "); eputd(funktion.v.funktion.arguments.size); eputs(" arguments but got "); eputd(expr.v.funktion.arguments.size); eputln();
+		exit(1);
+	}
+
+	for(var i = 0; i < funktion.v.funktion.arguments.size; i = i + 1) {
+		var arg: Node* = expr.v.funktion.arguments.at(i);
+		this.type_check_expr(arg);
+
+		var argType: Type* = tc_typeStack.pop();
+		
+		var param: Node* = funktion.v.funktion.arguments.at(i);
+		var paramType = &param.v.variable.type;
+
+		if(!argType.assignable(paramType)) {
+			expr.print_position();
+			eputs("Function argument "); eputd(i + 1); eputs(" expected type '"); eputs(type_to_string(paramType)); eputs("' but got '");
+			eputs(type_to_string(argType)); eputsln("'");
+		}
+	}
+
+	tc_typeStack.push(&funktion.v.funktion.returnType);
+}
+
+function Parser.type_check_expr(expr: Node*) {
+	if(is_unary_op(expr.type)) {
+		this.type_check_unary(expr);
+	}
+	else if(is_binary_op(expr.type)) {
+		this.type_check_binary(expr);
+	}
+	else if(expr.type == AST_INT_LITERAL) {
+		tc_typeStack.push(INT_TYPE);
+	}
+	else if(expr.type == AST_ACCESS_VAR) {
+		this.type_check_access_var(expr);
+	}
+	else if(expr.type == AST_ASSIGN_VAR) {
+		this.type_check_assign_var(expr);
+	}
+	else if(expr.type == AST_CALL) {
+		this.type_check_call(expr);
+	}
+	else {
+		eputsln("Unreachable - type_check_expr");
+		exit(1);
+	}
+}
+
+function Parser.type_check_statement(stmt: Node*) {
+	if(stmt.type == AST_RETURN) {
+		this.type_check_expr(stmt.v.unary);
+
+		var returnType: Type* = tc_typeStack.pop();
+		var expectedType = &this.currentFunction.v.funktion.returnType;
+		if(!returnType.assignable(expectedType)) {
+			stmt.print_position();
+			eputs("Cannot return type '"); eputs(type_to_string(returnType)); eputs("' from function expecting '"); eputs(type_to_string(expectedType));
+			eputsln("'");
+			exit(1);
+		}
+	}
+	else if(stmt.type == AST_DEFINE_VAR) {
+		var declType = &stmt.v.variable.type;
+
+		stmt.v.variable.stackOffset = this.currentFunction.v.funktion.currentStackOffset = this.currentFunction.v.funktion.currentStackOffset + declType.size();
+
+		if(stmt.v.variable.value != null) {
+			this.type_check_expr(stmt.v.variable.value);
+
+			var valueType: Type* = tc_typeStack.pop();
+
+			if(!valueType.assignable(declType)) {
+				stmt.print_position();
+				eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable expecting '"); eputs(type_to_string(declType));
+				eputsln("'");
+				exit(1);
+			}
+		}
+
+		this.currentFunction.v.funktion.variables.push(stmt);
+	}
+	else if(stmt.type == AST_EXPR_STMT) {
+		this.type_check_expr(stmt.v.unary);
+	}
+	else {
+		eputsln("Unreachable - type_check_statement");
+		exit(1);
+	}
+}
+
+function Parser.type_check_block(block: Node*) {
+	for(var i = 0; i < block.v.block.children.size; i = i + 1) {
+		this.type_check_statement(block.v.block.children.at(i));
+	}
+}
+
+function Parser.type_check_function(funktion: Node*) {
+	funktion.v.funktion.variables = new_vector();
+
+	var stackOffset = 0;
+
+	for(var i = 0; i < funktion.v.funktion.arguments.size; i = i + 1) {
+		var arg: Node* = funktion.v.funktion.arguments.at(i);
+
+		stackOffset = stackOffset + arg.v.variable.type.size();
+
+		arg.v.variable.stackOffset = stackOffset;
+	}
+
+	this.currentFunction = funktion;
+
+	this.type_check_block(funktion.v.funktion.body);
+}
+
+function Parser.type_check(program: Node*) {
+	for(var i = 0; i < this.functions.size; i = i + 1) {
+		this.type_check_function(this.functions.at(i));
+	}
+}

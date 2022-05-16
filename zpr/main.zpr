@@ -5,6 +5,7 @@ import "zpr/lexer.zpr";
 import "zpr/types.zpr";
 import "zpr/parser.zpr";
 import "zpr/codegen.zpr";
+import "zpr/typecheck.zpr";
 
 // Prefixed with m_ for main
 
@@ -96,6 +97,8 @@ function main(argc: int, argv: i8**): int {
 
 	if(m_dumpAst)
 		print_ast(ast);
+
+	parser.type_check(ast);
 
 	var asmFile: i8[1024];
 

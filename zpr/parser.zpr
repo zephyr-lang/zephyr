@@ -22,9 +22,10 @@ function new_parser(lexer: Lexer*): Parser* {
 	return parser;
 }
 
-function new_node(type: int): Node* {
+function new_node(type: int, position: Token*): Node* {
 	var node: Node* = malloc(sizeof(Node));
 	node.type = type;
+	node.position = position;
 	return node;
 }
 
@@ -91,33 +92,6 @@ function Parser.match(type: int): int {
 	return true;
 }
 
-function Parser.lookup_variable(name: Token*): Node* {
-	for(var i = 0; i < this.currentFunction.v.funktion.variables.size; i = i + 1) {
-		var variable: Node* = this.currentFunction.v.funktion.variables.at(i);
-
-		if(variable.v.variable.name.equals(name)) {
-			return variable;
-		}
-	}
-
-	for(var i = 0; i < this.currentFunction.v.funktion.arguments.size; i = i + 1) {
-		var arg: Node* = this.currentFunction.v.funktion.arguments.at(i);
-
-		if(arg.v.variable.name.equals(name)) {
-			return arg;
-		}
-	}
-
-	for(var i = 0; i < this.functions.size; i = i + 1) {
-		var func: Node* = this.functions.at(i);
-		if(func.v.funktion.name.equals(name)) {
-			return func;
-		}
-	}
-
-	return null;
-}
-
 function Parser.parse_type(): Type* {
 	this.advance();
 
@@ -132,30 +106,17 @@ function Parser.parse_type(): Type* {
 
 function Parser.parse_identifier(): Node* {
 	var name = this.previous;
-	var variable = this.lookup_variable(name);
-
-	if(variable == null) {
-		this.error("Unknown variable in current scope");
-		return null;
-	}
 
 	if(this.match(TOKEN_EQ)) {
-		if(variable.type != AST_DEFINE_VAR) {
-			this.error("Can only assign to variables");
-			return null;
-		}
-
 		var value = this.parse_expression();
 
-		var assign = new_node(AST_ASSIGN_VAR);
+		var assign = new_node(AST_ASSIGN_VAR, name);
 		assign.v.variable.name = name;
-		assign.v.variable.stackOffset = variable.v.variable.stackOffset;
-		assign.v.variable.type = variable.v.variable.type;
 		assign.v.variable.value = value;
 		return assign;
 	}
 	else if(this.match(TOKEN_LEFT_PAREN)) {
-		var call = new_node(AST_CALL);
+		var call = new_node(AST_CALL, name);
 		call.v.funktion.name = name;
 		call.v.funktion.arguments = new_vector();
 
@@ -173,22 +134,11 @@ function Parser.parse_identifier(): Node* {
 
 		this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
 
-		if(call.v.funktion.arguments.size != variable.v.funktion.arguments.size) {
-			this.error("Argument count mismatch");
-		}
-
 		return call;
 	}
 
-	if(variable.type != AST_DEFINE_VAR) {
-		this.error("Can only access variables");
-		return null;
-	}
-
-	var access = new_node(AST_ACCESS_VAR);
+	var access = new_node(AST_ACCESS_VAR, name);
 	access.v.variable.name = name;
-	access.v.variable.stackOffset = variable.v.variable.stackOffset;
-	access.v.variable.type = variable.v.variable.type;
 	return access;
 }
 
@@ -197,7 +147,7 @@ function Parser.parse_value(): Node* {
 		var literal = this.previous;
 		if(this.error) return null;
 
-		var literalNode = new_node(AST_INT_LITERAL);
+		var literalNode = new_node(AST_INT_LITERAL, literal);
 		var type = *INT_TYPE;
 		literalNode.v.literal.type = type;
 		literalNode.v.literal.az.integer = atoi(literal.start);
@@ -219,20 +169,23 @@ function Parser.parse_value(): Node* {
 
 function Parser.parse_unary(): Node* {
 	if(this.match(TOKEN_TILDE)) {
+		var op = this.previous;
 		var expr = this.parse_unary();
-		var bwnot = new_node(OP_BWNOT);
+		var bwnot = new_node(OP_BWNOT, op);
 		bwnot.v.unary = expr;
 		return bwnot;
 	}
 	else if(this.match(TOKEN_MINUS)) {
+		var op = this.previous;
 		var expr = this.parse_unary();
-		var neg = new_node(OP_NEG);
+		var neg = new_node(OP_NEG, op);
 		neg.v.unary = expr;
 		return neg;
 	}
 	else if(this.match(TOKEN_BANG)) {
+		var op = this.previous;
 		var expr = this.parse_unary();
-		var not = new_node(OP_NOT);
+		var not = new_node(OP_NOT, op);
 		not.v.unary = expr;
 		return not;
 	}
@@ -244,16 +197,16 @@ function Parser.parse_term(): Node* {
 	var left = this.parse_unary();
 
 	while(this.match(TOKEN_STAR) || this.match(TOKEN_SLASH) || this.match(TOKEN_PERCENT)) {
-		var op = this.previous.type;
+		var op = this.previous;
 
 		var right = this.parse_unary();
 
 		var type: int;
-		if(op == TOKEN_STAR) type = OP_MUL;
-		else if(op == TOKEN_SLASH) type = OP_DIV;
-		else if(op == TOKEN_PERCENT) type = OP_MOD;
+		if(op.type == TOKEN_STAR) type = OP_MUL;
+		else if(op.type == TOKEN_SLASH) type = OP_DIV;
+		else if(op.type == TOKEN_PERCENT) type = OP_MOD;
 
-		var binary = new_node(type);
+		var binary = new_node(type, op);
 		binary.v.binary.lhs = left;
 		binary.v.binary.rhs = right;
 		left = binary;
@@ -266,15 +219,15 @@ function Parser.parse_arithmetic(): Node* {
 	var left = this.parse_term();
 
 	while(this.match(TOKEN_PLUS) || this.match(TOKEN_MINUS)) {
-		var op = this.previous.type;
+		var op = this.previous;
 
 		var right = this.parse_term();
 
 		var type: int;
-		if(op == TOKEN_PLUS) type = OP_ADD;
-		else if(op == TOKEN_MINUS) type = OP_SUB;
+		if(op.type == TOKEN_PLUS) type = OP_ADD;
+		else if(op.type == TOKEN_MINUS) type = OP_SUB;
 
-		var binary = new_node(type);
+		var binary = new_node(type, op);
 		binary.v.binary.lhs = left;
 		binary.v.binary.rhs = right;
 		left = binary;
@@ -287,15 +240,15 @@ function Parser.parse_shift(): Node* {
 	var left = this.parse_arithmetic();
 
 	while(this.match(TOKEN_LSH) || this.match(TOKEN_RSH)) {
-		var op = this.previous.type;
+		var op = this.previous;
 
 		var right = this.parse_arithmetic();
 
 		var type: int;
-		if(op == TOKEN_LSH) type = OP_LSH;
-		else if(op == TOKEN_RSH) type = OP_RSH;
+		if(op.type == TOKEN_LSH) type = OP_LSH;
+		else if(op.type == TOKEN_RSH) type = OP_RSH;
 
-		var binary = new_node(type);
+		var binary = new_node(type, op);
 		binary.v.binary.lhs = left;
 		binary.v.binary.rhs = right;
 		left = binary;
@@ -309,17 +262,17 @@ function Parser.parse_comparison(): Node* {
 
 	while(this.match(TOKEN_LESS) || this.match(TOKEN_LEQ)
 	     || this.match(TOKEN_GREATER) || this.match(TOKEN_GEQ)) {
-		var op = this.previous.type;
+		var op = this.previous;
 
 		var right = this.parse_shift();
 
 		var type: int;
-		if(op == TOKEN_LESS) type = OP_LSH;
-		else if(op == TOKEN_LEQ) type = OP_LESS_EQ;
-		else if(op == TOKEN_GREATER) type = OP_GREATER;
-		else if(op == TOKEN_GEQ) type = OP_GREATER_EQ;
+		if(op.type == TOKEN_LESS) type = OP_LSH;
+		else if(op.type == TOKEN_LEQ) type = OP_LESS_EQ;
+		else if(op.type == TOKEN_GREATER) type = OP_GREATER;
+		else if(op.type == TOKEN_GEQ) type = OP_GREATER_EQ;
 
-		var binary = new_node(type);
+		var binary = new_node(type, op);
 		binary.v.binary.lhs = left;
 		binary.v.binary.rhs = right;
 		left = binary;
@@ -332,15 +285,15 @@ function Parser.parse_equality(): Node* {
 	var left = this.parse_comparison();
 
 	while(this.match(TOKEN_EQEQ) || this.match(TOKEN_BANG_EQ)) {
-		var op = this.previous.type;
+		var op = this.previous;
 
 		var right = this.parse_comparison();
 
 		var type: int;
-		if(op == TOKEN_EQEQ) type = OP_EQUAL;
-		else if(op == TOKEN_BANG_EQ) type = OP_NOT_EQUAL;
+		if(op.type == TOKEN_EQEQ) type = OP_EQUAL;
+		else if(op.type == TOKEN_BANG_EQ) type = OP_NOT_EQUAL;
 
-		var binary = new_node(type);
+		var binary = new_node(type, op);
 		binary.v.binary.lhs = left;
 		binary.v.binary.rhs = right;
 		left = binary;
@@ -353,11 +306,11 @@ function Parser.parse_bwand(): Node* {
 	var left = this.parse_equality();
 
 	while(this.match(TOKEN_AMP)) {
-		var op = this.previous.type;
+		var op = this.previous;
 
 		var right = this.parse_equality();
 
-		var binary = new_node(OP_BWAND);
+		var binary = new_node(OP_BWAND, op);
 		binary.v.binary.lhs = left;
 		binary.v.binary.rhs = right;
 		left = binary;
@@ -370,11 +323,11 @@ function Parser.parse_xor(): Node* {
 	var left = this.parse_bwand();
 
 	while(this.match(TOKEN_XOR)) {
-		var op = this.previous.type;
+		var op = this.previous;
 
 		var right = this.parse_bwand();
 
-		var binary = new_node(OP_XOR);
+		var binary = new_node(OP_XOR, op);
 		binary.v.binary.lhs = left;
 		binary.v.binary.rhs = right;
 		left = binary;
@@ -387,11 +340,11 @@ function Parser.parse_bwor(): Node* {
 	var left = this.parse_xor();
 
 	while(this.match(TOKEN_BAR)) {
-		var op = this.previous.type;
+		var op = this.previous;
 
 		var right = this.parse_xor();
 
-		var binary = new_node(OP_BWOR);
+		var binary = new_node(OP_BWOR, op);
 		binary.v.binary.lhs = left;
 		binary.v.binary.rhs = right;
 		left = binary;
@@ -405,7 +358,7 @@ function Parser.parse_expression(): Node* {
 }
 
 function Parser.parse_return_statement(): Node* {
-	var returnStmt = new_node(AST_RETURN);
+	var returnStmt = new_node(AST_RETURN, this.previous);
 	returnStmt.v.unary = this.parse_expression();
 
 	this.consume(TOKEN_SEMICOLON, "Expected ';' after return statement");
@@ -428,15 +381,11 @@ function Parser.parse_var_declaration(): Node* {
 
 	this.consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration");
 
-	var variable = new_node(AST_DEFINE_VAR);
+	var variable = new_node(AST_DEFINE_VAR, name);
 	variable.v.variable.name = name;
-
-	variable.v.variable.stackOffset = this.currentFunction.v.funktion.currentStackOffset = this.currentFunction.v.funktion.currentStackOffset + 8;
 	var dtype = *type;
 	variable.v.variable.type = dtype;
 	variable.v.variable.value = value;
-
-	this.currentFunction.v.funktion.variables.push(variable);
 
 	return variable;
 }
@@ -459,7 +408,7 @@ function Parser.parse_statement(): Node* {
 
 		this.consume(TOKEN_SEMICOLON, "Expected ';' after expression");
 
-		var exprStmt = new_node(AST_EXPR_STMT);
+		var exprStmt = new_node(AST_EXPR_STMT, expr.position);
 		exprStmt.v.unary = expr;
 		return exprStmt;
 	}
@@ -470,7 +419,7 @@ function Parser.parse_statement(): Node* {
 }
 
 function Parser.parse_block(): Node* {
-	var block = new_node(AST_BLOCK);
+	var block = new_node(AST_BLOCK, this.previous);
 	block.v.block.children = new_vector();
 
 	while(!this.check(TOKEN_RIGHT_BRACE)) {
@@ -487,7 +436,7 @@ function Parser.parse_block(): Node* {
 function Parser.parse_function(): Node* {
 	var name = this.consume(TOKEN_IDENTIFIER, "Expected function name");
 
-	var funktion = new_node(AST_FUNCTION);
+	var funktion = new_node(AST_FUNCTION, name);
 	funktion.v.funktion.name = name;
 	funktion.v.funktion.arguments = new_vector();
 
@@ -498,13 +447,10 @@ function Parser.parse_function(): Node* {
 		this.consume(TOKEN_COLON, "Expected ':' after parameter name");
 		var type = this.parse_type();
 
-		var arg = new_node(AST_DEFINE_VAR);
+		var arg = new_node(AST_DEFINE_VAR, argName);
 		arg.v.variable.name = argName;
 		var dtype = *type;
 		arg.v.variable.type = dtype;
-
-		arg.v.variable.stackOffset = funktion.v.funktion.currentStackOffset = funktion.v.funktion.currentStackOffset + 8;
-
 		funktion.v.funktion.arguments.push(arg);
 
 		while(this.match(TOKEN_COMMA)) {
@@ -512,12 +458,10 @@ function Parser.parse_function(): Node* {
 			this.consume(TOKEN_COLON, "Expected ':' after parameter name");
 			var type = this.parse_type();
 
-			var arg = new_node(AST_DEFINE_VAR);
+			var arg = new_node(AST_DEFINE_VAR, argName);
 			arg.v.variable.name = argName;
 			var dtype = *type;
 			arg.v.variable.type = dtype;
-
-			arg.v.variable.stackOffset = funktion.v.funktion.currentStackOffset = funktion.v.funktion.currentStackOffset + 8;
 
 			funktion.v.funktion.arguments.push(arg);
 		}
@@ -538,7 +482,6 @@ function Parser.parse_function(): Node* {
 
 	var dtype = *type;
 	funktion.v.funktion.returnType = dtype;
-	funktion.v.funktion.variables = new_vector();
 
 	this.currentFunction = funktion;
 
@@ -552,7 +495,7 @@ function Parser.parse_function(): Node* {
 }
 
 function Parser.parse_program(): Node* {
-	var program = new_node(AST_PROGRAM);
+	var program = new_node(AST_PROGRAM, this.current);
 	program.v.block.children = new_vector();
 
 	this.advance();

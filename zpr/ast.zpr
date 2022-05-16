@@ -43,6 +43,7 @@ struct Type {
 
 struct Node {
 	type: int; // NodeType
+	position: Token*;
 
 	v: union {
 		unary: Node*;
@@ -183,19 +184,20 @@ function print_ast_depth(node: Node*, depth: int) {
 		putsln("}");
 	}
 	else if(node.type == AST_FUNCTION) {
-		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(&node.v.funktion.returnType)); putln();
+		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(&node.v.funktion.returnType));
 		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
 			var arg: Node* = node.v.funktion.arguments.at(i);
 			puts("("); put_token_string(arg.v.variable.name); puts(": "); puts(type_to_string(&arg.v.variable.type)); puts(") ");
 		}
-		print_ast_depth(node.v.funktion.body, depth + 1);
+		if(node.v.funktion.arguments.size > 0) putln();
+		print_ast_depth(node.v.funktion.body, depth);
 	}
 	else if(node.type == AST_CALL) {
 		puts("call "); put_token_string(node.v.funktion.name); putln();
 		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
 			var arg: Node* = node.v.funktion.arguments.at(i);
-			putln();
 			print_ast_depth(arg, depth + 1);
+			if(i != node.v.funktion.arguments.size -1 ) putln();
 		}
 	}
 	else if(node.type == AST_EXPR_STMT) {
