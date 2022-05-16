@@ -9,6 +9,8 @@ struct Parser {
 	previous: Token*;
 
 	currentFunction: Node*;
+	currentBlock: Node*;
+
 	functions: Vector*;
 
 	error: int;
@@ -433,6 +435,9 @@ function Parser.parse_statement(): Node* {
 		exprStmt.v.unary = expr;
 		return exprStmt;
 	}
+	else if(this.match(TOKEN_LEFT_BRACE)) {
+		return this.parse_block();
+	}
 
 	this.error_current("Expected statement");
 
@@ -442,6 +447,8 @@ function Parser.parse_statement(): Node* {
 function Parser.parse_block(): Node* {
 	var block = new_node(AST_BLOCK, this.previous);
 	block.v.block.children = new_vector();
+	block.v.block.parent = this.currentBlock;
+	this.currentBlock = block;
 
 	while(!this.check(TOKEN_RIGHT_BRACE)) {
 		var stmt = this.parse_statement();
@@ -451,6 +458,7 @@ function Parser.parse_block(): Node* {
 
 	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after block");
 
+	this.currentBlock = block.v.block.parent;
 	return block;
 }
 

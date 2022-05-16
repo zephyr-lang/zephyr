@@ -67,12 +67,15 @@ struct Node {
 
 			arguments: Vector*;
 
-			variables: Vector*;
-			currentStackOffset: int;
+			localVariableStackOffset: int;
 		};
 
 		block: struct {
 			children: Vector*;
+
+			parent: Node*;
+			variables: Vector*;
+			currentStackOffset: int;
 		};
 
 		literal: struct {
@@ -189,6 +192,7 @@ function print_ast_depth(node: Node*, depth: int) {
 		putsln("{");
 		for(var i = 0; i < node.v.block.children.size; i = i + 1)
 			print_ast_depth(node.v.block.children.at(i), depth + 1);
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
 		putsln("}");
 	}
 	else if(node.type == AST_FUNCTION) {

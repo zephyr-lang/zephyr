@@ -171,6 +171,9 @@ function generate_statement(stmt: Node*, out: File*) {
 	else if(stmt.type == AST_EXPR_STMT) {
 		generate_expr_rax(stmt.v.unary, out);
 	}
+	else if(stmt.type == AST_BLOCK) {
+		generate_block(stmt, out);
+	}
 	else {
 		eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();
 		exit(1);
@@ -190,7 +193,7 @@ function generate_function(funktion: Node*, out: File*) {
 	out.putsln("    push rbp");
 	out.putsln("    mov rbp, rsp");
 
-	var stackDepth = ceil_multiple(funktion.v.funktion.currentStackOffset, 16);
+	var stackDepth = ceil_multiple(funktion.v.funktion.localVariableStackOffset, 16);
 	if(stackDepth != 0) {
 		out.puts("    sub rsp, "); out.putd(stackDepth); out.putln();
 	}

@@ -28,12 +28,12 @@ function Node.print_position() {
 }
 
 function Parser.lookup_variable(name: Token*): Node* {
-	for(var i = 0; i < this.currentFunction.v.funktion.variables.size; i = i + 1) {
-		var variable: Node* = this.currentFunction.v.funktion.variables.at(i);
+	var block = this.currentBlock;
 
-		if(variable.v.variable.name.equals(name)) {
-			return variable;
-		}
+	while(block != null) {
+		var variable = this.lookup_scope_variable(name, block);
+		if(variable != null) return variable;
+		block = block.v.block.parent;
 	}
 
 	for(var i = 0; i < this.currentFunction.v.funktion.arguments.size; i = i + 1) {
@@ -52,6 +52,21 @@ function Parser.lookup_variable(name: Token*): Node* {
 	}
 
 	return null;
+}
+
+function Parser.lookup_scope_variable(name: Token*, block: Node*): Node* {
+	for(var i = 0; i < block.v.block.variables.size; i = i + 1) {
+		var variable: Node* = block.v.block.variables.at(i);
+
+		if(variable.v.variable.name.equals(name)) {
+			return variable;
+		}
+	}
+	return null;
+}
+
+function Parser.lookup_same_scope_variable(name: Token*): Node* {
+	return this.lookup_scope_variable(name, this.currentBlock);
 }
 
 function Parser.type_check_unary(expr: Node*) {
@@ -229,6 +244,41 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 }
 
+function Parser.type_check_define_var(stmt: Node*) {
+	var declType = &stmt.v.variable.type;
+
+	var name = stmt.v.variable.name;
+
+	var redeclaration = this.lookup_same_scope_variable(name);
+
+	if(redeclaration != null) {
+		stmt.print_position();
+		eputs("Redeclaration of variable '"); eput_token_string(name); eputsln("' in current scope");
+		exit(1);
+	}
+
+	stmt.v.variable.stackOffset = this.currentBlock.v.block.currentStackOffset = this.currentBlock.v.block.currentStackOffset + declType.size();
+
+	if(stmt.v.variable.stackOffset > this.currentFunction.v.funktion.localVariableStackOffset) {
+		this.currentFunction.v.funktion.localVariableStackOffset = stmt.v.variable.stackOffset;
+	}
+
+	if(stmt.v.variable.value != null) {
+		this.type_check_expr(stmt.v.variable.value);
+
+		var valueType: Type* = tc_typeStack.pop();
+
+		if(!valueType.assignable(declType)) {
+			stmt.print_position();
+			eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable expecting '"); eputs(type_to_string(declType));
+			eputsln("'");
+			exit(1);
+		}
+	}
+
+	this.currentBlock.v.block.variables.push(stmt);
+}
+
 function Parser.type_check_statement(stmt: Node*) {
 	if(stmt.type == AST_RETURN) {
 		this.type_check_expr(stmt.v.unary);
@@ -243,27 +293,13 @@ function Parser.type_check_statement(stmt: Node*) {
 		}
 	}
 	else if(stmt.type == AST_DEFINE_VAR) {
-		var declType = &stmt.v.variable.type;
-
-		stmt.v.variable.stackOffset = this.currentFunction.v.funktion.currentStackOffset = this.currentFunction.v.funktion.currentStackOffset + declType.size();
-
-		if(stmt.v.variable.value != null) {
-			this.type_check_expr(stmt.v.variable.value);
-
-			var valueType: Type* = tc_typeStack.pop();
-
-			if(!valueType.assignable(declType)) {
-				stmt.print_position();
-				eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable expecting '"); eputs(type_to_string(declType));
-				eputsln("'");
-				exit(1);
-			}
-		}
-
-		this.currentFunction.v.funktion.variables.push(stmt);
+		this.type_check_define_var(stmt);
 	}
 	else if(stmt.type == AST_EXPR_STMT) {
 		this.type_check_expr(stmt.v.unary);
+	}
+	else if(stmt.type == AST_BLOCK) {
+		this.type_check_block(stmt);
 	}
 	else {
 		eputsln("Unreachable - type_check_statement");
@@ -272,14 +308,18 @@ function Parser.type_check_statement(stmt: Node*) {
 }
 
 function Parser.type_check_block(block: Node*) {
+	block.v.block.variables = new_vector();
+	block.v.block.currentStackOffset = this.currentBlock.v.block.currentStackOffset;
+	this.currentBlock = block;
+
 	for(var i = 0; i < block.v.block.children.size; i = i + 1) {
 		this.type_check_statement(block.v.block.children.at(i));
 	}
+
+	this.currentBlock = block.v.block.parent;
 }
 
 function Parser.type_check_function(funktion: Node*) {
-	funktion.v.funktion.variables = new_vector();
-
 	var stackOffset = 0;
 
 	for(var i = 0; i < funktion.v.funktion.arguments.size; i = i + 1) {
@@ -290,8 +330,12 @@ function Parser.type_check_function(funktion: Node*) {
 		arg.v.variable.stackOffset = stackOffset;
 	}
 
+	funktion.v.funktion.body.v.block.currentStackOffset = stackOffset;
+	funktion.v.funktion.localVariableStackOffset = stackOffset;
+
 	this.currentFunction = funktion;
 
+	this.currentBlock = funktion.v.funktion.body;
 	this.type_check_block(funktion.v.funktion.body);
 }
 
