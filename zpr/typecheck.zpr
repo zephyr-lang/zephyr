@@ -341,6 +341,9 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == OP_TERNARY) {
 		this.type_check_ternary_expr(expr);
 	}
+	else if(expr.type == OP_SIZEOF) {
+		tc_typeStack.push(INT_TYPE);
+	}
 	else {
 		eputsln("Unreachable - type_check_expr");
 		exit(1);

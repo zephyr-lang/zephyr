@@ -24,6 +24,7 @@ var OP_GREATER_EQ = __nt_count = __nt_count + 1;
 var OP_TERNARY = __nt_count = __nt_count + 1;
 var OP_ADDROF = __nt_count = __nt_count + 1;
 var OP_DEREF = __nt_count = __nt_count + 1;
+var OP_SIZEOF = __nt_count = __nt_count + 1;
 var AST_INT_LITERAL = __nt_count = __nt_count + 1;
 var AST_CALL = __nt_count = __nt_count + 1;
 var AST_DEFINE_VAR = __nt_count = __nt_count + 1;
@@ -168,6 +169,7 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_TERNARY) return "?";
 	if(type == OP_ADDROF) return "&";
 	if(type == OP_DEREF) return "*";
+	if(type == OP_SIZEOF) return "sizeof";
 	if(type == AST_INT_LITERAL) return "int literal";
 	if(type == AST_CALL) return "call";
 	if(type == AST_DEFINE_VAR) return "define var";
@@ -342,6 +344,9 @@ function print_ast_depth(node: Node*, depth: int) {
 		print_ast_depth(node.v.conditional.doTrue, depth + 1);
 		putsln(":");
 		print_ast_depth(node.v.conditional.doFalse, depth + 1);
+	}
+	else if(node.type == OP_SIZEOF) {
+		puts("sizeof("); puts(type_to_string(node.computedType)); puts(")");
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

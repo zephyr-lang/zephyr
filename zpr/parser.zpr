@@ -171,6 +171,14 @@ function Parser.parse_value(): Node* {
 	else if(this.match(TOKEN_IDENTIFIER)) {
 		return this.parse_identifier();
 	}
+	else if(this.match(TOKEN_SIZEOF)) {
+		var expr = new_node(OP_SIZEOF, this.previous);
+		this.consume(TOKEN_LEFT_PAREN, "Expected '(' after sizeof");
+		var type = this.parse_type();
+		this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after sizeof type");
+		expr.computedType = type;
+		return expr;
+	}
 	else if(this.match(TOKEN_LEFT_PAREN)) {
 		var expr = this.parse_expression();
 		this.consume(TOKEN_RIGHT_PAREN, "Expected closing ')' after expression");

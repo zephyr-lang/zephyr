@@ -253,6 +253,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	else if(expr.type == OP_TERNARY) {
 		generate_ternary_rax(expr, out);
 	}
+	else if(expr.type == OP_SIZEOF) {
+		out.puts("    mov rax, "); out.putd(expr.computedType.size()); out.putln();
+	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
 		exit(1);
