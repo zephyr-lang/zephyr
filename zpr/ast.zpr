@@ -42,6 +42,10 @@ var AST_PROGRAM = __nt_count = __nt_count + 1;
 var __dt_count = 0;
 var DATA_TYPE_VOID = 0;
 var DATA_TYPE_INT = __dt_count = __dt_count + 1;
+var DATA_TYPE_I8 = __dt_count = __dt_count + 1;
+var DATA_TYPE_I16 = __dt_count = __dt_count + 1;
+var DATA_TYPE_I32 = __dt_count = __dt_count + 1;
+var DATA_TYPE_I64 = __dt_count = __dt_count + 1;
 
 struct Type {
 	type: int; // DataType
@@ -56,6 +60,7 @@ struct Node {
 	type: int; // NodeType
 	position: Token*;
 	lvalue: int;
+	computedType: Type*;
 
 	v: union {
 		unary: Node*;
@@ -118,6 +123,10 @@ struct Node {
 function data_type_to_string(type: int): i8* {
 	if(type == DATA_TYPE_VOID) return "void";
 	if(type == DATA_TYPE_INT) return "int";
+	if(type == DATA_TYPE_I8) return "i8";
+	if(type == DATA_TYPE_I16) return "i16";
+	if(type == DATA_TYPE_I32) return "i32";
+	if(type == DATA_TYPE_I64) return "i64";
 
 	return "<unknown type>";
 }

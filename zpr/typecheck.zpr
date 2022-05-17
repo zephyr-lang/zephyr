@@ -3,12 +3,32 @@ import "std/vector.zpr";
 
 var tc_typeStack = new_vector();
 
+function Type.is_integral(): int {
+	return this.indirection == 0 && (
+		this.type == DATA_TYPE_INT ||
+		this.type == DATA_TYPE_I8 ||
+		this.type == DATA_TYPE_I16 ||
+		this.type == DATA_TYPE_I32 ||
+		this.type == DATA_TYPE_I64
+	);
+}
+
 function Type.assignable(b: Type*): int {
+	if(this.is_integral() && b.is_integral()) {
+		return true;
+	}
+
 	return this.type == b.type && this.indirection == b.indirection;
 }
 
 function Type.size(): int {
+	if(this.indirection != 0) return 8;
+
 	if(this.type == DATA_TYPE_INT) return 8;
+	if(this.type == DATA_TYPE_I8) return 1;
+	if(this.type == DATA_TYPE_I16) return 2;
+	if(this.type == DATA_TYPE_I32) return 4;
+	if(this.type == DATA_TYPE_I64) return 8;
 
 	eputsln("Unreachable - VOID_TYPE.size");
 	exit(1);
@@ -98,6 +118,7 @@ function Parser.type_check_deref(expr: Node*) {
 	var derefType = copy_type(type);
 	derefType.indirection = derefType.indirection - 1;
 
+	expr.computedType = derefType;
 	tc_typeStack.push(derefType);
 }
 

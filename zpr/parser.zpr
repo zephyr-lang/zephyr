@@ -100,6 +100,10 @@ function Parser.parse_type(): Type* {
 	var type = new_type();
 
 	if(this.previous.type == TOKEN_INT) type.type = DATA_TYPE_INT;
+	else if(this.previous.type == TOKEN_I8) type.type = DATA_TYPE_I8;
+	else if(this.previous.type == TOKEN_I16) type.type = DATA_TYPE_I16;
+	else if(this.previous.type == TOKEN_I32) type.type = DATA_TYPE_I32;
+	else if(this.previous.type == TOKEN_I64) type.type = DATA_TYPE_I64;
 	else {
 		this.error("Expected type");
 	}

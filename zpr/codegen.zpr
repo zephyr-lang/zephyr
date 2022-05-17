@@ -5,6 +5,40 @@ import "zpr/ast.zpr";
 var cg_ARG_REGISTERS: i8*[6] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
 var cg_lableCount = 0;
 
+function Type.qualifier(): i8* {
+	if(this.size() == 1) return "BYTE";
+	if(this.size() == 2) return "WORD";
+	if(this.size() == 4) return "DWORD";
+	if(this.size() == 8) return "QWORD";
+
+	eputsln("Unreachable - invalid size of type");
+	exit(1);
+	return null;
+}
+
+function Type.rax_subregister(): i8* {
+	if(this.size() == 1) return "al";
+	if(this.size() == 2) return "ax";
+	if(this.size() == 4) return "eax";
+	if(this.size() == 8) return "rax";
+
+	eputsln("Unreachable - invalid size of type");
+	exit(1);
+	return null;
+}
+
+function Type.movzx(): i8* {
+	if(this.size() == 1 || this.size() == 2) {
+		return "movzx";
+	}
+	return "mov";
+}
+
+function Type.movzx_rax_subregister(): i8* {
+	if(this.size() == 4) return "eax";
+	return "rax";
+}
+
 function ceil_multiple(num: int, n: int): int {
 	return ((num + n - 1) / n) * n;
 }
@@ -35,7 +69,8 @@ function generate_addrof_rax(expr: Node*, out: File*) {
 function generate_deref_rax(expr: Node*, out: File*) {
 	generate_expr_rax(expr.v.unary, out);
 
-	out.putsln("    mov rax, QWORD [rax]");
+	out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister()); out.puts(", ");
+	out.puts(expr.computedType.qualifier()); out.putsln(" [rax]");
 }
 
 function generate_unary_rax(expr: Node*, out: File*) {
@@ -147,6 +182,18 @@ function generate_ternary_rax(expr: Node*, out: File*) {
 	out.puts(".l"); out.putd(endLabel); out.putsln(":");
 }
 
+function generate_access_var(expr: Node*, out: File*) {
+	out.puts("    "); out.puts(expr.v.variable.type.movzx()); out.puts(" "); out.puts(expr.v.variable.type.movzx_rax_subregister()); out.puts(", ");
+	out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+}
+
+function generate_assign_var(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.variable.value, out);
+
+	out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.puts("], ");
+	out.putsln(expr.v.variable.type.rax_subregister());
+}
+
 function generate_expr_rax(expr: Node*, out: File*) {
 	if(is_unary_op(expr.type)) {
 		generate_unary_rax(expr, out);
@@ -158,12 +205,10 @@ function generate_expr_rax(expr: Node*, out: File*) {
 		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
 	}
 	else if(expr.type == AST_ACCESS_VAR) {
-		out.puts("    mov rax, QWORD [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+		generate_access_var(expr, out);
 	}
 	else if(expr.type == AST_ASSIGN_VAR) {
-		generate_expr_rax(expr.v.variable.value, out);
-
-		out.puts("    mov QWORD [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("], rax");
+		generate_assign_var(expr, out);
 	}
 	else if(expr.type == AST_CALL) {
 		generate_call_rax(expr, out);
@@ -244,6 +289,15 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 	}
 }
 
+function generate_define_var(stmt: Node*, out: File*) {
+	if(stmt.v.variable.value != null) {
+		generate_expr_rax(stmt.v.variable.value, out);
+
+		out.puts("    mov "); out.puts(stmt.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.v.variable.stackOffset);
+		out.puts("], "); out.putsln(stmt.v.variable.type.rax_subregister());
+	}
+}
+
 function generate_statement(stmt: Node*, out: File*) {
 	if(stmt.type == AST_IF) {
 		generate_if_statement(stmt, out);
@@ -260,11 +314,7 @@ function generate_statement(stmt: Node*, out: File*) {
 		out.putsln("    ret");
 	}
 	else if(stmt.type == AST_DEFINE_VAR) {
-		if(stmt.v.variable.value != null) {
-			generate_expr_rax(stmt.v.variable.value, out);
-
-			out.puts("    mov QWORD [rbp-"); out.putd(stmt.v.variable.stackOffset); out.putsln("], rax");
-		}
+		generate_define_var(stmt, out);
 	}
 	else if(stmt.type == AST_EXPR_STMT) {
 		generate_expr_rax(stmt.v.unary, out);

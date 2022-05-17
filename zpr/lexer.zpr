@@ -86,6 +86,10 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("else")) return TOKEN_ELSE;
 	if(this.match_keyword("if")) return TOKEN_IF;
 	if(this.match_keyword("int")) return TOKEN_INT;
+	if(this.match_keyword("i8")) return TOKEN_I8;
+	if(this.match_keyword("i16")) return TOKEN_I16;
+	if(this.match_keyword("i32")) return TOKEN_I32;
+	if(this.match_keyword("i64")) return TOKEN_I64;
 	if(this.match_keyword("for")) return TOKEN_FOR;
 	if(this.match_keyword("function")) return TOKEN_FUNCTION;
 	if(this.match_keyword("return")) return TOKEN_RETURN;
