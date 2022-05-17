@@ -13,6 +13,8 @@ struct Parser {
 
 	functions: Vector*;
 
+	globalVars: Vector*;
+
 	error: int;
 	panic: int;
 }
@@ -21,6 +23,7 @@ function new_parser(lexer: Lexer*): Parser* {
 	var parser: Parser* = malloc(sizeof(Parser));
 	parser.lexer = lexer;
 	parser.functions = new_vector();
+	parser.globalVars = new_vector();
 	return parser;
 }
 
@@ -650,6 +653,11 @@ function Parser.parse_program(): Node* {
 		if(this.match(TOKEN_FUNCTION)) {
 			var funktion = this.parse_function();
 			program.add_child(funktion);
+		}
+		else if(this.match(TOKEN_VAR)) {
+			var variable = this.parse_var_declaration();
+			variable.type = AST_DEFINE_GLOBAL_VAR;
+			program.add_child(variable);
 		}
 		else {
 			this.error_current("Expected definition");

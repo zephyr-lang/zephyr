@@ -106,7 +106,7 @@ function main(argc: int, argv: i8**): int {
 	strcat(asmFile, ".yasm");
 
 	var out = fopen(asmFile, 'w');
-	generate_program(ast, out);
+	parser.generate_program(ast, out);
 	out.close();
 
 	// Source was read from a file - free it

@@ -39,6 +39,17 @@ function Type.movzx_rax_subregister(): i8* {
 	return "rax";
 }
 
+function Type.reserve(): i8* {
+	if(this.size() == 1) return "resb";
+	if(this.size() == 2) return "resw";
+	if(this.size() == 4) return "resd";
+	if(this.size() == 8) return "resq";
+
+	eputsln("Unreachable - invalid size of type");
+	exit(1);
+	return null;
+}
+
 function ceil_multiple(num: int, n: int): int {
 	return ((num + n - 1) / n) * n;
 }
@@ -58,7 +69,16 @@ function cmp_suffix(type: int): i8* {
 
 function generate_addrof_rax(expr: Node*, out: File*) {
 	if(expr.v.unary.lvalue == LVALUE_IDENTIFIER) {
-		out.puts("    lea rax, [rbp-"); out.putd(expr.v.unary.v.variable.stackOffset); out.putsln("]");
+		if(expr.v.unary.type == AST_ACCESS_VAR) {
+			out.puts("    lea rax, [rbp-"); out.putd(expr.v.unary.v.variable.stackOffset); out.putsln("]");
+		}
+		else if(expr.v.unary.type == AST_ACCESS_GLOBAL_VAR) {
+			out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.unary.v.variable.name); out.putsln("]");
+		}
+		else {
+			eputs("Unsupported type of IDENTIFIER in generate_addrof_rax - "); eputsln(node_type_to_string(expr.type));
+			exit(1);
+		}
 	}
 	else {
 		eputs("Unsupported lvalue in generate_addrof_rax - "); eputd(expr.v.unary.lvalue); eputln();
@@ -194,6 +214,17 @@ function generate_assign_var(expr: Node*, out: File*) {
 	out.putsln(expr.v.variable.type.rax_subregister());
 }
 
+function generate_access_global_var(expr: Node*, out: File*) {
+	out.puts("    "); out.puts(expr.v.variable.type.movzx()); out.puts(" "); out.puts(expr.v.variable.type.rax_subregister()); out.puts(", ");
+	out.puts(expr.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
+}
+
+function generate_assign_global_var(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.variable.value, out);
+	out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.v.variable.name);
+	out.puts("], "); out.putsln(expr.v.variable.type.rax_subregister());
+}
+
 function generate_expr_rax(expr: Node*, out: File*) {
 	if(is_unary_op(expr.type)) {
 		generate_unary_rax(expr, out);
@@ -209,6 +240,12 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	}
 	else if(expr.type == AST_ASSIGN_VAR) {
 		generate_assign_var(expr, out);
+	}
+	else if(expr.type == AST_ACCESS_GLOBAL_VAR) {
+		generate_access_global_var(expr, out);
+	}
+	else if(expr.type == AST_ASSIGN_GLOBAL_VAR) {
+		generate_assign_global_var(expr, out);
 	}
 	else if(expr.type == AST_CALL) {
 		generate_call_rax(expr, out);
@@ -394,7 +431,8 @@ function generate_implicit_printu_impl(out: File*) {
 	out.putsln("		ret");
 }
 
-function generate_program(ast: Node*, out: File*) {
+function Parser.generate_program(ast: Node*, out: File*) {
+	out.putsln("section .text");
 	generate_implicit_printu_impl(out);
 
 	for(var i = 0; i < ast.v.block.children.size; i = i + 1) {
@@ -402,18 +440,44 @@ function generate_program(ast: Node*, out: File*) {
 		if(node.type == AST_FUNCTION) {
 			generate_function(node, out);
 		}
+		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
+			// Handled below
+		}
 		else {
 			eputs("Unsupported type in generate_program - "); eputs(node_type_to_string(node.type)); eputln();
 			exit(1);
 		}
 	}
 
-	// Entry point of _start -> calls main and exits (via syscall)
+	// Entry point of _start -> initialises state, calls main and exits (via syscall)
 	// Uses main's return value as the exit code
 	out.putsln("global _start");
 	out.putsln("_start:");
+
+	for(var i = 0; i < this.globalVars.size; i = i + 1) {
+		var variable: Node* = this.globalVars.at(i);
+
+		if(variable.v.variable.value != null) {
+			generate_expr_rax(variable.v.variable.value, out);
+
+			out.puts("    mov "); out.puts(variable.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(variable.v.variable.name);
+			out.puts("], "); out.putsln(variable.v.variable.type.rax_subregister());
+		}
+	}
+
 	out.putsln("    call main");
 	out.putsln("    mov rdi, rax");
 	out.putsln("    mov rax, 60");
 	out.putsln("    syscall");
+
+	if(this.globalVars.size > 0) {
+		out.putsln("section .bss");
+
+		for(var i = 0; i < this.globalVars.size; i = i + 1) {
+			var variable: Node* = this.globalVars.at(i);
+
+			out.puts("_g_"); out.put_token_string(variable.v.variable.name); out.puts(": ");
+			out.puts(variable.v.variable.type.reserve()); out.putsln(" 1");
+		}
+	}
 }

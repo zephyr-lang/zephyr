@@ -64,6 +64,14 @@ function Parser.lookup_variable(name: Token*): Node* {
 		}
 	}
 
+	for(var i = 0; i < this.globalVars.size; i = i + 1) {
+		var variable: Node* = this.globalVars.at(i);
+
+		if(variable.v.variable.name.equals(name)) {
+			return variable;
+		}
+	}
+
 	for(var i = 0; i < this.functions.size; i = i + 1) {
 		var func: Node* = this.functions.at(i);
 		if(func.v.funktion.name.equals(name)) {
@@ -87,6 +95,17 @@ function Parser.lookup_scope_variable(name: Token*, block: Node*): Node* {
 
 function Parser.lookup_same_scope_variable(name: Token*): Node* {
 	return this.lookup_scope_variable(name, this.currentBlock);
+}
+
+function Parser.lookup_global_variable(name: Token*): Node* {
+	for(var i = 0; i < this.globalVars.size; i = i + 1) {
+		var variable: Node* = this.globalVars.at(i);
+
+		if(variable.v.variable.name.equals(name)) {
+			return variable;
+		}
+	}
+	return null;
 }
 
 function Parser.type_check_addrof(expr: Node*) {
@@ -169,16 +188,23 @@ function Parser.type_check_access_var(expr: Node*) {
 		exit(1);
 	}
 
-	if(variable.type != AST_DEFINE_VAR) {
+	if(variable.type == AST_DEFINE_VAR) {
+		expr.v.variable.type = variable.v.variable.type;
+		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
+
+		tc_typeStack.push(expr.v.variable.type);
+	}
+	else if(variable.type == AST_DEFINE_GLOBAL_VAR) {
+		expr.v.variable.type = variable.v.variable.type;
+		expr.type = AST_ACCESS_GLOBAL_VAR;
+
+		tc_typeStack.push(expr.v.variable.type);
+	}
+	else {
 		expr.print_position();
 		eputsln("Can only access variables");
 		exit(1);
 	}
-
-	expr.v.variable.type = variable.v.variable.type;
-	expr.v.variable.stackOffset = variable.v.variable.stackOffset;
-
-	tc_typeStack.push(expr.v.variable.type);
 }
 
 function Parser.type_check_assign_var(expr: Node*) {
@@ -190,27 +216,42 @@ function Parser.type_check_assign_var(expr: Node*) {
 		exit(1);
 	}
 
-	if(variable.type != AST_DEFINE_VAR) {
-		expr.print_position();
-		eputsln("Can only assign variables");
-		exit(1);
-	}
-
 	this.type_check_expr(expr.v.variable.value);
 
 	var valueType: Type* = tc_typeStack.pop();
 
-	if(!valueType.assignable(variable.v.variable.type)) {
+	if(variable.type == AST_DEFINE_VAR) {
+		if(!valueType.assignable(variable.v.variable.type)) {
+			expr.print_position();
+			eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(variable.v.variable.type));
+			eputsln("'");
+			exit(1);
+		}
+
+		expr.v.variable.type = variable.v.variable.type;
+		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
+
+		tc_typeStack.push(expr.v.variable.type);
+	}
+	else if(variable.type == AST_DEFINE_GLOBAL_VAR) {
+		if(!valueType.assignable(variable.v.variable.type)) {
+			expr.print_position();
+			eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(variable.v.variable.type));
+			eputsln("'");
+			exit(1);
+		}
+
+		expr.v.variable.type = variable.v.variable.type;
+		expr.type = AST_ASSIGN_GLOBAL_VAR;
+
+		tc_typeStack.push(expr.v.variable.type);
+	}
+	else {
 		expr.print_position();
-		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(variable.v.variable.type));
-		eputsln("'");
+		eputsln("Can only assign variables");
 		exit(1);
 	}
-
-	expr.v.variable.type = variable.v.variable.type;
-	expr.v.variable.stackOffset = variable.v.variable.stackOffset;
-
-	tc_typeStack.push(expr.v.variable.type);
+	
 }
 
 function Parser.type_check_call(expr: Node*) {
@@ -473,9 +514,60 @@ function Parser.type_check_function(funktion: Node*) {
 	this.type_check_block(funktion.v.funktion.body);
 }
 
+function Parser.type_check_global_var(stmt: Node*) {
+	var declType = stmt.v.variable.type;
+	var name = stmt.v.variable.name;
+
+	var redeclaration = this.lookup_global_variable(name);
+
+	if(redeclaration != null) {
+		stmt.print_position();
+		eputs("Redeclaration of variable '"); eput_token_string(name); eputsln("' in current scope");
+		exit(1);
+	}
+
+	if(declType.type == DATA_TYPE_VOID && stmt.v.variable.value == null) {
+		stmt.print_position();
+		eputsln("Cannot infer type to variable without initial value");
+		exit(1);
+	}
+
+	if(declType.type == DATA_TYPE_VOID) {
+		this.type_check_expr(stmt.v.variable.value);
+		stmt.v.variable.type = tc_typeStack.pop();
+		declType = stmt.v.variable.type;
+	}
+
+	if(stmt.v.variable.value != null) {
+		this.type_check_expr(stmt.v.variable.value);
+
+		var valueType: Type* = tc_typeStack.pop();
+
+		if(!valueType.assignable(declType)) {
+			stmt.print_position();
+			eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable expecting '"); eputs(type_to_string(declType));
+			eputsln("'");
+			exit(1);
+		}
+	}
+
+	this.globalVars.push(stmt);
+}
+
 function Parser.type_check(program: Node*) {
-	for(var i = 0; i < this.functions.size; i = i + 1) {
-		if(!((this.functions.at(i) as Node*).v.funktion.hasImplicitBody))
-			this.type_check_function(this.functions.at(i));
+	for(var i = 0; i < program.v.block.children.size; i = i + 1) {
+		var node: Node* = program.v.block.children.at(i);
+
+		if(node.type == AST_FUNCTION) {
+			if(!node.v.funktion.hasImplicitBody)
+				this.type_check_function(node);
+		}
+		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
+			this.type_check_global_var(node);
+		}
+		else {
+			eputsln("Unreachable - unhandled node type in type_check (program)");
+			exit(1);
+		}
 	}
 }

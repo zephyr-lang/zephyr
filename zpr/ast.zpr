@@ -29,6 +29,9 @@ var AST_CALL = __nt_count = __nt_count + 1;
 var AST_DEFINE_VAR = __nt_count = __nt_count + 1;
 var AST_ACCESS_VAR = __nt_count = __nt_count + 1;
 var AST_ASSIGN_VAR = __nt_count = __nt_count + 1;
+var AST_DEFINE_GLOBAL_VAR = __nt_count = __nt_count + 1;
+var AST_ACCESS_GLOBAL_VAR = __nt_count = __nt_count + 1;
+var AST_ASSIGN_GLOBAL_VAR = __nt_count = __nt_count + 1;
 var AST_EXPR_STMT = __nt_count = __nt_count + 1;
 var AST_IF = __nt_count = __nt_count + 1;
 var AST_WHILE = __nt_count = __nt_count + 1;
@@ -170,6 +173,9 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_DEFINE_VAR) return "define var";
 	if(type == AST_ACCESS_VAR) return "access var";
 	if(type == AST_ASSIGN_VAR) return "assign var";
+	if(type == AST_DEFINE_GLOBAL_VAR) return "define gvar";
+	if(type == AST_ACCESS_GLOBAL_VAR) return "access gvar";
+	if(type == AST_ASSIGN_GLOBAL_VAR) return "assign gvar";
 	if(type == AST_EXPR_STMT) return "expr stmt";
 	if(type == AST_IF) return "if";
 	if(type == AST_WHILE) return "while";
@@ -312,17 +318,17 @@ function print_ast_depth(node: Node*, depth: int) {
 		print_ast_depth(node.v.unary, depth + 1);
 		putln();
 	}
-	else if(node.type == AST_DEFINE_VAR) {
+	else if(node.type == AST_DEFINE_VAR || node.type == AST_DEFINE_GLOBAL_VAR) {
 		puts("var "); put_token_string(node.v.variable.name); puts(": "); putsln(type_to_string(node.v.variable.type));
 		if(node.v.variable.value != null) {
 			print_ast_depth(node.v.variable.value, depth + 1);
 			putln();
 		}
 	}
-	else if(node.type == AST_ACCESS_VAR) {
+	else if(node.type == AST_ACCESS_VAR || node.type == AST_ACCESS_GLOBAL_VAR) {
 		puts("(var "); put_token_string(node.v.variable.name); puts(")");
 	}
-	else if(node.type == AST_ASSIGN_VAR) {
+	else if(node.type == AST_ASSIGN_VAR || node.type == AST_ASSIGN_GLOBAL_VAR) {
 		put_token_string(node.v.variable.name); putsln(" =");
 		print_ast_depth(node.v.variable.value, depth + 1);
 	}
