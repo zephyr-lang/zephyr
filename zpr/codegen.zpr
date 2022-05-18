@@ -80,6 +80,15 @@ function generate_addrof_rax(expr: Node*, out: File*) {
 			exit(1);
 		}
 	}
+	else if(expr.v.unary.lvalue == LVALUE_SUBSCRIPT) {
+		generate_expr_rax(expr.v.unary.v.binary.lhs, out);
+		out.putsln("    push rax");
+		generate_expr_rax(expr.v.unary.v.binary.rhs, out);
+		out.putsln("    mov rcx, rax");
+		out.putsln("    pop rax");
+
+		out.puts("    lea rax, [rax+rcx*"); out.putd(expr.v.unary.computedType.size()); out.putsln("]");
+	}
 	else {
 		eputs("Unsupported lvalue in generate_addrof_rax - "); eputd(expr.v.unary.lvalue); eputln();
 		exit(1);
@@ -203,6 +212,11 @@ function generate_ternary_rax(expr: Node*, out: File*) {
 }
 
 function generate_access_var(expr: Node*, out: File*) {
+	if(expr.v.variable.type.isArray) {
+		out.puts("    lea rax, [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+		return;
+	}
+
 	out.puts("    "); out.puts(expr.v.variable.type.movzx()); out.puts(" "); out.puts(expr.v.variable.type.movzx_rax_subregister()); out.puts(", ");
 	out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
 }
@@ -215,6 +229,11 @@ function generate_assign_var(expr: Node*, out: File*) {
 }
 
 function generate_access_global_var(expr: Node*, out: File*) {
+	if(expr.v.variable.type.isArray) {
+		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
+		return;
+	}
+
 	out.puts("    "); out.puts(expr.v.variable.type.movzx()); out.puts(" "); out.puts(expr.v.variable.type.rax_subregister()); out.puts(", ");
 	out.puts(expr.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
 }
@@ -223,6 +242,30 @@ function generate_assign_global_var(expr: Node*, out: File*) {
 	generate_expr_rax(expr.v.variable.value, out);
 	out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.v.variable.name);
 	out.puts("], "); out.putsln(expr.v.variable.type.rax_subregister());
+}
+
+function generate_access_subscript(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    pop rax");
+
+	out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister());
+	out.puts(", "); out.puts(expr.computedType.qualifier()); out.puts(" [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+}
+
+function generate_assign_subscript(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.ternary.lhs, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.ternary.mid, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.ternary.rhs, out);
+	out.putsln("    pop rdx");
+	out.putsln("    pop rcx");
+
+	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx+rdx*"); out.putd(expr.computedType.size());
+	out.puts("], "); out.putsln(expr.computedType.rax_subregister());
 }
 
 function generate_expr_rax(expr: Node*, out: File*) {
@@ -254,7 +297,13 @@ function generate_expr_rax(expr: Node*, out: File*) {
 		generate_ternary_rax(expr, out);
 	}
 	else if(expr.type == OP_SIZEOF) {
-		out.puts("    mov rax, "); out.putd(expr.computedType.size()); out.putln();
+		out.puts("    mov rax, "); out.putd(expr.computedType.size_offset()); out.putln();
+	}
+	else if(expr.type == OP_ACCESS_SUBSCRIPT) {
+		generate_access_subscript(expr, out);
+	}
+	else if(expr.type == OP_ASSIGN_SUBSCRIPT) {
+		generate_assign_subscript(expr, out);
 	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
@@ -331,6 +380,18 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 
 function generate_define_var(stmt: Node*, out: File*) {
 	if(stmt.v.variable.value != null) {
+		if(stmt.v.variable.value.type == AST_ARRAY_INIT) {
+			var array = stmt.v.variable.value;
+			var itemType = copy_type(stmt.v.variable.type);
+			itemType.indirection = itemType.indirection - 1;
+			for(var i = 0; i < array.v.block.children.size; i = i + 1) {
+				generate_expr_rax(array.v.block.children.at(i), out);
+				out.puts("    mov "); out.puts(itemType.qualifier()); out.puts(" [rbp-"); out.putd(stmt.v.variable.stackOffset - (i * itemType.size()));
+				out.puts("], "); out.putsln(itemType.rax_subregister());
+			}
+			return;
+		}
+
 		generate_expr_rax(stmt.v.variable.value, out);
 
 		out.puts("    mov "); out.puts(stmt.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.v.variable.stackOffset);
@@ -459,12 +520,27 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 	for(var i = 0; i < this.globalVars.size; i = i + 1) {
 		var variable: Node* = this.globalVars.at(i);
+		var type = variable.v.variable.type;
 
 		if(variable.v.variable.value != null) {
+			if(variable.v.variable.value.type == AST_ARRAY_INIT) {
+				var array = variable.v.variable.value;
+				var itemType = copy_type(type);
+				itemType.indirection = type.indirection - 1;
+
+				for(var i = 0; i < array.v.block.children.size; i = i + 1) {
+					generate_expr_rax(array.v.block.children.at(i), out);
+					out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_");
+					out.put_token_string(variable.v.variable.name); out.puts("+"); out.putd(i * itemType.size());
+					out.puts("], "); out.putsln(type.rax_subregister());
+				}
+				continue;
+			}
+
 			generate_expr_rax(variable.v.variable.value, out);
 
-			out.puts("    mov "); out.puts(variable.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(variable.v.variable.name);
-			out.puts("], "); out.putsln(variable.v.variable.type.rax_subregister());
+			out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_"); out.put_token_string(variable.v.variable.name);
+			out.puts("], "); out.putsln(type.rax_subregister());
 		}
 	}
 
@@ -480,7 +556,17 @@ function Parser.generate_program(ast: Node*, out: File*) {
 			var variable: Node* = this.globalVars.at(i);
 
 			out.puts("_g_"); out.put_token_string(variable.v.variable.name); out.puts(": ");
-			out.puts(variable.v.variable.type.reserve()); out.putsln(" 1");
+			
+			var type = variable.v.variable.type;
+
+			if(type.isArray) {
+				var subType = copy_type(type);
+				subType.indirection = type.indirection - 1;
+				out.puts(subType.reserve()); out.puts(" "); out.putd(type.arrayLength); out.putln();
+			}
+			else {
+				out.puts(variable.v.variable.type.reserve()); out.putsln(" 1");
+			}
 		}
 	}
 }

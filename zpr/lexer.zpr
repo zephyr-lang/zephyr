@@ -167,6 +167,8 @@ function Lexer.next(): Token* {
 	if(c == ')') return this.make_token(TOKEN_RIGHT_PAREN);
 	if(c == '{') return this.make_token(TOKEN_LEFT_BRACE);
 	if(c == '}') return this.make_token(TOKEN_RIGHT_BRACE);
+	if(c == '[') return this.make_token(TOKEN_LEFT_SQBR);
+	if(c == ']') return this.make_token(TOKEN_RIGHT_SQBR);
 	if(c == ':') return this.make_token(TOKEN_COLON);
 	if(c == ';') return this.make_token(TOKEN_SEMICOLON);
 	if(c == ',') return this.make_token(TOKEN_COMMA);

@@ -25,6 +25,8 @@ var OP_TERNARY = __nt_count = __nt_count + 1;
 var OP_ADDROF = __nt_count = __nt_count + 1;
 var OP_DEREF = __nt_count = __nt_count + 1;
 var OP_SIZEOF = __nt_count = __nt_count + 1;
+var OP_ACCESS_SUBSCRIPT = __nt_count = __nt_count + 1;
+var OP_ASSIGN_SUBSCRIPT = __nt_count = __nt_count + 1;
 var AST_INT_LITERAL = __nt_count = __nt_count + 1;
 var AST_CALL = __nt_count = __nt_count + 1;
 var AST_DEFINE_VAR = __nt_count = __nt_count + 1;
@@ -33,6 +35,7 @@ var AST_ASSIGN_VAR = __nt_count = __nt_count + 1;
 var AST_DEFINE_GLOBAL_VAR = __nt_count = __nt_count + 1;
 var AST_ACCESS_GLOBAL_VAR = __nt_count = __nt_count + 1;
 var AST_ASSIGN_GLOBAL_VAR = __nt_count = __nt_count + 1;
+var AST_ARRAY_INIT = __nt_count = __nt_count + 1;
 var AST_EXPR_STMT = __nt_count = __nt_count + 1;
 var AST_IF = __nt_count = __nt_count + 1;
 var AST_WHILE = __nt_count = __nt_count + 1;
@@ -54,11 +57,14 @@ var DATA_TYPE_I64 = __dt_count = __dt_count + 1;
 struct Type {
 	type: int; // DataType
 	indirection: int;
+	isArray: int;
+	arrayLength: int;
 }
 
 var __lv_count = -1;
 var LVALUE_NONE = __lv_count = __lv_count + 1;
 var LVALUE_IDENTIFIER = __lv_count = __lv_count + 1;
+var LVALUE_SUBSCRIPT = __lv_count = __lv_count + 1;
 
 struct Node {
 	type: int; // NodeType
@@ -71,6 +77,12 @@ struct Node {
 
 		binary: struct {
 			lhs: Node*;
+			rhs: Node*;
+		};
+
+		ternary: struct {
+			lhs: Node*;
+			mid: Node*;
 			rhs: Node*;
 		};
 
@@ -170,6 +182,8 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_ADDROF) return "&";
 	if(type == OP_DEREF) return "*";
 	if(type == OP_SIZEOF) return "sizeof";
+	if(type == OP_ACCESS_SUBSCRIPT) return "[";
+	if(type == OP_ASSIGN_SUBSCRIPT) return "=[";
 	if(type == AST_INT_LITERAL) return "int literal";
 	if(type == AST_CALL) return "call";
 	if(type == AST_DEFINE_VAR) return "define var";
@@ -178,6 +192,7 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_DEFINE_GLOBAL_VAR) return "define gvar";
 	if(type == AST_ACCESS_GLOBAL_VAR) return "access gvar";
 	if(type == AST_ASSIGN_GLOBAL_VAR) return "assign gvar";
+	if(type == AST_ARRAY_INIT) return "init array";
 	if(type == AST_EXPR_STMT) return "expr stmt";
 	if(type == AST_IF) return "if";
 	if(type == AST_WHILE) return "while";
@@ -298,16 +313,18 @@ function print_ast_depth(node: Node*, depth: int) {
 			putsln("(no initializer)");
 		}
 
-		if(node.v.loop.condition != null)
+		if(node.v.loop.condition != null) {
 			print_ast_depth(node.v.loop.condition, depth + 1);
-		else {
+			putln();
+		} else {
 			for(var i = 0; i < depth; i = i + 1) puts("  ");
 			putsln("(no condition)");
 		}
 
-		if(node.v.loop.iteration != null)
+		if(node.v.loop.iteration != null) {
 			print_ast_depth(node.v.loop.iteration, depth + 1);
-		else {
+			putln();
+		} else {
 			for(var i = 0; i < depth; i = i + 1) puts("  ");
 			putsln("(no iteration)");
 		}
@@ -347,6 +364,35 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == OP_SIZEOF) {
 		puts("sizeof("); puts(type_to_string(node.computedType)); puts(")");
+	}
+	else if(node.type == OP_ACCESS_SUBSCRIPT) {
+		putsln("subscript [");
+		print_ast_depth(node.v.binary.lhs, depth + 1);
+		putln();
+		print_ast_depth(node.v.binary.rhs, depth + 1);
+		putln();
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		puts("]");
+	}
+	else if(node.type == OP_ASSIGN_SUBSCRIPT) {
+		putsln("subscript = [");
+		print_ast_depth(node.v.ternary.lhs, depth + 1);
+		putln();
+		print_ast_depth(node.v.ternary.mid, depth + 1);
+		putln();
+		print_ast_depth(node.v.ternary.rhs, depth + 1);
+		putln();
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		puts("]");
+	}
+	else if(node.type == AST_ARRAY_INIT) {
+		putsln("[");
+		for(var i = 0; i < node.v.block.children.size; i = i + 1) {
+			print_ast_depth(node.v.block.children.at(i), depth + 1);
+			putln();
+		}
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		puts("]");
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

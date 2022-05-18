@@ -115,7 +115,27 @@ function Parser.parse_type(): Type* {
 		type.indirection = type.indirection + 1;
 	}
 
+	if(this.match(TOKEN_LEFT_SQBR)) {
+		type.isArray = true;
+		type.arrayLength = this.parse_constant();
+		type.indirection = type.indirection + 1;
+		this.consume(TOKEN_RIGHT_SQBR, "Expected ']' after array length");
+	}
+
 	return type;
+}
+
+function Parser.parse_constant(): int {
+	if(this.match(TOKEN_INT_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return 0;
+
+		return atoi(literal.start);
+	}
+	else {
+		this.error_current("Expected constant value");
+		return 0;
+	}
 }
 
 function Parser.parse_identifier(): Node* {
@@ -189,6 +209,37 @@ function Parser.parse_value(): Node* {
 	return null;
 }
 
+function Parser.parse_subscript(): Node* {
+	var left = this.parse_value();
+
+	while(this.match(TOKEN_LEFT_SQBR)) {
+		var op = this.previous;
+
+		var right = this.parse_expression();
+
+		this.consume(TOKEN_RIGHT_SQBR, "Expected ']' after subscript index");
+
+		var subscript = new_node(OP_ACCESS_SUBSCRIPT, op);
+		subscript.v.binary.lhs = left;
+		subscript.v.binary.rhs = right;
+		subscript.lvalue = LVALUE_SUBSCRIPT;
+		left = subscript;
+	}
+
+	if(left != null && left.type == OP_ACCESS_SUBSCRIPT && this.match(TOKEN_EQ)) {
+		var op = this.previous;
+		var value = this.parse_expression();
+
+		var subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
+		subscript.v.ternary.lhs = left.v.binary.lhs;
+		subscript.v.ternary.mid = left.v.binary.rhs;
+		subscript.v.ternary.rhs = value;
+		left = subscript;
+	}
+
+	return left;
+}
+
 function Parser.parse_unary(): Node* {
 	if(this.match(TOKEN_TILDE)) {
 		var op = this.previous;
@@ -226,7 +277,7 @@ function Parser.parse_unary(): Node* {
 		return deref;
 	}
 
-	return this.parse_value();
+	return this.parse_subscript();
 }
 
 function Parser.parse_term(): Node* {
@@ -488,6 +539,23 @@ function Parser.parse_return_statement(): Node* {
 	return returnStmt;
 }
 
+function Parser.parse_array_initialization(): Node* {
+	var array = new_node(AST_ARRAY_INIT, this.previous);
+	array.v.block.children = new_vector();
+
+	if(!this.check(TOKEN_RIGHT_SQBR)) {
+		var item = this.parse_expression();
+		array.add_child(item);
+
+		while(this.match(TOKEN_COMMA)) {
+			var item = this.parse_expression();
+			array.add_child(item);
+		}
+	}
+	this.consume(TOKEN_RIGHT_SQBR, "Expected ']' after array initialization");
+	return array;
+}
+
 function Parser.parse_var_declaration(): Node* {
 	var name = this.consume(TOKEN_IDENTIFIER, "Expected variable name");
 
@@ -500,7 +568,12 @@ function Parser.parse_var_declaration(): Node* {
 	var value: Node* = null;
 
 	if(this.match(TOKEN_EQ)) {
-		value = this.parse_expression();
+		if(type.isArray && this.match(TOKEN_LEFT_SQBR)) {
+			value = this.parse_array_initialization();
+		}
+		else {
+			value = this.parse_expression();
+		}
 	}
 
 	this.consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration");
@@ -529,12 +602,12 @@ function Parser.parse_statement(): Node* {
 	else if(this.match(TOKEN_WHILE)) {
 		return this.parse_while_statement();
 	}
-	else if(this.match(TOKEN_IDENTIFIER)) {
-		var expr = this.parse_identifier();
+	else if(this.check(TOKEN_IDENTIFIER)) {
+		var expr = this.parse_subscript();
 
 		if(expr == null) return null;
 
-		if(expr.type == AST_ACCESS_VAR) {
+		if(expr.type == AST_ACCESS_VAR || expr.type == OP_ACCESS_SUBSCRIPT) {
 			this.error_current("Expected statement");
 		}
 

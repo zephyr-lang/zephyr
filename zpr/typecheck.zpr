@@ -21,6 +21,16 @@ function Type.assignable(b: Type*): int {
 	return this.type == b.type && this.indirection == b.indirection;
 }
 
+function Type.size_offset(): int {
+	if(this.isArray) {
+		var subType = copy_type(this);
+		subType.indirection = this.indirection - 1;
+
+		return subType.size() * this.arrayLength;
+	}
+	return this.size();
+}
+
 function Type.size(): int {
 	if(this.indirection != 0) return 8;
 
@@ -192,7 +202,9 @@ function Parser.type_check_access_var(expr: Node*) {
 		expr.v.variable.type = variable.v.variable.type;
 		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
 
-		tc_typeStack.push(expr.v.variable.type);
+		var decay = copy_type(expr.v.variable.type);
+
+		tc_typeStack.push(decay);
 	}
 	else if(variable.type == AST_DEFINE_GLOBAL_VAR) {
 		expr.v.variable.type = variable.v.variable.type;
@@ -319,6 +331,70 @@ function Parser.type_check_ternary_expr(expr: Node*) {
 	tc_typeStack.push(doTrue);
 }
 
+function Parser.type_check_access_subscript(expr: Node*) {
+	this.type_check_expr(expr.v.binary.lhs);
+	var lhs: Type* = tc_typeStack.pop();
+
+	if(lhs.indirection == 0) {
+		expr.print_position();
+		eputs("Cannot subscript value type '"); eputs(type_to_string(lhs)); eputsln("'");
+		exit(1);
+	}
+
+	this.type_check_expr(expr.v.binary.rhs);
+	var rhs: Type* = tc_typeStack.pop();
+
+	if(!rhs.assignable(INT_TYPE)) {
+		expr.print_position();
+		eputs("Cannot subscript with index of type '"); eputs(type_to_string(rhs)); eputsln("'");
+		exit(1);
+	}
+
+	var itemType = copy_type(lhs);
+	itemType.indirection = itemType.indirection - 1;
+
+	expr.computedType = itemType;
+
+	tc_typeStack.push(itemType);
+}
+
+function Parser.type_check_assign_subscript(expr: Node*) {
+	this.type_check_expr(expr.v.ternary.lhs);
+	var lhs: Type* = tc_typeStack.pop();
+
+	if(lhs.indirection == 0) {
+		expr.print_position();
+		eputs("Cannot subscript value type '"); eputs(type_to_string(lhs)); eputsln("'");
+		exit(1);
+	}
+
+	this.type_check_expr(expr.v.ternary.mid);
+	var index: Type* = tc_typeStack.pop();
+
+	if(!index.assignable(INT_TYPE)) {
+		expr.print_position();
+		eputs("Cannot subscript with index of type '"); eputs(type_to_string(index)); eputsln("'");
+		exit(1);
+	}
+	
+	var itemType = copy_type(lhs);
+	itemType.indirection = itemType.indirection - 1;
+
+	expr.computedType = itemType;
+
+	this.type_check_expr(expr.v.ternary.rhs);
+	var rhs: Type* = tc_typeStack.pop();
+
+	if(!rhs.assignable(index)) {
+		expr.print_position();
+		eputs("Cannot assign value of type '"); eputs(type_to_string(rhs)); eputs("' to array of elements '"); eputs(type_to_string(itemType));
+		eputsln("'");
+		exit(1);
+	}
+
+	tc_typeStack.push(itemType);
+}
+
 function Parser.type_check_expr(expr: Node*) {
 	if(is_unary_op(expr.type)) {
 		this.type_check_unary(expr);
@@ -344,10 +420,42 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == OP_SIZEOF) {
 		tc_typeStack.push(INT_TYPE);
 	}
+	else if(expr.type == OP_ACCESS_SUBSCRIPT) {
+		this.type_check_access_subscript(expr);
+	}
+	else if(expr.type == OP_ASSIGN_SUBSCRIPT) {
+		this.type_check_assign_subscript(expr);
+	}
 	else {
 		eputsln("Unreachable - type_check_expr");
 		exit(1);
 	}
+}
+
+function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
+	if(arrayType.arrayLength < array.v.block.children.size) {
+		array.print_position();
+		eputs("Cannot initialize array of length '"); eputd(arrayType.arrayLength); eputs("' with '"); eputd(array.v.block.children.size);
+		eputsln("' items");
+		exit(1);
+	}
+
+	var declItemType = copy_type(arrayType);
+	declItemType.indirection = declItemType.indirection - 1;
+
+	for(var i = 0; i < array.v.block.children.size; i = i + 1) {
+		this.type_check_expr(array.v.block.children.at(i));
+
+		var item: Type* = tc_typeStack.pop();
+
+		if(!item.assignable(declItemType)) {
+			(array.v.block.children.at(i) as Node*).print_position();
+			eputs("Cannot initialize array of type '"); eputs(type_to_string(declItemType)); eputs("' with item of type '");
+			eputs(type_to_string(item)); eputsln("'");
+			exit(1);
+		}
+	}
+	tc_typeStack.push(arrayType);
 }
 
 function Parser.type_check_define_var(stmt: Node*) {
@@ -375,14 +483,19 @@ function Parser.type_check_define_var(stmt: Node*) {
 		declType = stmt.v.variable.type;
 	}
 
-	stmt.v.variable.stackOffset = this.currentBlock.v.block.currentStackOffset = this.currentBlock.v.block.currentStackOffset + declType.size();
+	stmt.v.variable.stackOffset = this.currentBlock.v.block.currentStackOffset = this.currentBlock.v.block.currentStackOffset + declType.size_offset();
 
 	if(stmt.v.variable.stackOffset > this.currentFunction.v.funktion.localVariableStackOffset) {
 		this.currentFunction.v.funktion.localVariableStackOffset = stmt.v.variable.stackOffset;
 	}
 
 	if(stmt.v.variable.value != null) {
-		this.type_check_expr(stmt.v.variable.value);
+		if(stmt.v.variable.value.type == AST_ARRAY_INIT) {
+			this.type_check_array_init(stmt.v.variable.value, stmt.v.variable.type);
+		}
+		else {
+			this.type_check_expr(stmt.v.variable.value);
+		}
 
 		var valueType: Type* = tc_typeStack.pop();
 
@@ -503,9 +616,19 @@ function Parser.type_check_function(funktion: Node*) {
 	for(var i = 0; i < funktion.v.funktion.arguments.size; i = i + 1) {
 		var arg: Node* = funktion.v.funktion.arguments.at(i);
 
+		if(arg.v.variable.type.isArray) {
+			arg.print_position();
+			eputsln("Arrays cannot be used as function arguments - consider using a pointer instead");
+		}
+
 		stackOffset = stackOffset + arg.v.variable.type.size();
 
 		arg.v.variable.stackOffset = stackOffset;
+	}
+
+	if(funktion.v.funktion.returnType.isArray) {
+		funktion.print_position();
+		eputsln("Arrays cannot be used as function return types - consider using a pointer instead");
 	}
 
 	funktion.v.funktion.body.v.block.currentStackOffset = stackOffset;
@@ -542,7 +665,12 @@ function Parser.type_check_global_var(stmt: Node*) {
 	}
 
 	if(stmt.v.variable.value != null) {
-		this.type_check_expr(stmt.v.variable.value);
+		if(stmt.v.variable.value.type == AST_ARRAY_INIT) {
+			this.type_check_array_init(stmt.v.variable.value, stmt.v.variable.type);
+		}
+		else {
+			this.type_check_expr(stmt.v.variable.value);
+		}
 
 		var valueType: Type* = tc_typeStack.pop();
 
