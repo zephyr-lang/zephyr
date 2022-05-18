@@ -38,6 +38,13 @@ function Node.add_child(child: Node*) {
 	this.v.block.children.push(child);
 }
 
+function allow_expr_stmt(expr: Node*): int {
+	return expr.type == AST_CALL ||
+	       expr.type == AST_ASSIGN_VAR ||
+		   expr.type == AST_ASSIGN_GLOBAL_VAR ||
+		   expr.type == OP_ASSIGN_SUBSCRIPT;
+}
+
 function Parser.error_at_token(token: Token*, message: i8*) {
 	if(this.panic) return;
 	this.panic = true;
@@ -141,15 +148,7 @@ function Parser.parse_constant(): int {
 function Parser.parse_identifier(): Node* {
 	var name = this.previous;
 
-	if(this.match(TOKEN_EQ)) {
-		var value = this.parse_expression();
-
-		var assign = new_node(AST_ASSIGN_VAR, name);
-		assign.v.variable.name = name;
-		assign.v.variable.value = value;
-		return assign;
-	}
-	else if(this.match(TOKEN_LEFT_PAREN)) {
+	if(this.match(TOKEN_LEFT_PAREN)) {
 		var call = new_node(AST_CALL, name);
 		call.v.funktion.name = name;
 		call.v.funktion.arguments = new_vector();
@@ -223,17 +222,6 @@ function Parser.parse_subscript(): Node* {
 		subscript.v.binary.lhs = left;
 		subscript.v.binary.rhs = right;
 		subscript.lvalue = LVALUE_SUBSCRIPT;
-		left = subscript;
-	}
-
-	if(left != null && left.type == OP_ACCESS_SUBSCRIPT && this.match(TOKEN_EQ)) {
-		var op = this.previous;
-		var value = this.parse_expression();
-
-		var subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
-		subscript.v.ternary.lhs = left.v.binary.lhs;
-		subscript.v.ternary.mid = left.v.binary.rhs;
-		subscript.v.ternary.rhs = value;
 		left = subscript;
 	}
 
@@ -461,8 +449,44 @@ function Parser.parse_ternary_expression(): Node* {
 	return condition;
 }
 
+function Parser.parse_assignment_expression(): Node* {
+	var left = this.parse_ternary_expression();
+
+	while(this.match(TOKEN_EQ)) {
+		if(left.lvalue == LVALUE_NONE) {
+			this.error("Invalid lvalue for assignment");
+			return null;
+		}
+
+		var op = this.previous;
+
+		var right = this.parse_assignment_expression();
+
+		if(left.lvalue == LVALUE_IDENTIFIER) {
+			var name = left.v.variable.name;
+			var assign = new_node(AST_ASSIGN_VAR, name);
+			assign.v.variable.name = name;
+			assign.v.variable.value = right;
+			left = assign;
+		}
+		else if(left.lvalue = LVALUE_SUBSCRIPT) {
+			var subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
+			subscript.v.ternary.lhs = left.v.binary.lhs;
+			subscript.v.ternary.mid = left.v.binary.rhs;
+			subscript.v.ternary.rhs = right;
+			left = subscript;
+		}
+		else {
+			eputsln("Unreachable - invalid lvalue in parse_assignment_exression");
+			return null;
+		}
+	}
+
+	return left;
+}
+
 function Parser.parse_expression(): Node* {
-	return this.parse_ternary_expression();
+	return this.parse_assignment_expression();
 }
 
 function Parser.parse_if_statement(): Node* {
@@ -604,28 +628,25 @@ function Parser.parse_statement(): Node* {
 	else if(this.match(TOKEN_WHILE)) {
 		return this.parse_while_statement();
 	}
-	else if(this.check(TOKEN_IDENTIFIER)) {
-		var expr = this.parse_subscript();
-
-		if(expr == null) return null;
-
-		if(expr.type == AST_ACCESS_VAR || expr.type == OP_ACCESS_SUBSCRIPT) {
-			this.error_current("Expected statement");
-		}
-
-		this.consume(TOKEN_SEMICOLON, "Expected ';' after expression");
-
-		var exprStmt = new_node(AST_EXPR_STMT, expr.position);
-		exprStmt.v.unary = expr;
-		return exprStmt;
-	}
 	else if(this.match(TOKEN_LEFT_BRACE)) {
 		return this.parse_block();
 	}
 
-	this.error_current("Expected statement");
+	var expr = this.parse_expression();
 
-	return null;
+	if(expr == null) return null;
+
+	if(!allow_expr_stmt(expr)) {
+		this.error("Expected statement");
+		return null;
+	}
+
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after expression");
+
+	var exprStmt = new_node(AST_EXPR_STMT, expr.position);
+	exprStmt.v.unary = expr;
+
+	return exprStmt;
 }
 
 function Parser.parse_block(): Node* {
