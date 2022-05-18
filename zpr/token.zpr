@@ -40,6 +40,7 @@ var TOKEN_CHAR_LITERAL = __tk_count = __tk_count + 1;
 var TOKEN_STRING = __tk_count = __tk_count + 1;
 var TOKEN_IDENTIFIER = __tk_count = __tk_count + 1;
 
+var TOKEN_AS = __tk_count = __tk_count + 1;
 var TOKEN_ELSE = __tk_count = __tk_count + 1;
 var TOKEN_IF = __tk_count = __tk_count + 1;
 var TOKEN_INT = __tk_count = __tk_count + 1;
@@ -103,6 +104,7 @@ function token_type_to_string(type: int): i8* {
 	if(type == TOKEN_STRING) return "string";
 	if(type == TOKEN_IDENTIFIER) return "identifier";
 
+	if(type == TOKEN_AS) return "as";
 	if(type == TOKEN_ELSE) return "else";
 	if(type == TOKEN_IF) return "if";
 	if(type == TOKEN_INT) return "int";

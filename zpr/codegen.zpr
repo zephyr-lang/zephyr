@@ -323,6 +323,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	else if(expr.type == OP_ASSIGN_DEREF) {
 		generate_assign_deref(expr, out);
 	}
+	else if(expr.type == AST_CAST) {
+		generate_expr_rax(expr.v.unary, out);
+	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
 		exit(1);

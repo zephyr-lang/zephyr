@@ -308,13 +308,29 @@ function Parser.parse_unary(): Node* {
 	return this.parse_subscript();
 }
 
-function Parser.parse_term(): Node* {
+function Parser.parse_as_cast(): Node* {
 	var left = this.parse_unary();
+
+	if(this.match(TOKEN_AS)) {
+		var op = this.previous;
+		var castTo = this.parse_type();
+
+		var cast = new_node(AST_CAST, op);
+		cast.v.unary = left;
+		cast.computedType = castTo;
+		left = cast;
+	}
+
+	return left;
+}
+
+function Parser.parse_term(): Node* {
+	var left = this.parse_as_cast();
 
 	while(this.match(TOKEN_STAR) || this.match(TOKEN_SLASH) || this.match(TOKEN_PERCENT)) {
 		var op = this.previous;
 
-		var right = this.parse_unary();
+		var right = this.parse_as_cast();
 
 		var type: int;
 		if(op.type == TOKEN_STAR) type = OP_MUL;

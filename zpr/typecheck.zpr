@@ -466,6 +466,12 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == OP_ASSIGN_DEREF) {
 		this.type_check_assign_deref(expr);
 	}
+	else if(expr.type == AST_CAST) {
+		// NOTE: All casts are completely allowed at the moment. Whether or not this is good
+		//       or requires a warning in some cases is to be decided.
+		this.type_check_expr(expr.v.unary);
+		tc_typeStack.push(expr.computedType);
+	}
 	else {
 		eputsln("Unreachable - type_check_expr");
 		exit(1);
