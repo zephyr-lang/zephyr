@@ -113,6 +113,8 @@ struct Node {
 		block: struct {
 			children: Vector*;
 
+			hasReturned: int;
+
 			parent: Node*;
 			variables: Vector*;
 			currentStackOffset: int;
@@ -334,7 +336,13 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == AST_RETURN) {
 		putsln("return");
-		print_ast_depth(node.v.unary, depth + 1);
+		if(node.v.unary != null) {
+			print_ast_depth(node.v.unary, depth + 1);
+		}
+		else {
+			for(var i = 0; i < depth + 1; i = i + 1) puts("  ");
+			puts("(void)");
+		}
 		putln();
 	}
 	else if(node.type == AST_DEFINE_VAR || node.type == AST_DEFINE_GLOBAL_VAR) {

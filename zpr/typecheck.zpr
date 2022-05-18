@@ -13,6 +13,10 @@ function Type.is_integral(): int {
 	);
 }
 
+function Type.is_void(): int {
+	return this.indirection == 0 && this.type == DATA_TYPE_VOID;
+}
+
 function Type.assignable(b: Type*): int {
 	if(this.is_integral() && b.is_integral()) {
 		return true;
@@ -523,8 +527,15 @@ function Parser.type_check_if_statement(stmt: Node*) {
 
 	this.type_check_statement(stmt.v.conditional.doTrue);
 
-	if(stmt.v.conditional.doFalse != null)
+	var trueHasReturned = this.currentBlock.v.block.hasReturned;
+	var falseHasReturned = false;
+
+	if(stmt.v.conditional.doFalse != null) {
 		this.type_check_statement(stmt.v.conditional.doFalse);
+		falseHasReturned = this.currentBlock.v.block.hasReturned;
+	}
+
+	this.currentBlock.v.block.hasReturned = trueHasReturned && falseHasReturned;
 }
 
 function Parser.type_check_while_statement(stmt: Node*) {
@@ -572,9 +583,15 @@ function Parser.type_check_statement(stmt: Node*) {
 		this.type_check_for_statement(stmt);
 	}
 	else if(stmt.type == AST_RETURN) {
-		this.type_check_expr(stmt.v.unary);
+		var returnType: Type*;
+		if(stmt.v.unary != null) {
+			this.type_check_expr(stmt.v.unary);
+			returnType = tc_typeStack.pop();
+		}
+		else {
+			returnType = VOID_TYPE;
+		}
 
-		var returnType: Type* = tc_typeStack.pop();
 		var expectedType = this.currentFunction.v.funktion.returnType;
 		if(!returnType.assignable(expectedType)) {
 			stmt.print_position();
@@ -582,6 +599,7 @@ function Parser.type_check_statement(stmt: Node*) {
 			eputsln("'");
 			exit(1);
 		}
+		this.currentBlock.v.block.hasReturned = true;
 	}
 	else if(stmt.type == AST_DEFINE_VAR) {
 		this.type_check_define_var(stmt);
@@ -591,6 +609,7 @@ function Parser.type_check_statement(stmt: Node*) {
 	}
 	else if(stmt.type == AST_BLOCK) {
 		this.type_check_block(stmt);
+		this.currentBlock.v.block.hasReturned = stmt.v.block.hasReturned;
 	}
 	else {
 		eputsln("Unreachable - type_check_statement");
@@ -604,6 +623,11 @@ function Parser.type_check_block(block: Node*) {
 	this.currentBlock = block;
 
 	for(var i = 0; i < block.v.block.children.size; i = i + 1) {
+		if(block.v.block.hasReturned) {
+			(block.v.block.children.at(i) as Node*).print_position();
+			eputsln("Unreachable code (all paths return)");
+			exit(1);
+		}
 		this.type_check_statement(block.v.block.children.at(i));
 	}
 
@@ -638,6 +662,20 @@ function Parser.type_check_function(funktion: Node*) {
 
 	this.currentBlock = funktion.v.funktion.body;
 	this.type_check_block(funktion.v.funktion.body);
+
+	if(!funktion.v.funktion.body.v.block.hasReturned) {
+		if(funktion.v.funktion.returnType.is_void()) {
+			var tok = synthetic_token(TOKEN_RETURN, "return");
+			var implReturn = new_node(AST_RETURN, tok);
+			funktion.v.funktion.body.add_child(implReturn);
+		}
+		else {
+			funktion.print_position();
+			eputs("A non-void returning function must return a value (returning '"); eputs(type_to_string(funktion.v.funktion.returnType));
+			eputsln("')");
+			exit(1);
+		}
+	}
 }
 
 function Parser.type_check_global_var(stmt: Node*) {

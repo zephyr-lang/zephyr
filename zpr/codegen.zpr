@@ -410,7 +410,8 @@ function generate_statement(stmt: Node*, out: File*) {
 		generate_for_statement(stmt, out);
 	}
 	else if(stmt.type == AST_RETURN) {
-		generate_expr_rax(stmt.v.unary, out);
+		if(stmt.v.unary != null)
+			generate_expr_rax(stmt.v.unary, out);
 		out.putsln("    leave");
 		out.putsln("    ret");
 	}

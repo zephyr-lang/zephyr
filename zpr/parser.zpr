@@ -532,7 +532,9 @@ function Parser.parse_for_statement(): Node* {
 
 function Parser.parse_return_statement(): Node* {
 	var returnStmt = new_node(AST_RETURN, this.previous);
-	returnStmt.v.unary = this.parse_expression();
+
+	if(!this.check(TOKEN_SEMICOLON))
+		returnStmt.v.unary = this.parse_expression();
 
 	this.consume(TOKEN_SEMICOLON, "Expected ';' after return statement");
 
