@@ -290,6 +290,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	else if(expr.type == AST_CHAR_LITERAL) {
 		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
 	}
+	else if(expr.type == AST_STRING) {
+		out.puts("    lea rax, [_s"); out.putd(expr.v.literal.az.string.id); out.putsln("]");
+	}
 	else if(expr.type == AST_ACCESS_VAR) {
 		generate_access_var(expr, out);
 	}
@@ -583,6 +586,17 @@ function Parser.generate_program(ast: Node*, out: File*) {
 			else {
 				out.puts(variable.v.variable.type.reserve()); out.putsln(" 1");
 			}
+		}
+	}
+
+	if(this.strings.size > 0) {
+		out.putsln("section .data");
+
+		for(var i = 0; i < this.strings.size; i = i + 1) {
+			var str: Node* = this.strings.at(i);
+
+			out.puts("_s"); out.putd(str.v.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.v.literal.az.string.chars);
+			out.putc('"'); out.putsln(", 0");
 		}
 	}
 }

@@ -30,6 +30,7 @@ var OP_ACCESS_SUBSCRIPT = __nt_count = __nt_count + 1;
 var OP_ASSIGN_SUBSCRIPT = __nt_count = __nt_count + 1;
 var AST_INT_LITERAL = __nt_count = __nt_count + 1;
 var AST_CHAR_LITERAL = __nt_count = __nt_count + 1;
+var AST_STRING = __nt_count = __nt_count + 1;
 var AST_CALL = __nt_count = __nt_count + 1;
 var AST_DEFINE_VAR = __nt_count = __nt_count + 1;
 var AST_ACCESS_VAR = __nt_count = __nt_count + 1;
@@ -128,6 +129,11 @@ struct Node {
 
 			az: union {
 				integer: int;
+				string: struct {
+					chars: i8*;
+					length: int;
+					id: int;
+				};
 			};
 		};
 
@@ -192,6 +198,7 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_ASSIGN_SUBSCRIPT) return "=[";
 	if(type == AST_INT_LITERAL) return "int literal";
 	if(type == AST_CHAR_LITERAL) return "char literal";
+	if(type == AST_STRING) return "string";
 	if(type == AST_CALL) return "call";
 	if(type == AST_DEFINE_VAR) return "define var";
 	if(type == AST_ACCESS_VAR) return "access var";
@@ -369,6 +376,9 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == AST_CHAR_LITERAL) {
 		puts("(literal "); putc(node.v.literal.az.integer); puts(")");
+	}
+	else if(node.type == AST_STRING) {
+		puts("(literal "); puts(node.v.literal.az.string.chars); puts(")");
 	}
 	else if(node.type == OP_TERNARY) {
 		putsln("?");

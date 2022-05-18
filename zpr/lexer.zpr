@@ -140,6 +140,18 @@ function Lexer.character(): Token* {
 	return this.make_token(TOKEN_CHAR_LITERAL);
 }
 
+function Lexer.string(): Token* {
+	while(!this.is_at_end() && this.peek() != '"') {
+		this.advance();
+	}
+
+	if(!this.match('"')) {
+		return this.error_token("Expected closing double quote");
+	}
+
+	return this.make_token(TOKEN_STRING);
+}
+
 function Lexer.less_than(): int {
 	var type = TOKEN_LESS;
 
@@ -171,6 +183,7 @@ function Lexer.next(): Token* {
 	if(is_digit(c)) return this.number();
 
 	if(c == 39) return this.character();
+	if(c == '"') return this.string();
 
 	if(c == '(') return this.make_token(TOKEN_LEFT_PAREN);
 	if(c == ')') return this.make_token(TOKEN_RIGHT_PAREN);

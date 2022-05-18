@@ -37,6 +37,7 @@ var TOKEN_GEQ = __tk_count = __tk_count + 1;
 
 var TOKEN_INT_LITERAL = __tk_count = __tk_count + 1;
 var TOKEN_CHAR_LITERAL = __tk_count = __tk_count + 1;
+var TOKEN_STRING = __tk_count = __tk_count + 1;
 var TOKEN_IDENTIFIER = __tk_count = __tk_count + 1;
 
 var TOKEN_ELSE = __tk_count = __tk_count + 1;
@@ -99,6 +100,7 @@ function token_type_to_string(type: int): i8* {
 
 	if(type == TOKEN_INT_LITERAL) return "int-literal";
 	if(type == TOKEN_CHAR_LITERAL) return "char-literal";
+	if(type == TOKEN_STRING) return "string";
 	if(type == TOKEN_IDENTIFIER) return "identifier";
 
 	if(type == TOKEN_ELSE) return "else";

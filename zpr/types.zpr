@@ -2,6 +2,7 @@ import "zpr/ast.zpr";
 
 var INT_TYPE: Type*;
 var I8_TYPE: Type*;
+var STR_TYPE: Type*;
 var VOID_TYPE: Type*;
 
 function new_type(): Type* {
@@ -23,6 +24,10 @@ function build_types() {
 
 	I8_TYPE = new_type();
 	I8_TYPE.type = DATA_TYPE_I8;
+
+	STR_TYPE = new_type();
+	STR_TYPE.type = DATA_TYPE_I8;
+	STR_TYPE.indirection = 1;
 
 	VOID_TYPE = new_type();
 	VOID_TYPE.type = DATA_TYPE_VOID;

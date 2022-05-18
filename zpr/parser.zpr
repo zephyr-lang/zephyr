@@ -15,6 +15,8 @@ struct Parser {
 
 	globalVars: Vector*;
 
+	strings: Vector*;
+
 	error: int;
 	panic: int;
 }
@@ -24,6 +26,7 @@ function new_parser(lexer: Lexer*): Parser* {
 	parser.lexer = lexer;
 	parser.functions = new_vector();
 	parser.globalVars = new_vector();
+	parser.strings = new_vector();
 	return parser;
 }
 
@@ -201,6 +204,25 @@ function Parser.parse_value(): Node* {
 		var literalNode = new_node(AST_CHAR_LITERAL, literal);
 		literalNode.v.literal.type = I8_TYPE;
 		literalNode.v.literal.az.integer = literal.start[1];
+
+		return literalNode;
+	}
+	else if(this.match(TOKEN_STRING)) {
+		var literal = this.previous;
+		if(this.error) return null;
+
+		var literalNode = new_node(AST_STRING, literal);
+		literalNode.v.literal.type = STR_TYPE;
+
+		var buf = malloc(literal.length - 2 + 1);
+		memcpy(buf, &literal.start[1], literal.length - 2);
+		buf[literal.length - 2] = 0;
+
+		literalNode.v.literal.az.string.chars = buf;
+		literalNode.v.literal.az.string.length = literal.length - 2;
+		literalNode.v.literal.az.string.id = this.strings.size;
+
+		this.strings.push(literalNode);
 
 		return literalNode;
 	}
