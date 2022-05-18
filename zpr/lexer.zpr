@@ -133,6 +133,13 @@ function Lexer.identifier(): Token* {
 	return this.make_token(this.identifier_type());
 }
 
+function Lexer.character(): Token* {
+	if(this.is_at_end()) return this.error_token("Expected character literal");
+	this.advance();
+	if(!this.match(39)) return this.error_token("Expected closing single quote");
+	return this.make_token(TOKEN_CHAR_LITERAL);
+}
+
 function Lexer.less_than(): int {
 	var type = TOKEN_LESS;
 
@@ -162,6 +169,8 @@ function Lexer.next(): Token* {
 
 	if(is_alpha(c)) return this.identifier();
 	if(is_digit(c)) return this.number();
+
+	if(c == 39) return this.character();
 
 	if(c == '(') return this.make_token(TOKEN_LEFT_PAREN);
 	if(c == ')') return this.make_token(TOKEN_RIGHT_PAREN);

@@ -1,6 +1,7 @@
 import "zpr/ast.zpr";
 
 var INT_TYPE: Type*;
+var I8_TYPE: Type*;
 var VOID_TYPE: Type*;
 
 function new_type(): Type* {
@@ -19,6 +20,9 @@ function copy_type(a: Type*): Type* {
 function build_types() {
 	INT_TYPE = new_type();
 	INT_TYPE.type = DATA_TYPE_INT;
+
+	I8_TYPE = new_type();
+	I8_TYPE.type = DATA_TYPE_I8;
 
 	VOID_TYPE = new_type();
 	VOID_TYPE.type = DATA_TYPE_VOID;

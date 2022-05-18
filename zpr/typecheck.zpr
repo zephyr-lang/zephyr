@@ -436,6 +436,9 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == AST_INT_LITERAL) {
 		tc_typeStack.push(INT_TYPE);
 	}
+	else if(expr.type == AST_CHAR_LITERAL) {
+		tc_typeStack.push(I8_TYPE);
+	}
 	else if(expr.type == AST_ACCESS_VAR) {
 		this.type_check_access_var(expr);
 	}

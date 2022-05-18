@@ -140,6 +140,12 @@ function Parser.parse_constant(): int {
 
 		return atoi(literal.start);
 	}
+	else if(this.match(TOKEN_CHAR_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return 0;
+
+		return literal.start[1];
+	}
 	else {
 		this.error_current("Expected constant value");
 		return 0;
@@ -185,6 +191,16 @@ function Parser.parse_value(): Node* {
 		var literalNode = new_node(AST_INT_LITERAL, literal);
 		literalNode.v.literal.type = INT_TYPE;
 		literalNode.v.literal.az.integer = atoi(literal.start);
+
+		return literalNode;
+	}
+	else if(this.match(TOKEN_CHAR_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return null;
+
+		var literalNode = new_node(AST_CHAR_LITERAL, literal);
+		literalNode.v.literal.type = I8_TYPE;
+		literalNode.v.literal.az.integer = literal.start[1];
 
 		return literalNode;
 	}

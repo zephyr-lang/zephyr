@@ -287,6 +287,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	else if(expr.type == AST_INT_LITERAL) {
 		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
 	}
+	else if(expr.type == AST_CHAR_LITERAL) {
+		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
+	}
 	else if(expr.type == AST_ACCESS_VAR) {
 		generate_access_var(expr, out);
 	}
