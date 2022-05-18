@@ -791,6 +791,45 @@ function Parser.add_implicit_printu_function() {
 	this.functions.push(funktion);
 }
 
+// Modelled after the write syscall
+function Parser.add_implicit_syscall3_function() {
+	var name = synthetic_token(TOKEN_IDENTIFIER, "syscall3");
+	var funktion = new_node(AST_FUNCTION, name);
+	funktion.v.funktion.name = name;
+
+	funktion.v.funktion.arguments = new_vector();
+
+	var nrTok = synthetic_token(TOKEN_IDENTIFIER, "nr");
+	var nr = new_node(AST_DEFINE_VAR, nrTok);
+	nr.v.variable.name = nr;
+	nr.v.variable.type = INT_TYPE;
+	funktion.v.funktion.arguments.push(nr);
+
+	var fdTok = synthetic_token(TOKEN_IDENTIFIER, "fd");
+	var fd = new_node(AST_DEFINE_VAR, fdTok);
+	fd.v.variable.name = fd;
+	fd.v.variable.type = INT_TYPE;
+	funktion.v.funktion.arguments.push(fd);
+
+	var bufTok = synthetic_token(TOKEN_IDENTIFIER, "buf");
+	var buf = new_node(AST_DEFINE_VAR, bufTok);
+	buf.v.variable.name = buf;
+	buf.v.variable.type = STR_TYPE;
+	funktion.v.funktion.arguments.push(buf);
+
+	var countTok = synthetic_token(TOKEN_IDENTIFIER, "count");
+	var count = new_node(AST_DEFINE_VAR, countTok);
+	count.v.variable.name = count;
+	count.v.variable.type = INT_TYPE;
+	funktion.v.funktion.arguments.push(count);
+
+	funktion.v.funktion.returnType = INT_TYPE;
+
+	funktion.v.funktion.hasImplicitBody = true;
+
+	this.functions.push(funktion);
+}
+
 function Parser.parse_program(): Node* {
 	var program = new_node(AST_PROGRAM, this.current);
 	program.v.block.children = new_vector();
@@ -798,6 +837,7 @@ function Parser.parse_program(): Node* {
 	this.advance();
 
 	this.add_implicit_printu_function();
+	this.add_implicit_syscall3_function();
 
 	while(!this.match(TOKEN_EOF)) {
 		if(this.match(TOKEN_FUNCTION)) {

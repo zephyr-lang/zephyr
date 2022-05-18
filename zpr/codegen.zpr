@@ -514,9 +514,20 @@ function generate_implicit_printu_impl(out: File*) {
 	out.putsln("		ret");
 }
 
+function generate_implicit_syscall3_impl(out: File*) {
+	out.putsln("syscall3:");
+	out.putsln("    mov rax, rdi");
+	out.putsln("    mov rdi, rsi");
+	out.putsln("    mov rsi, rdx");
+	out.putsln("    mov rdx, rcx");
+	out.putsln("    syscall");
+	out.putsln("    ret");
+}
+
 function Parser.generate_program(ast: Node*, out: File*) {
 	out.putsln("section .text");
 	generate_implicit_printu_impl(out);
+	generate_implicit_syscall3_impl(out);
 
 	for(var i = 0; i < ast.v.block.children.size; i = i + 1) {
 		var node: Node* = ast.v.block.children.at(i);
