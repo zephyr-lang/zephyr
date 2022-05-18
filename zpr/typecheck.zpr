@@ -399,6 +399,33 @@ function Parser.type_check_assign_subscript(expr: Node*) {
 	tc_typeStack.push(itemType);
 }
 
+function Parser.type_check_assign_deref(expr: Node*) {
+	this.type_check_expr(expr.v.binary.lhs);
+	var refType: Type* = tc_typeStack.pop();
+
+	if(refType.indirection == 0) {
+		expr.print_position();
+		eputs("Cannot dereference non-pointer type '"); eputs(type_to_string(refType)); eputsln("'");
+		exit(1);
+	}
+
+	this.type_check_expr(expr.v.binary.rhs);
+	var valueType: Type* = tc_typeStack.pop();
+
+	var subType = copy_type(refType);
+	subType.indirection = subType.indirection - 1;
+
+	if(!valueType.assignable(subType)) {
+		expr.print_position();
+		eputs("Cannot assign value of type '"); eputs(type_to_string(valueType)); eputs("' to dereferenced type '"); eputs(type_to_string(subType));
+		eputsln("'");
+		exit(1);
+	}
+
+	expr.computedType = refType;
+	tc_typeStack.push(refType);
+}
+
 function Parser.type_check_expr(expr: Node*) {
 	if(is_unary_op(expr.type)) {
 		this.type_check_unary(expr);
@@ -429,6 +456,9 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == OP_ASSIGN_SUBSCRIPT) {
 		this.type_check_assign_subscript(expr);
+	}
+	else if(expr.type == OP_ASSIGN_DEREF) {
+		this.type_check_assign_deref(expr);
 	}
 	else {
 		eputsln("Unreachable - type_check_expr");

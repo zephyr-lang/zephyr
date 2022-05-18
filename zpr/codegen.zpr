@@ -102,6 +102,15 @@ function generate_deref_rax(expr: Node*, out: File*) {
 	out.puts(expr.computedType.qualifier()); out.putsln(" [rax]");
 }
 
+function generate_assign_deref(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    pop rcx");
+
+	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
+}
+
 function generate_unary_rax(expr: Node*, out: File*) {
 	if(expr.type == OP_BWNOT) {
 		generate_expr_rax(expr.v.unary, out);
@@ -304,6 +313,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	}
 	else if(expr.type == OP_ASSIGN_SUBSCRIPT) {
 		generate_assign_subscript(expr, out);
+	}
+	else if(expr.type == OP_ASSIGN_DEREF) {
+		generate_assign_deref(expr, out);
 	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();

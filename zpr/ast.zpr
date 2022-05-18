@@ -24,6 +24,7 @@ var OP_GREATER_EQ = __nt_count = __nt_count + 1;
 var OP_TERNARY = __nt_count = __nt_count + 1;
 var OP_ADDROF = __nt_count = __nt_count + 1;
 var OP_DEREF = __nt_count = __nt_count + 1;
+var OP_ASSIGN_DEREF = __nt_count = __nt_count + 1;
 var OP_SIZEOF = __nt_count = __nt_count + 1;
 var OP_ACCESS_SUBSCRIPT = __nt_count = __nt_count + 1;
 var OP_ASSIGN_SUBSCRIPT = __nt_count = __nt_count + 1;
@@ -65,6 +66,7 @@ var __lv_count = -1;
 var LVALUE_NONE = __lv_count = __lv_count + 1;
 var LVALUE_IDENTIFIER = __lv_count = __lv_count + 1;
 var LVALUE_SUBSCRIPT = __lv_count = __lv_count + 1;
+var LVALUE_DEREF = __lv_count = __lv_count + 1;
 
 struct Node {
 	type: int; // NodeType
@@ -183,6 +185,7 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_TERNARY) return "?";
 	if(type == OP_ADDROF) return "&";
 	if(type == OP_DEREF) return "*";
+	if(type == OP_ASSIGN_DEREF) return "* =";
 	if(type == OP_SIZEOF) return "sizeof";
 	if(type == OP_ACCESS_SUBSCRIPT) return "[";
 	if(type == OP_ASSIGN_SUBSCRIPT) return "=[";
@@ -401,6 +404,16 @@ function print_ast_depth(node: Node*, depth: int) {
 		}
 		for(var i = 0; i < depth; i = i + 1) puts("  ");
 		puts("]");
+	}
+	else if(node.type == OP_DEREF) {
+		putsln("*");
+		print_ast_depth(node.v.unary, depth + 1);
+	}
+	else if(node.type == OP_ASSIGN_DEREF) {
+		putsln("* =");
+		print_ast_depth(node.v.binary.lhs, depth + 1);
+		putln();
+		print_ast_depth(node.v.binary.rhs, depth + 1);
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

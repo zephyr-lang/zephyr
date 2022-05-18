@@ -42,7 +42,8 @@ function allow_expr_stmt(expr: Node*): int {
 	return expr.type == AST_CALL ||
 	       expr.type == AST_ASSIGN_VAR ||
 		   expr.type == AST_ASSIGN_GLOBAL_VAR ||
-		   expr.type == OP_ASSIGN_SUBSCRIPT;
+		   expr.type == OP_ASSIGN_SUBSCRIPT ||
+		   expr.type == OP_ASSIGN_DEREF;
 }
 
 function Parser.error_at_token(token: Token*, message: i8*) {
@@ -262,6 +263,7 @@ function Parser.parse_unary(): Node* {
 		var expr = this.parse_unary();
 		var deref = new_node(OP_DEREF, op);
 		deref.v.unary = expr;
+		deref.lvalue = LVALUE_DEREF;
 		return deref;
 	}
 
@@ -469,12 +471,18 @@ function Parser.parse_assignment_expression(): Node* {
 			assign.v.variable.value = right;
 			left = assign;
 		}
-		else if(left.lvalue = LVALUE_SUBSCRIPT) {
+		else if(left.lvalue == LVALUE_SUBSCRIPT) {
 			var subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
 			subscript.v.ternary.lhs = left.v.binary.lhs;
 			subscript.v.ternary.mid = left.v.binary.rhs;
 			subscript.v.ternary.rhs = right;
 			left = subscript;
+		}
+		else if(left.lvalue == LVALUE_DEREF) {
+			var assign = new_node(OP_ASSIGN_DEREF, op);
+			assign.v.binary.lhs = left.v.unary;
+			assign.v.binary.rhs = right;
+			left = assign;
 		}
 		else {
 			eputsln("Unreachable - invalid lvalue in parse_assignment_exression");
