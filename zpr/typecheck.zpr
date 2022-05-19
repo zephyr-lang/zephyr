@@ -20,7 +20,12 @@ function Type.is_void(): int {
 
 function Type.is_structural(): int {
 	resolve_type(&this);
-	return this.type == DATA_TYPE_STRUCT && this.indirection == 0;
+	return this.is_structural_base() && this.indirection == 0;
+}
+
+function Type.is_structural_base(): int {
+	resolve_type(&this);
+	return this.type == DATA_TYPE_STRUCT || this.type == DATA_TYPE_UNION;
 }
 
 function Type.assignable(b: Type*): int {
@@ -65,6 +70,14 @@ function Type.size(): int {
 		var size = 0;
 		for(var i = 0; i < this.fields.size; i = i + 1) {
 			size = size + (this.fields.at(i) as Node*).v.variable.type.size_offset();
+		}
+		return size;
+	}
+	if(this.type == DATA_TYPE_UNION) {
+		var size = 0;
+		for(var i = 0; i < this.fields.size; i = i + 1) {
+			var memSize = (this.fields.at(i) as Node*).v.variable.type.size_offset();
+			size = memSize > size ? memSize : size;
 		}
 		return size;
 	}
@@ -598,10 +611,10 @@ function Parser.type_check_access_member(expr: Node*) {
 	var name = expr.v.member.name;
 	var field: Node*;
 
-	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+	if(parentType.is_structural_base() && parentType.indirection == 0) {
 		field = parentType.lookup_field(name);
 	}
-	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+	else if(parentType.is_structural_base() && parentType.indirection == 1 && !parentType.isArray) {
 		var copy = copy_type(parentType);
 		copy.indirection = copy.indirection - 1;
 		field = copy.lookup_field(name);
@@ -626,10 +639,10 @@ function Parser.type_check_assign_member(expr: Node*) {
 	var name = expr.v.member.name;
 	var field: Node*;
 
-	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+	if(parentType.is_structural_base() && parentType.indirection == 0) {
 		field = parentType.lookup_field(name);
 	}
-	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+	else if(parentType.is_structural_base() && parentType.indirection == 1 && !parentType.isArray) {
 		var copy = copy_type(parentType);
 		copy.indirection = copy.indirection - 1;
 
@@ -1049,6 +1062,22 @@ function Parser.type_check(program: Node*) {
 				
 				member.v.variable.stackOffset = offset;
 				offset = offset + member.v.variable.type.size_offset();
+			}
+		}
+		else if(node.type == AST_UNION) {
+			for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
+				var field: Node* = node.computedType.fields.at(i);
+				var type = field.v.variable.type;
+
+				if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_UNION) && type.name.equals(node.computedType.name) && type.indirection == 0) {
+					field.print_position();
+					eputsln("A union cannot contain a member of itself (use a pointer instead)");
+					exit(1);
+				}
+
+				field.v.variable.stackOffset = 0;
+
+				resolve_type(&type);
 			}
 		}
 		else {

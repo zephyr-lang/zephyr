@@ -96,6 +96,7 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("return")) return TOKEN_RETURN;
 	if(this.match_keyword("sizeof")) return TOKEN_SIZEOF;
 	if(this.match_keyword("struct")) return TOKEN_STRUCT;
+	if(this.match_keyword("union")) return TOKEN_UNION;
 	if(this.match_keyword("var")) return TOKEN_VAR;
 	if(this.match_keyword("void")) return TOKEN_VOID;
 	if(this.match_keyword("while")) return TOKEN_WHILE;

@@ -914,6 +914,50 @@ function Parser.parse_struct_definition(): Node* {
 	return strukt;
 }
 
+function Parser.parse_union_definition(): Node* {
+	var name = this.consume(TOKEN_IDENTIFIER, "Expected union name");
+
+	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before union body");
+
+	if(this.match(TOKEN_RIGHT_BRACE)) this.error("Expected at least one union member");
+
+	var unionType = new_type();
+	unionType.type = DATA_TYPE_UNION;
+	unionType.name = name;
+	unionType.fields = new_vector();
+
+	//TODO: do ... while
+	var run = true;
+
+	while(run || !this.check(TOKEN_RIGHT_BRACE)) {
+		run = false;
+
+		var memName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
+
+		this.consume(TOKEN_COLON, "Expected ':' after member name");
+
+		var memType = this.parse_type();
+
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		var member = new_node(AST_MEMBER, memName);
+		member.v.variable.name = memName;
+		member.v.variable.type = memType;
+
+		unionType.fields.push(member);
+	}
+
+	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after union body");
+
+	var vnion = new_node(AST_UNION, name);
+	vnion.computedType = unionType;
+	vnion.v.variable.name = name;
+
+	this.definedTypes.push(unionType);
+
+	return vnion;
+}
+
 function Parser.add_implicit_printu_function() {
 	var name = synthetic_token(TOKEN_IDENTIFIER, "printu");
 	var funktion = new_node(AST_FUNCTION, name);
@@ -995,6 +1039,10 @@ function Parser.parse_program(): Node* {
 		else if(this.match(TOKEN_STRUCT)) {
 			var strukt = this.parse_struct_definition();
 			program.add_child(strukt);
+		}
+		else if(this.match(TOKEN_UNION)) {
+			var vnion = this.parse_union_definition();
+			program.add_child(vnion);
 		}
 		else {
 			this.error_current("Expected definition");

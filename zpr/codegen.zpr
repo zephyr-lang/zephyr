@@ -101,7 +101,7 @@ function generate_addrof_rax(expr: Node*, out: File*) {
 }
 
 function generate_deref_rax(expr: Node*, out: File*) {
-	if(expr.computedType.size() > 8) {
+	if(expr.computedType.is_structural()) {
 		eputsln("Cannot copy structs (yet)");
 		exit(1);
 	}
@@ -250,7 +250,7 @@ function generate_ternary_rax(expr: Node*, out: File*) {
 }
 
 function generate_access_var(expr: Node*, out: File*) {
-	if(expr.v.variable.type.isArray || expr.v.variable.type.size() > 8) {
+	if(expr.v.variable.type.isArray || expr.v.variable.type.is_structural()) {
 		out.puts("    lea rax, [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
 		return;
 	}
@@ -260,7 +260,7 @@ function generate_access_var(expr: Node*, out: File*) {
 }
 
 function generate_assign_var(expr: Node*, out: File*) {
-	if(expr.v.variable.type.size() > 8) {
+	if(expr.v.variable.type.is_structural()) {
 		eputsln("Cannot copy structs (yet)");
 		exit(1);
 	}
@@ -272,7 +272,7 @@ function generate_assign_var(expr: Node*, out: File*) {
 }
 
 function generate_access_global_var(expr: Node*, out: File*) {
-	if(expr.v.variable.type.isArray || expr.v.variable.type.size() > 8) {
+	if(expr.v.variable.type.isArray || expr.v.variable.type.is_structural()) {
 		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
 		return;
 	}
@@ -282,7 +282,7 @@ function generate_access_global_var(expr: Node*, out: File*) {
 }
 
 function generate_assign_global_var(expr: Node*, out: File*) {
-	if(expr.v.variable.type.size() > 8) {
+	if(expr.v.variable.type.is_structural()) {
 		eputsln("Cannot copy structs (yet)");
 		exit(1);
 	}
@@ -320,7 +320,7 @@ function generate_access_member(expr: Node*, out: File*) {
 	generate_expr_rax(expr.v.member.parent, out);
 	var field = expr.v.member.memberRef;
 
-	out.puts("    "); out.puts(field.v.variable.type.movzx()); out.puts(" "); out.puts(field.v.variable.type.rax_subregister());
+	out.puts("    "); out.puts(field.v.variable.type.movzx()); out.puts(" "); out.puts(field.v.variable.type.movzx_rax_subregister());
 	out.puts(", "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
 }
 
@@ -616,6 +616,9 @@ function Parser.generate_program(ast: Node*, out: File*) {
 			// Handled below
 		}
 		else if(node.type == AST_STRUCT) {
+			// No code generated
+		}
+		else if(node.type == AST_UNION) {
 			// No code generated
 		}
 		else {
