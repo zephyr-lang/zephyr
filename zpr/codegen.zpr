@@ -148,7 +148,42 @@ function generate_unary_rax(expr: Node*, out: File*) {
 	}
 }
 
+function generate_logical_or_rax(expr: Node*, out: File*) {
+	var label = cg_lableCount = cg_lableCount + 1;
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    mov rax, 1");
+	out.putsln("    test rcx, rcx");
+	out.puts("    jne .l"); out.putd(label); out.putln();
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    test rax, rax");
+	out.putsln("    setne al");
+	out.putsln("    movzx rax, al");
+	out.puts(".l"); out.putd(label); out.putsln(":");
+}
+
+function generate_logical_and_rax(expr: Node*, out: File*) {
+	var label = cg_lableCount = cg_lableCount + 1;
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    test rax, rax");
+	out.puts("    je .l"); out.putd(label); out.putln();
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    test rax, rax");
+	out.putsln("    setne al");
+	out.putsln("    movzx rax, al");
+	out.puts(".l"); out.putd(label); out.putsln(":");
+}
+
 function generate_binary_rax(expr: Node*, out: File*) {
+	if(expr.type == OP_OR) {
+		generate_logical_or_rax(expr, out);
+		return;
+	}
+	else if(expr.type == OP_AND) {
+		generate_logical_and_rax(expr, out);
+		return;
+	}
+
 	generate_expr_rax(expr.v.binary.lhs, out);
 	out.putsln("    push rax");
 	generate_expr_rax(expr.v.binary.rhs, out);

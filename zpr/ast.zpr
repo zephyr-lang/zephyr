@@ -21,6 +21,8 @@ var OP_LESS = __nt_count = __nt_count + 1;
 var OP_LESS_EQ = __nt_count = __nt_count + 1;
 var OP_GREATER = __nt_count = __nt_count + 1;
 var OP_GREATER_EQ = __nt_count = __nt_count + 1;
+var OP_AND = __nt_count = __nt_count + 1;
+var OP_OR = __nt_count = __nt_count + 1;
 var OP_TERNARY = __nt_count = __nt_count + 1;
 var OP_ADDROF = __nt_count = __nt_count + 1;
 var OP_DEREF = __nt_count = __nt_count + 1;
@@ -236,6 +238,8 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_LESS_EQ) return "<=";
 	if(type == OP_GREATER) return ">";
 	if(type == OP_GREATER_EQ) return ">=";
+	if(type == OP_AND) return "&&";
+	if(type == OP_OR) return "||";
 	if(type == OP_TERNARY) return "?";
 	if(type == OP_ADDROF) return "&";
 	if(type == OP_DEREF) return "*";
@@ -298,7 +302,9 @@ function is_binary_op(type: int): int {
 		type == OP_LESS ||
 		type == OP_LESS_EQ ||
 		type == OP_GREATER ||
-		type == OP_GREATER_EQ
+		type == OP_GREATER_EQ ||
+		type == OP_OR ||
+		type == OP_AND
 	);
 }
 

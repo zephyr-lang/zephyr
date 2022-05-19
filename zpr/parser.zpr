@@ -534,8 +534,42 @@ function Parser.parse_bwor(): Node* {
 	return left;
 }
 
+function Parser.parse_and(): Node* {
+	var left = this.parse_bwor();
+
+	while(this.match(TOKEN_AMP_AMP)) {
+		var op = this.previous;
+
+		var right = this.parse_bwor();
+
+		var binary = new_node(OP_AND, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_or(): Node* {
+	var left = this.parse_and();
+
+	while(this.match(TOKEN_BAR_BAR)) {
+		var op = this.previous;
+
+		var right = this.parse_and();
+
+		var binary = new_node(OP_OR, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
 function Parser.parse_ternary_expression(): Node* {
-	var condition = this.parse_bwor();
+	var condition = this.parse_or();
 
 	if(this.match(TOKEN_QUESTION)) {
 		var op = this.previous;
