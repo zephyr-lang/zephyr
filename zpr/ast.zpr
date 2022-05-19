@@ -63,6 +63,7 @@ var DATA_TYPE_I8 = __dt_count = __dt_count + 1;
 var DATA_TYPE_I16 = __dt_count = __dt_count + 1;
 var DATA_TYPE_I32 = __dt_count = __dt_count + 1;
 var DATA_TYPE_I64 = __dt_count = __dt_count + 1;
+var DATA_TYPE_ANY = __dt_count = __dt_count + 1;
 var DATA_TYPE_STRUCT = __dt_count = __dt_count + 1;
 var DATA_TYPE_UNION = __dt_count = __dt_count + 1;
 var DATA_TYPE_UNRESOLVED = __dt_count = __dt_count + 1;
@@ -180,6 +181,7 @@ function data_type_to_string(type: int): i8* {
 	if(type == DATA_TYPE_I16) return "i16";
 	if(type == DATA_TYPE_I32) return "i32";
 	if(type == DATA_TYPE_I64) return "i64";
+	if(type == DATA_TYPE_ANY) return "any";
 	if(type == DATA_TYPE_UNRESOLVED || type == DATA_TYPE_STRUCT || type == DATA_TYPE_UNION) {
 		eputsln("Unreachable - data_type_to_string");
 		return null;

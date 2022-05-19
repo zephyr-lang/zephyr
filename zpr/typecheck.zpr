@@ -32,6 +32,10 @@ function Type.assignable(b: Type*): int {
 	resolve_type(&this);
 	resolve_type(&b);
 
+	if(b.type == DATA_TYPE_ANY) {
+		return true;
+	}
+
 	if(this.is_integral() && b.is_integral()) {
 		return true;
 	}
@@ -66,6 +70,7 @@ function Type.size(): int {
 	if(this.type == DATA_TYPE_I16) return 2;
 	if(this.type == DATA_TYPE_I32) return 4;
 	if(this.type == DATA_TYPE_I64) return 8;
+	if(this.type == DATA_TYPE_ANY) return 8;
 	if(this.type == DATA_TYPE_STRUCT) {
 		var size = 0;
 		for(var i = 0; i < this.fields.size; i = i + 1) {
