@@ -89,6 +89,11 @@ function generate_addrof_rax(expr: Node*, out: File*) {
 
 		out.puts("    lea rax, [rax+rcx*"); out.putd(expr.v.unary.computedType.size()); out.putsln("]");
 	}
+	else if(expr.v.unary.lvalue == LVALUE_MEMBER) {
+		generate_expr_rax(expr.v.unary.v.member.parent, out);
+		var field = expr.v.unary.v.member.memberRef;
+		out.puts("    lea rax, [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	}
 	else {
 		eputs("Unsupported lvalue in generate_addrof_rax - "); eputd(expr.v.unary.lvalue); eputln();
 		exit(1);
