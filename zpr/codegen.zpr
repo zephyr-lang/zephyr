@@ -206,7 +206,26 @@ function generate_call_rax(expr: Node*, out: File*) {
 		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i]); out.putsln(", rax");
 	}
 
-	out.puts("    call "); out.put_token_string(expr.v.funktion.name); out.putln();
+	out.puts("    call _f_"); out.put_token_string(expr.v.funktion.name); out.putln();
+}
+
+function generate_call_method_rax(expr: Node*, out: File*) {
+	if(expr.v.funktion.arguments.size > 6) {
+		eputsln("Methods cannot have more than 5 arguments");
+		eput_token_string(expr.v.funktion.name); eputln();
+		exit(1);
+	}
+
+	generate_expr_rax(expr.v.funktion.parent, out);
+	out.putsln("    mov rdi, rax");
+
+	for(var i = 1; i < expr.v.funktion.arguments.size; i = i + 1) {
+		generate_expr_rax(expr.v.funktion.arguments.at(i), out);
+		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i]); out.putsln(", rax");
+	}
+
+	out.puts("    call _m_"); out.put_token_string(expr.v.funktion.parentType.name); out.puts("_"); out.put_token_string(expr.v.funktion.name);
+	out.putln();
 }
 
 function generate_ternary_rax(expr: Node*, out: File*) {
@@ -340,6 +359,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	}
 	else if(expr.type == AST_CALL) {
 		generate_call_rax(expr, out);
+	}
+	else if(expr.type == AST_CALL_METHOD) {
+		generate_call_method_rax(expr, out);
 	}
 	else if(expr.type == OP_TERNARY) {
 		generate_ternary_rax(expr, out);
@@ -497,8 +519,17 @@ function generate_block(block: Node*, out: File*) {
 }
 
 function generate_function(funktion: Node*, out: File*) {
-	out.puts("global "); out.put_token_string(funktion.v.funktion.name); out.putln();
-	out.put_token_string(funktion.v.funktion.name); out.putsln(":");
+	if(!funktion.v.funktion.isMethod) {
+		out.puts("global _f_"); out.put_token_string(funktion.v.funktion.name); out.putln();
+		out.puts("_f_"); out.put_token_string(funktion.v.funktion.name); out.putsln(":");
+	}
+	else {
+		out.puts("global _m_"); out.put_token_string(funktion.v.funktion.parentType.name); 
+		out.puts("_"); out.put_token_string(funktion.v.funktion.name); out.putln();
+
+		out.puts("_m_"); out.put_token_string(funktion.v.funktion.parentType.name);
+		out.puts("_"); out.put_token_string(funktion.v.funktion.name); out.putsln(":");
+	}
 
 	out.putsln("    push rbp");
 	out.putsln("    mov rbp, rsp");
@@ -522,7 +553,7 @@ function generate_function(funktion: Node*, out: File*) {
 }
 
 function generate_implicit_printu_impl(out: File*) {
-	out.putsln("printu:");
+	out.putsln("_f_printu:");
 	out.putsln("		sub     rsp, 40");
 	out.putsln("		mov     eax, 10");
 	out.putsln("		mov     esi, 19");
@@ -557,7 +588,7 @@ function generate_implicit_printu_impl(out: File*) {
 }
 
 function generate_implicit_syscall3_impl(out: File*) {
-	out.putsln("syscall3:");
+	out.putsln("_f_syscall3:");
 	out.putsln("    mov rax, rdi");
 	out.putsln("    mov rdi, rsi");
 	out.putsln("    mov rsi, rdx");
@@ -619,7 +650,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		}
 	}
 
-	out.putsln("    call main");
+	out.putsln("    call _f_main");
 	out.putsln("    mov rdi, rax");
 	out.putsln("    mov rax, 60");
 	out.putsln("    syscall");

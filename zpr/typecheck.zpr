@@ -205,6 +205,24 @@ function Type.lookup_field(name: Token*): Node* {
 	return null;
 }
 
+function Type.lookup_method(name: Token*): Node* {
+	resolve_type(&this);
+
+	for(var i = 0; i < this.methods.size; i = i + 1) {
+		var method: Node* = this.methods.at(i);
+
+		if(method.v.funktion.name.equals(name)) {
+			return method;
+		}
+	}
+
+	name.print_position();
+	eputs("Type '"); eputs(type_to_string(this)); eputs("' has no method '"); eput_token_string(name); eputsln("'");
+	exit(1);
+
+	return null;
+}
+
 function Parser.type_check_addrof(expr: Node*) {
 	if(!expr.v.unary.lvalue) {
 		expr.print_position();
@@ -387,6 +405,68 @@ function Parser.type_check_call(expr: Node*) {
 			expr.print_position();
 			eputs("Function argument "); eputd(i + 1); eputs(" expected type '"); eputs(type_to_string(paramType)); eputs("' but got '");
 			eputs(type_to_string(argType)); eputsln("'");
+		}
+	}
+
+	tc_typeStack.push(funktion.v.funktion.returnType);
+}
+
+function Parser.type_check_method_call(expr: Node*) {
+	this.type_check_expr(expr.v.funktion.parent);
+
+	var parentType: Type* = tc_typeStack.pop();
+	resolve_type(&parentType);
+
+	var name = expr.v.funktion.name;
+	var funktion: Node*;
+
+	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+		funktion = parentType.lookup_method(name);
+	}
+	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+		var copy = copy_type(parentType);
+		copy.indirection = copy.indirection - 1;
+		funktion = copy.lookup_method(name);
+		parentType = copy;
+	}
+	else {
+		expr.print_position();
+		eputs("Cannot access method on type '"); eputs(type_to_string(parentType)); eputsln("'");
+		exit(1);
+	}
+
+	expr.v.funktion.parentType = parentType;
+
+	if(funktion == null) {
+		expr.print_position();
+		eputs("Unknown method '"); eput_token_string(name); eputs("'' of type '"); eputs(type_to_string(parentType)); eputsln("'");
+		exit(1);
+	}
+
+	if(funktion.type != AST_FUNCTION) {
+		expr.print_position();
+		eputsln("Can only call functions");
+		exit(1);
+	}
+
+	if(funktion.v.funktion.arguments.size - 1 != expr.v.funktion.arguments.size) {
+		expr.print_position();
+		eputs("Call expected "); eputd(funktion.v.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(expr.v.funktion.arguments.size); eputln();
+		exit(1);
+	}
+
+	for(var i = 1; i < funktion.v.funktion.arguments.size; i = i + 1) {
+		var arg: Node* = expr.v.funktion.arguments.at(i);
+		this.type_check_expr(arg);
+
+		var argType: Type* = tc_typeStack.pop();
+		var paramType = (funktion.v.funktion.arguments.at(i) as Node*).v.variable.type;
+
+		if(!argType.assignable(paramType)) {
+			expr.print_position();
+			eputs("Function argument "); eputd(i - 1); eputs(" expected type '"); eputs(type_to_string(paramType)); eputs("' but got '");
+			eputs(type_to_string(argType)); eputsln("'");
+			exit(1);
 		}
 	}
 
@@ -603,6 +683,9 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == AST_CALL) {
 		this.type_check_call(expr);
+	}
+	else if(expr.type == AST_CALL_METHOD) {
+		this.type_check_method_call(expr);
 	}
 	else if(expr.type == OP_TERNARY) {
 		this.type_check_ternary_expr(expr);

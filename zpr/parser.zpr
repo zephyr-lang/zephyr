@@ -46,11 +46,27 @@ function Node.add_child(child: Node*) {
 
 function allow_expr_stmt(expr: Node*): int {
 	return expr.type == AST_CALL ||
+	       expr.type == AST_CALL_METHOD ||
 	       expr.type == AST_ASSIGN_VAR ||
 		   expr.type == AST_ASSIGN_GLOBAL_VAR ||
 		   expr.type == OP_ASSIGN_SUBSCRIPT ||
 		   expr.type == OP_ASSIGN_DEREF ||
 		   expr.type == OP_ASSIGN_MEMBER;
+}
+
+//TODO: Remove duplicate code between parser and typechecker
+function Parser.lookup_type(name: Token*): Type* {
+	for(var i = 0; i < this.definedTypes.size; i = i + 1) {
+		var type: Type* = this.definedTypes.at(i);
+
+		if(type.name.equals(name)) {
+			return type;
+		}
+	}
+
+	this.error("Unknown Type");
+
+	return null;
 }
 
 function Parser.error_at_token(token: Token*, message: i8*) {
@@ -163,29 +179,33 @@ function Parser.parse_constant(): int {
 	}
 }
 
+function Parser.parse_call(name: Token*): Node* {
+	var call = new_node(AST_CALL, name);
+	call.v.funktion.name = name;
+	call.v.funktion.arguments = new_vector();
+
+	if(!this.check(TOKEN_RIGHT_PAREN)) {
+		var arg = this.parse_expression();
+
+		call.v.funktion.arguments.push(arg);
+
+		while(this.match(TOKEN_COMMA)) {
+			var arg = this.parse_expression();
+
+			call.v.funktion.arguments.push(arg);
+		}
+	}
+
+	this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
+
+	return call;
+}
+
 function Parser.parse_identifier(): Node* {
 	var name = this.previous;
 
 	if(this.match(TOKEN_LEFT_PAREN)) {
-		var call = new_node(AST_CALL, name);
-		call.v.funktion.name = name;
-		call.v.funktion.arguments = new_vector();
-
-		if(!this.check(TOKEN_RIGHT_PAREN)) {
-			var arg = this.parse_expression();
-
-			call.v.funktion.arguments.push(arg);
-
-			while(this.match(TOKEN_COMMA)) {
-				var arg = this.parse_expression();
-
-				call.v.funktion.arguments.push(arg);
-			}
-		}
-
-		this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
-
-		return call;
+		return this.parse_call(name);
 	}
 
 	var access = new_node(AST_ACCESS_VAR, name);
@@ -275,11 +295,21 @@ function Parser.parse_member_access(): Node* {
 		else {
 			var memberName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
 
-			var member = new_node(OP_ACCESS_MEMBER, op);
-			member.v.member.name = memberName;
-			member.v.member.parent = left;
-			member.lvalue = LVALUE_MEMBER;
-			left = member;
+			if(this.match(TOKEN_LEFT_PAREN)) {
+				var call = this.parse_call(memberName);
+				call.type = AST_CALL_METHOD;
+				call.v.funktion.name = memberName;
+				call.v.funktion.isMethod = true;
+				call.v.funktion.parent = left;
+				left = call;
+			}
+			else {
+				var member = new_node(OP_ACCESS_MEMBER, op);
+				member.v.member.name = memberName;
+				member.v.member.parent = left;
+				member.lvalue = LVALUE_MEMBER;
+				left = member;
+			}
 		}
 	}
 
@@ -759,9 +789,35 @@ function Parser.parse_function(): Node* {
 	var name = this.consume(TOKEN_IDENTIFIER, "Expected function name");
 
 	var funktion = new_node(AST_FUNCTION, name);
-	funktion.v.funktion.name = name;
 	funktion.v.funktion.arguments = new_vector();
 
+	if(this.match(TOKEN_DOT)) {
+		var parent = this.lookup_type(name);
+		if(parent == null) return null;
+
+		funktion.v.funktion.parentType = parent;
+		funktion.v.funktion.isMethod = true;
+		var methodName = this.consume(TOKEN_IDENTIFIER, "Expected function name");
+
+		var synthThis = synthetic_token(TOKEN_IDENTIFIER, "this");
+		var type = new_type();
+		type.type = DATA_TYPE_UNRESOLVED;
+		type.name = name;
+		type.indirection = 1;
+
+		var thisNode = new_node(AST_DEFINE_VAR, synthThis);
+		thisNode.v.variable.name = synthThis;
+		thisNode.v.variable.type = type;
+
+		funktion.v.funktion.arguments.push(thisNode);
+
+		parent.methods.push(funktion);
+		
+		name = methodName;
+	}
+
+	funktion.v.funktion.name = name;
+	
 	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after function name");
 	
 	if(!this.check(TOKEN_RIGHT_PAREN)) {
@@ -824,6 +880,7 @@ function Parser.parse_struct_definition(): Node* {
 	structType.type = DATA_TYPE_STRUCT;
 	structType.name = name;
 	structType.fields = new_vector();
+	structType.methods = new_vector();
 
 	//TODO: do ... while
 	var run = true;

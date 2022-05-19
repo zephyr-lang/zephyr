@@ -17,6 +17,7 @@ function copy_type(a: Type*): Type* {
 	new.indirection = a.indirection;
 	new.name = a.name;
 	new.fields = a.fields;
+	new.methods = a.methods;
 	return new;
 }
 
