@@ -17,6 +17,8 @@ struct Parser {
 
 	strings: Vector*;
 
+	definedTypes: Vector*;
+
 	error: int;
 	panic: int;
 }
@@ -27,6 +29,7 @@ function new_parser(lexer: Lexer*): Parser* {
 	parser.functions = new_vector();
 	parser.globalVars = new_vector();
 	parser.strings = new_vector();
+	parser.definedTypes = new_vector();
 	return parser;
 }
 
@@ -46,7 +49,8 @@ function allow_expr_stmt(expr: Node*): int {
 	       expr.type == AST_ASSIGN_VAR ||
 		   expr.type == AST_ASSIGN_GLOBAL_VAR ||
 		   expr.type == OP_ASSIGN_SUBSCRIPT ||
-		   expr.type == OP_ASSIGN_DEREF;
+		   expr.type == OP_ASSIGN_DEREF ||
+		   expr.type == OP_ASSIGN_MEMBER;
 }
 
 function Parser.error_at_token(token: Token*, message: i8*) {
@@ -118,6 +122,10 @@ function Parser.parse_type(): Type* {
 	else if(this.previous.type == TOKEN_I16) type.type = DATA_TYPE_I16;
 	else if(this.previous.type == TOKEN_I32) type.type = DATA_TYPE_I32;
 	else if(this.previous.type == TOKEN_I64) type.type = DATA_TYPE_I64;
+	else if(this.previous.type == TOKEN_IDENTIFIER) {
+		type.type = DATA_TYPE_UNRESOLVED;
+		type.name = this.previous;
+	}
 	else {
 		this.error("Expected type");
 	}
@@ -247,21 +255,32 @@ function Parser.parse_value(): Node* {
 	return null;
 }
 
-function Parser.parse_subscript(): Node* {
+function Parser.parse_member_access(): Node* {
 	var left = this.parse_value();
 
-	while(this.match(TOKEN_LEFT_SQBR)) {
+	while(this.match(TOKEN_LEFT_SQBR) || this.match(TOKEN_DOT)) {
 		var op = this.previous;
 
-		var right = this.parse_expression();
+		if(op.type == TOKEN_LEFT_SQBR) {
+			var right = this.parse_expression();
 
-		this.consume(TOKEN_RIGHT_SQBR, "Expected ']' after subscript index");
+			this.consume(TOKEN_RIGHT_SQBR, "Expected ']' after subscript index");
 
-		var subscript = new_node(OP_ACCESS_SUBSCRIPT, op);
-		subscript.v.binary.lhs = left;
-		subscript.v.binary.rhs = right;
-		subscript.lvalue = LVALUE_SUBSCRIPT;
-		left = subscript;
+			var subscript = new_node(OP_ACCESS_SUBSCRIPT, op);
+			subscript.v.binary.lhs = left;
+			subscript.v.binary.rhs = right;
+			subscript.lvalue = LVALUE_SUBSCRIPT;
+			left = subscript;
+		}
+		else {
+			var memberName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
+
+			var member = new_node(OP_ACCESS_MEMBER, op);
+			member.v.member.name = memberName;
+			member.v.member.parent = left;
+			member.lvalue = LVALUE_MEMBER;
+			left = member;
+		}
 	}
 
 	return left;
@@ -305,7 +324,7 @@ function Parser.parse_unary(): Node* {
 		return deref;
 	}
 
-	return this.parse_subscript();
+	return this.parse_member_access();
 }
 
 function Parser.parse_as_cast(): Node* {
@@ -536,6 +555,13 @@ function Parser.parse_assignment_expression(): Node* {
 			var assign = new_node(OP_ASSIGN_DEREF, op);
 			assign.v.binary.lhs = left.v.unary;
 			assign.v.binary.rhs = right;
+			left = assign;
+		}
+		else if(left.lvalue == LVALUE_MEMBER) {
+			var assign = new_node(OP_ASSIGN_MEMBER, op);
+			assign.v.member.name = left.v.member.name;
+			assign.v.member.parent = left.v.member.parent;
+			assign.v.member.value = right;
 			left = assign;
 		}
 		else {
@@ -787,6 +813,50 @@ function Parser.parse_function(): Node* {
 	return funktion;
 }
 
+function Parser.parse_struct_definition(): Node* {
+	var name = this.consume(TOKEN_IDENTIFIER, "Expected struct name");
+
+	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before struct body");
+
+	if(this.match(TOKEN_RIGHT_BRACE)) this.error("Expected at least one struct member");
+
+	var structType = new_type();
+	structType.type = DATA_TYPE_STRUCT;
+	structType.name = name;
+	structType.fields = new_vector();
+
+	//TODO: do ... while
+	var run = true;
+
+	while(run || !this.check(TOKEN_RIGHT_BRACE)) {
+		run = false;
+
+		var memName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
+
+		this.consume(TOKEN_COLON, "Expected ':' after member name");
+
+		var memType = this.parse_type();
+
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		var member = new_node(AST_MEMBER, memName);
+		member.v.variable.name = memName;
+		member.v.variable.type = memType;
+
+		structType.fields.push(member);
+	}
+
+	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after struct body");
+
+	var strukt = new_node(AST_STRUCT, name);
+	strukt.computedType = structType;
+	strukt.v.variable.name = name;
+
+	this.definedTypes.push(structType);
+
+	return strukt;
+}
+
 function Parser.add_implicit_printu_function() {
 	var name = synthetic_token(TOKEN_IDENTIFIER, "printu");
 	var funktion = new_node(AST_FUNCTION, name);
@@ -864,6 +934,10 @@ function Parser.parse_program(): Node* {
 			var variable = this.parse_var_declaration();
 			variable.type = AST_DEFINE_GLOBAL_VAR;
 			program.add_child(variable);
+		}
+		else if(this.match(TOKEN_STRUCT)) {
+			var strukt = this.parse_struct_definition();
+			program.add_child(strukt);
 		}
 		else {
 			this.error_current("Expected definition");

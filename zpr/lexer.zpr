@@ -95,6 +95,7 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("function")) return TOKEN_FUNCTION;
 	if(this.match_keyword("return")) return TOKEN_RETURN;
 	if(this.match_keyword("sizeof")) return TOKEN_SIZEOF;
+	if(this.match_keyword("struct")) return TOKEN_STRUCT;
 	if(this.match_keyword("var")) return TOKEN_VAR;
 	if(this.match_keyword("void")) return TOKEN_VOID;
 	if(this.match_keyword("while")) return TOKEN_WHILE;
@@ -195,6 +196,7 @@ function Lexer.next(): Token* {
 	if(c == ':') return this.make_token(TOKEN_COLON);
 	if(c == ';') return this.make_token(TOKEN_SEMICOLON);
 	if(c == ',') return this.make_token(TOKEN_COMMA);
+	if(c == '.') return this.make_token(TOKEN_DOT);
 	if(c == '?') return this.make_token(TOKEN_QUESTION);
 	if(c == '~') return this.make_token(TOKEN_TILDE);
 	if(c == '-') return this.make_token(TOKEN_MINUS);

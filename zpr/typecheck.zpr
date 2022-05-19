@@ -2,6 +2,7 @@ import "std/core.zpr";
 import "std/vector.zpr";
 
 var tc_typeStack = new_vector();
+var tc_definedTypes = new_vector();
 
 function Type.is_integral(): int {
 	return this.indirection == 0 && (
@@ -17,9 +18,25 @@ function Type.is_void(): int {
 	return this.indirection == 0 && this.type == DATA_TYPE_VOID;
 }
 
+function Type.is_structural(): int {
+	resolve_type(&this);
+	return this.type == DATA_TYPE_STRUCT && this.indirection == 0;
+}
+
 function Type.assignable(b: Type*): int {
+	resolve_type(&this);
+	resolve_type(&b);
+
 	if(this.is_integral() && b.is_integral()) {
 		return true;
+	}
+
+	if(this.type == DATA_TYPE_STRUCT && b.type == DATA_TYPE_STRUCT && this.indirection == 0 && b.indirection == 0) {
+		if(this.size() == b.size()) {
+			//TODO: Warning
+			return true;
+		}
+		return false;
 	}
 
 	return this.type == b.type && this.indirection == b.indirection;
@@ -36,6 +53,7 @@ function Type.size_offset(): int {
 }
 
 function Type.size(): int {
+	resolve_type(&this);
 	if(this.indirection != 0) return 8;
 
 	if(this.type == DATA_TYPE_INT) return 8;
@@ -43,6 +61,13 @@ function Type.size(): int {
 	if(this.type == DATA_TYPE_I16) return 2;
 	if(this.type == DATA_TYPE_I32) return 4;
 	if(this.type == DATA_TYPE_I64) return 8;
+	if(this.type == DATA_TYPE_STRUCT) {
+		var size = 0;
+		for(var i = 0; i < this.fields.size; i = i + 1) {
+			size = size + (this.fields.at(i) as Node*).v.variable.type.size_offset();
+		}
+		return size;
+	}
 
 	eputsln("Unreachable - VOID_TYPE.size");
 	exit(1);
@@ -59,6 +84,47 @@ function Node.print_position() {
 		eputs("@ '"); eput_token_string(this.position); eputs("'");
 	}
 	eputs(": ");
+}
+
+function Token.print_position() {
+	eputs("["); eputd(this.line); eputs("] Error ");
+
+	if(this.type == TOKEN_EOF) {
+		eputs("@ EOF");
+	}
+	else {
+		eputs("@ '"); eput_token_string(this); eputs("'");
+	}
+	eputs(": ");
+}
+
+function lookup_type(name: Token*): Type* {
+	for(var i = 0; i < tc_definedTypes.size; i = i + 1) {
+		var type: Type* = tc_definedTypes.at(i);
+
+		if(type.name.equals(name)) {
+			return type;
+		}
+	}
+
+	name.print_position();
+	eputs("Unknown type '"); eput_token_string(name); eputsln("'");
+	exit(1);
+
+	return null;
+}
+
+//TODO: Copying structs - change signature to Type* : Type*
+function resolve_type(typePtr: Type**): Type* {
+	var type = *typePtr;
+	if(type.type != DATA_TYPE_UNRESOLVED) return type;
+	var resolve = lookup_type(type.name);
+	var new = copy_type(resolve);
+	new.indirection = type.indirection;
+	new.isArray = type.isArray;
+	new.arrayLength = type.arrayLength;
+	*typePtr = new;
+	return type;
 }
 
 function Parser.lookup_variable(name: Token*): Node* {
@@ -119,6 +185,23 @@ function Parser.lookup_global_variable(name: Token*): Node* {
 			return variable;
 		}
 	}
+	return null;
+}
+
+function Type.lookup_field(name: Token*): Node* {
+	
+	for(var i = 0; i < this.fields.size; i = i + 1) {
+		var field: Node* = this.fields.at(i);
+
+		if(field.v.variable.name.equals(name)) {
+			return field;
+		}
+	}
+
+	name.print_position();
+	eputs("Type '"); eputs(type_to_string(this)); eputs("' has no member '"); eput_token_string(name); eputsln("'");
+	exit(1);
+
 	return null;
 }
 
@@ -426,6 +509,76 @@ function Parser.type_check_assign_deref(expr: Node*) {
 	tc_typeStack.push(refType);
 }
 
+function Parser.type_check_access_member(expr: Node*) {
+	this.type_check_expr(expr.v.member.parent);
+
+	var parentType: Type* = tc_typeStack.pop();
+	resolve_type(&parentType);
+
+	var name = expr.v.member.name;
+	var field: Node*;
+
+	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+		field = parentType.lookup_field(name);
+	}
+	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+		var copy = copy_type(parentType);
+		copy.indirection = copy.indirection - 1;
+		field = copy.lookup_field(name);
+	}
+	else {
+		expr.print_position();
+		eputs("Cannot access member on type '"); eputs(type_to_string(parentType)); eputsln("'");
+		exit(1);
+	}
+
+	expr.v.member.memberRef = field;
+
+	tc_typeStack.push(field.v.variable.type);
+}
+
+function Parser.type_check_assign_member(expr: Node*) {
+	this.type_check_expr(expr.v.member.parent);
+
+	var parentType: Type* = tc_typeStack.pop();
+	resolve_type(&parentType);
+
+	var name = expr.v.member.name;
+	var field: Node*;
+
+	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+		field = parentType.lookup_field(name);
+	}
+	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+		var copy = copy_type(parentType);
+		copy.indirection = copy.indirection - 1;
+
+		field = copy.lookup_field(name);
+	}
+	else {
+		expr.print_position();
+		eputs("Cannot access member on type '"); eputs(type_to_string(parentType)); eputsln("'");
+		exit(1);
+	}
+
+	expr.v.member.memberRef = field;
+
+	var fieldType = field.v.variable.type;
+
+	this.type_check_expr(expr.v.member.value);
+
+	var valueType: Type* = tc_typeStack.pop();
+
+	if(!valueType.assignable(fieldType)) {
+		expr.print_position();
+		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to member expecting '"); eputs(type_to_string(fieldType));
+		eputsln("'");
+		exit(1);
+	}
+
+	tc_typeStack.push(fieldType);
+}
+
 function Parser.type_check_expr(expr: Node*) {
 	if(is_unary_op(expr.type)) {
 		this.type_check_unary(expr);
@@ -471,6 +624,12 @@ function Parser.type_check_expr(expr: Node*) {
 		//       or requires a warning in some cases is to be decided.
 		this.type_check_expr(expr.v.unary);
 		tc_typeStack.push(expr.computedType);
+	}
+	else if(expr.type == OP_ACCESS_MEMBER) {
+		this.type_check_access_member(expr);
+	}
+	else if(expr.type == OP_ASSIGN_MEMBER) {
+		this.type_check_assign_member(expr);
 	}
 	else {
 		eputsln("Unreachable - type_check_expr");
@@ -685,6 +844,12 @@ function Parser.type_check_function(funktion: Node*) {
 		if(arg.v.variable.type.isArray) {
 			arg.print_position();
 			eputsln("Arrays cannot be used as function arguments - consider using a pointer instead");
+			exit(1);
+		}
+		else if(arg.v.variable.type.is_structural()) {
+			arg.print_position();
+			eputsln("Structs cannot be used as function arguments - consider using a pointer instead");
+			exit(1);
 		}
 
 		stackOffset = stackOffset + arg.v.variable.type.size();
@@ -695,6 +860,12 @@ function Parser.type_check_function(funktion: Node*) {
 	if(funktion.v.funktion.returnType.isArray) {
 		funktion.print_position();
 		eputsln("Arrays cannot be used as function return types - consider using a pointer instead");
+		exit(1);
+	}
+	else if(funktion.v.funktion.returnType.is_structural()) {
+		funktion.print_position();
+		eputsln("Structs cannot be used as function return types - consider using a pointer instead");
+		exit(1);
 	}
 
 	funktion.v.funktion.body.v.block.currentStackOffset = stackOffset;
@@ -766,6 +937,8 @@ function Parser.type_check_global_var(stmt: Node*) {
 }
 
 function Parser.type_check(program: Node*) {
+	tc_definedTypes = this.definedTypes;
+
 	for(var i = 0; i < program.v.block.children.size; i = i + 1) {
 		var node: Node* = program.v.block.children.at(i);
 
@@ -775,6 +948,25 @@ function Parser.type_check(program: Node*) {
 		}
 		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
 			this.type_check_global_var(node);
+		}
+		else if(node.type == AST_STRUCT) {
+			var offset = 0;
+
+			for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
+				var member: Node* = node.computedType.fields.at(i);
+				var type = member.v.variable.type;
+
+				if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_STRUCT) && type.name.equals(node.computedType.name) && type.indirection == 0) {
+					member.print_position();
+					eputsln("A struct cannot contain a member of itself (use a pointer instead)");
+					exit(1);
+				}
+
+				resolve_type(&type);
+				
+				member.v.variable.stackOffset = offset;
+				offset = offset + member.v.variable.type.size_offset();
+			}
 		}
 		else {
 			eputsln("Unreachable - unhandled node type in type_check (program)");
