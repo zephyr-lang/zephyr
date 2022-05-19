@@ -869,8 +869,60 @@ function Parser.parse_function(): Node* {
 	return funktion;
 }
 
-function Parser.parse_struct_definition(): Node* {
-	var name = this.consume(TOKEN_IDENTIFIER, "Expected struct name");
+function Parser.parse_member_definition(type: Type*) {
+	var memName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
+
+	this.consume(TOKEN_COLON, "Expected ':' after member name");
+
+	if(this.match(TOKEN_UNION)) {
+		var vnion = this.parse_union_definition(true);
+
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		vnion.v.variable.name = memName;
+		vnion.computedType.name = memName;
+
+		var member = new_node(AST_MEMBER, memName);
+		member.v.variable.name = memName;
+		member.v.variable.type = vnion.computedType;
+		member.v.variable.value = vnion;
+
+		type.fields.push(member);
+	}
+	else if(this.match(TOKEN_STRUCT)) {
+		var strukt = this.parse_struct_definition(true);
+
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		strukt.v.variable.name = memName;
+		strukt.computedType.name = memName;
+
+		var member = new_node(AST_MEMBER, memName);
+		member.v.variable.name = memName;
+		member.v.variable.type = strukt.computedType;
+		member.v.variable.value = strukt;
+
+		type.fields.push(member);
+	}
+	else {
+		var memType = this.parse_type();
+
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		var member = new_node(AST_MEMBER, memName);
+		member.v.variable.name = memName;
+		member.v.variable.type = memType;
+
+		type.fields.push(member);
+	}
+}
+
+function Parser.parse_struct_definition(member: int): Node* {
+	var name: Token*;
+
+	if(!member) {
+		name = this.consume(TOKEN_IDENTIFIER, "Expected struct name");
+	}
 
 	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before struct body");
 
@@ -888,34 +940,28 @@ function Parser.parse_struct_definition(): Node* {
 	while(run || !this.check(TOKEN_RIGHT_BRACE)) {
 		run = false;
 
-		var memName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
-
-		this.consume(TOKEN_COLON, "Expected ':' after member name");
-
-		var memType = this.parse_type();
-
-		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
-
-		var member = new_node(AST_MEMBER, memName);
-		member.v.variable.name = memName;
-		member.v.variable.type = memType;
-
-		structType.fields.push(member);
+		this.parse_member_definition(structType);
 	}
 
 	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after struct body");
 
 	var strukt = new_node(AST_STRUCT, name);
 	strukt.computedType = structType;
-	strukt.v.variable.name = name;
 
-	this.definedTypes.push(structType);
+	if(!member) {
+		strukt.v.variable.name = name;
+		this.definedTypes.push(structType);
+	}
 
 	return strukt;
 }
 
-function Parser.parse_union_definition(): Node* {
-	var name = this.consume(TOKEN_IDENTIFIER, "Expected union name");
+function Parser.parse_union_definition(member: int): Node* {
+	var name: Token*;
+	
+	if(!member) {
+		name = this.consume(TOKEN_IDENTIFIER, "Expected union name");
+	}
 
 	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before union body");
 
@@ -932,28 +978,19 @@ function Parser.parse_union_definition(): Node* {
 	while(run || !this.check(TOKEN_RIGHT_BRACE)) {
 		run = false;
 
-		var memName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
-
-		this.consume(TOKEN_COLON, "Expected ':' after member name");
-
-		var memType = this.parse_type();
-
-		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
-
-		var member = new_node(AST_MEMBER, memName);
-		member.v.variable.name = memName;
-		member.v.variable.type = memType;
-
-		unionType.fields.push(member);
+		this.parse_member_definition(unionType);
 	}
 
 	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after union body");
 
 	var vnion = new_node(AST_UNION, name);
 	vnion.computedType = unionType;
-	vnion.v.variable.name = name;
 
-	this.definedTypes.push(unionType);
+	if(!member) {
+		vnion.v.variable.name = name;
+
+		this.definedTypes.push(unionType);
+	}
 
 	return vnion;
 }
@@ -1037,11 +1074,11 @@ function Parser.parse_program(): Node* {
 			program.add_child(variable);
 		}
 		else if(this.match(TOKEN_STRUCT)) {
-			var strukt = this.parse_struct_definition();
+			var strukt = this.parse_struct_definition(false);
 			program.add_child(strukt);
 		}
 		else if(this.match(TOKEN_UNION)) {
-			var vnion = this.parse_union_definition();
+			var vnion = this.parse_union_definition(false);
 			program.add_child(vnion);
 		}
 		else {

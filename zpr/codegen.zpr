@@ -319,9 +319,14 @@ function generate_assign_subscript(expr: Node*, out: File*) {
 function generate_access_member(expr: Node*, out: File*) {
 	generate_expr_rax(expr.v.member.parent, out);
 	var field = expr.v.member.memberRef;
-
-	out.puts("    "); out.puts(field.v.variable.type.movzx()); out.puts(" "); out.puts(field.v.variable.type.movzx_rax_subregister());
-	out.puts(", "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	
+	if(field.v.variable.type.is_structural()) {
+		out.puts("    lea rax, [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	}
+	else {
+		out.puts("    "); out.puts(field.v.variable.type.movzx()); out.puts(" "); out.puts(field.v.variable.type.movzx_rax_subregister());
+		out.puts(", "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	}
 }
 
 function generate_assign_member(expr: Node*, out: File*) {
