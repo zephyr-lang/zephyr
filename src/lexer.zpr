@@ -1,6 +1,6 @@
 import "std/core.zpr";
 import "std/string.zpr";
-import "zpr/token.zpr";
+import "src/token.zpr";
 
 struct Lexer {
 	start: i8*;

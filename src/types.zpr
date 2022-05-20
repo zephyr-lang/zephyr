@@ -1,4 +1,4 @@
-import "zpr/ast.zpr";
+import "src/ast.zpr";
 
 var INT_TYPE: Type*;
 var I8_TYPE: Type*;

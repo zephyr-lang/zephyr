@@ -1,8 +1,8 @@
 import "std/core.zpr";
-import "zpr/types.zpr";
-import "zpr/lexer.zpr";
-import "zpr/ast.zpr";
-import "zpr/builtin.zpr";
+import "src/types.zpr";
+import "src/lexer.zpr";
+import "src/ast.zpr";
+import "src/builtin.zpr";
 
 struct Parser {
 	lexer: Lexer*;

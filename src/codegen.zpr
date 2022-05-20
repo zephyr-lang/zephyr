@@ -1,7 +1,7 @@
 import "std/core.zpr";
 import "std/io.zpr";
 import "std/math.zpr";
-import "zpr/ast.zpr";
+import "src/ast.zpr";
 
 var cg_ARG_REGISTERS: i8*[6] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
 var cg_lableCount = 0;

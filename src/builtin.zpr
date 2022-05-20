@@ -1,5 +1,5 @@
 import "std/core.zpr";
-import "zpr/ast.zpr";
+import "src/ast.zpr";
 
 function add_implicit_printu_function(): Node* {
 	var name = synthetic_token(TOKEN_IDENTIFIER, "printu");

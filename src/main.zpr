@@ -1,11 +1,11 @@
 import "std/core.zpr";
 import "std/io.zpr";
 import "std/subprocess.zpr";
-import "zpr/lexer.zpr";
-import "zpr/types.zpr";
-import "zpr/parser.zpr";
-import "zpr/codegen.zpr";
-import "zpr/typecheck.zpr";
+import "src/lexer.zpr";
+import "src/types.zpr";
+import "src/parser.zpr";
+import "src/codegen.zpr";
+import "src/typecheck.zpr";
 
 // Prefixed with m_ for main
 
