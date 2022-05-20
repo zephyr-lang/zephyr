@@ -70,6 +70,7 @@ struct Token {
 	start: i8*;
 	length: int;
 	line: int;
+	filename: i8*;
 }
 
 function token_type_to_string(type: int): i8* {

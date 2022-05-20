@@ -37,7 +37,7 @@ function Type.assignable(b: Type*): int {
 		return true;
 	}
 
-	if((this.type == DATA_TYPE_ANY || b.type == DATA_TYPE_ANY) && this.indirection == b.indirection) {
+	if((this.type == DATA_TYPE_ANY || b.type == DATA_TYPE_ANY) && this.indirection >= 1  && b.indirection >= 1) {
 		return true;
 	}
 
@@ -98,19 +98,11 @@ function Type.size(): int {
 }
 
 function Node.print_position() {
-	eputs("["); eputd(this.position.line); eputs("] Error ");
-
-	if(this.position.type == TOKEN_EOF) {
-		eputs("@ EOF");
-	}
-	else {
-		eputs("@ '"); eput_token_string(this.position); eputs("'");
-	}
-	eputs(": ");
+	this.position.print_position();
 }
 
 function Token.print_position() {
-	eputs("["); eputd(this.line); eputs("] Error ");
+	eputs("["); eputs(this.filename); eputs(":"); eputd(this.line); eputs("] Error ");
 
 	if(this.type == TOKEN_EOF) {
 		eputs("@ EOF");
@@ -320,6 +312,11 @@ function Parser.type_check_binary(expr: Node*) {
 
 	this.type_check_expr(expr.v.binary.rhs);
 	var right: Type* = tc_typeStack.pop();
+
+	if((expr.type == OP_EQUAL || expr.type == OP_NOT_EQUAL) && left.indirection > 0 && right.indirection > 0 && left.assignable(right)) {
+		tc_typeStack.push(INT_TYPE);
+		return;
+	}
 
 	if(!left.assignable(INT_TYPE) || !right.assignable(INT_TYPE)) {
 		expr.print_position();

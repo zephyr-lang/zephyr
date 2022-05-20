@@ -55,6 +55,7 @@ function Lexer.make_token(type: int): Token* {
 	token.start = this.start;
 	token.length = (this.current as int) - (this.start as int);
 	token.line = this.line;
+	token.filename = this.filename;
 	return token;
 }
 
@@ -64,6 +65,7 @@ function Lexer.error_token(message: i8*): Token* {
 	token.start = message;
 	token.length = strlen(message);
 	token.line = this.line;
+	token.filename = this.filename;
 	return token;
 }
 

@@ -82,7 +82,7 @@ function Parser.lookup_type(name: Token*): Type* {
 function Parser.error_at_token(token: Token*, message: i8*) {
 	if(this.panic) return;
 	this.panic = true;
-	eputs("["); eputd(token.line); eputs("] Error");
+	eputs("["); eputs(token.filename); eputs(":"); eputd(token.line); eputs("] Error");
 
 	if(token.type == TOKEN_EOF) {
 		eputs(" @ EOF");
@@ -1166,9 +1166,10 @@ function Parser.parse_program(): Node* {
 
 		var tok = this.current;
 		var changedLexer = false;
-		while(tok.type == TOKEN_EOF && this.lexerStack.size > 0) {
+		while(tok.type == TOKEN_EOF && this.lexerStack.size > 1) {
 			changedLexer = true;
-			this.lexer = this.lexerStack.pop();
+			this.lexerStack.pop();
+			this.lexer = this.lexerStack.at(this.lexerStack.size - 1);
 			tok = this.peek();
 		}
 		if(changedLexer) {
