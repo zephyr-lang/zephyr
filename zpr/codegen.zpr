@@ -735,6 +735,9 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		}
 	}
 
+	out.putsln("    pop rdi");
+	out.putsln("    mov rsi, rsp");
+
 	out.putsln("    call _f_main");
 	out.putsln("    mov rdi, rax");
 	out.putsln("    mov rax, 60");
