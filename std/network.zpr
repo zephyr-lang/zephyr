@@ -1,0 +1,36 @@
+import "std/linux.zpr";
+
+const AF_INET = 2;
+const SOCK_STREAM = 1;
+const INADDR_ANY = 0;
+
+struct sockaddr_in {
+	sin_family: i16;
+	sin_port: i16;
+	sin_addr: i32;
+	padding: i8[8];
+}
+
+function socket(domain: int, type: int, protocol: int): int {
+	return syscall3(SYS_socket, domain, type, protocol);
+}
+
+function htons(n: i16): i16 {
+	return ((n & 255) << 8) | ((n & 65280) >> 8);
+}
+
+function htonl(n: i32): i32 {
+	return ((n & 255) << 24) | ((n & 65280) << 8) | ((n & 16711680) >> 8) | ((n & 4278190080) >> 24);
+}
+
+function bind(sockfd: int, addr: sockaddr_in*, addrlen: int): int {
+	return syscall3(SYS_bind, sockfd, addr, addrlen);
+}
+
+function listen(socket: int, backlog: int): int {
+	return syscall2(SYS_listen, socket, backlog);
+}
+
+function accept(socket: int, addr: sockaddr_in*, addrlen: int*): int {
+	return syscall3(SYS_accept, socket, addr, addrlen);
+}

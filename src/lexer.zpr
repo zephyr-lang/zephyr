@@ -1,0 +1,224 @@
+import "std/core.zpr";
+import "std/string.zpr";
+import "src/token.zpr";
+
+struct Lexer {
+	start: i8*;
+	current: i8*;
+
+	line: int;
+
+	filename: i8*;
+}
+
+function new_lexer(filename: i8*, source: i8*): Lexer* {
+	var lexer: Lexer* = malloc(sizeof(Lexer));
+	lexer.start = source;
+	lexer.current = source;
+	lexer.line = 1;
+	lexer.filename = filename;
+
+	return lexer;
+}
+
+function Lexer.is_at_end(): int {
+	return *this.current == 0;
+}
+
+function Lexer.advance(): i8 {
+	this.current = &this.current[1];
+	return this.current[-1];
+}
+
+function Lexer.peek(): i8 {
+	return *this.current;
+}
+
+// Will return the character *after* the current one without consuming anything.
+// E.g., given the string "abc", with the start pointer at the start of the string,
+// peek() will return the "a" and peek_next() will return the "b"
+function Lexer.peek_next(): i8 {
+	if(this.is_at_end()) return 0;
+	return this.current[1];
+}
+
+function Lexer.match(expected: i8): int {
+	if(this.is_at_end()) return false;
+	if(*this.current != expected) return false;
+	this.current = &this.current[1];
+	return true;
+}
+
+function Lexer.make_token(type: int): Token* {
+	var token: Token* = malloc(sizeof(Token));
+	token.type = type;
+	token.start = this.start;
+	token.length = (this.current as int) - (this.start as int);
+	token.line = this.line;
+	token.filename = this.filename;
+	return token;
+}
+
+function Lexer.error_token(message: i8*): Token* {
+	var token: Token* = malloc(sizeof(Token));
+	token.type = TOKEN_ERROR;
+	token.start = message;
+	token.length = strlen(message);
+	token.line = this.line;
+	token.filename = this.filename;
+	return token;
+}
+
+function is_digit(c: i8): int {
+	return '0' <= c && c <= '9';
+}
+
+function is_alpha(c: i8): int {
+	return ('a' <= c && c <= 'z') ||
+	       ('A' <= c && c <= 'Z') ||
+		   c == '_';
+}
+
+function Lexer.match_keyword(keyword: i8*): int {
+	var length = strlen(keyword);
+	return (this.current as int) - (this.start as int) == length && memeq(this.start, keyword, length);
+}
+
+function Lexer.identifier_type(): int {
+	if(this.match_keyword("as")) return TOKEN_AS;
+	if(this.match_keyword("any")) return TOKEN_ANY;
+	if(this.match_keyword("break")) return TOKEN_BREAK;
+	if(this.match_keyword("const")) return TOKEN_CONST;
+	if(this.match_keyword("continue")) return TOKEN_CONTINUE;
+	if(this.match_keyword("else")) return TOKEN_ELSE;
+	if(this.match_keyword("if")) return TOKEN_IF;
+	if(this.match_keyword("import")) return TOKEN_IMPORT;
+	if(this.match_keyword("int")) return TOKEN_INT;
+	if(this.match_keyword("i8")) return TOKEN_I8;
+	if(this.match_keyword("i16")) return TOKEN_I16;
+	if(this.match_keyword("i32")) return TOKEN_I32;
+	if(this.match_keyword("i64")) return TOKEN_I64;
+	if(this.match_keyword("for")) return TOKEN_FOR;
+	if(this.match_keyword("function")) return TOKEN_FUNCTION;
+	if(this.match_keyword("return")) return TOKEN_RETURN;
+	if(this.match_keyword("sizeof")) return TOKEN_SIZEOF;
+	if(this.match_keyword("struct")) return TOKEN_STRUCT;
+	if(this.match_keyword("union")) return TOKEN_UNION;
+	if(this.match_keyword("var")) return TOKEN_VAR;
+	if(this.match_keyword("void")) return TOKEN_VOID;
+	if(this.match_keyword("while")) return TOKEN_WHILE;
+	return TOKEN_IDENTIFIER;
+}
+
+function Lexer.skip_whitespace() {
+	for(;;) {
+		var c = this.peek();
+
+		if(c == ' ' || c == 13 || c == 9) {
+			this.advance();
+		}
+		else if(c == 10) {
+			this.line = this.line + 1;
+			this.advance();
+		}
+		else if(c == '/') {
+			if(this.peek_next() == '/') {
+				while(this.peek() != 10 && !this.is_at_end()) this.advance();
+			}
+			else return;
+		}
+		else {
+			return;
+		}
+	}
+}
+
+function Lexer.number(): Token* {
+	while(is_digit(this.peek())) this.advance();
+	return this.make_token(TOKEN_INT_LITERAL);
+}
+
+function Lexer.identifier(): Token* {
+	while(is_alpha(this.peek()) || is_digit(this.peek())) this.advance();
+	return this.make_token(this.identifier_type());
+}
+
+function Lexer.character(): Token* {
+	if(this.is_at_end()) return this.error_token("Expected character literal");
+	this.advance();
+	if(!this.match(39)) return this.error_token("Expected closing single quote");
+	return this.make_token(TOKEN_CHAR_LITERAL);
+}
+
+function Lexer.string(): Token* {
+	while(!this.is_at_end() && this.peek() != '"') {
+		this.advance();
+	}
+
+	if(!this.match('"')) {
+		return this.error_token("Expected closing double quote");
+	}
+
+	return this.make_token(TOKEN_STRING);
+}
+
+function Lexer.less_than(): int {
+	var type = TOKEN_LESS;
+
+	if(this.match('=')) type = TOKEN_LEQ;
+	else if(this.match('<')) type = TOKEN_LSH;
+	
+	return type;
+}
+
+function Lexer.greater_than(): int {
+	var type = TOKEN_GREATER;
+
+	if(this.match('=')) type = TOKEN_GEQ;
+	else if(this.match('>')) type = TOKEN_RSH;
+	
+	return type;
+}
+
+function Lexer.next(): Token* {
+	this.skip_whitespace();
+
+	this.start = this.current;
+
+	if(this.is_at_end()) return this.make_token(TOKEN_EOF);
+	
+	var c = this.advance();
+
+	if(is_alpha(c)) return this.identifier();
+	if(is_digit(c)) return this.number();
+
+	if(c == 39) return this.character();
+	if(c == '"') return this.string();
+
+	if(c == '(') return this.make_token(TOKEN_LEFT_PAREN);
+	if(c == ')') return this.make_token(TOKEN_RIGHT_PAREN);
+	if(c == '{') return this.make_token(TOKEN_LEFT_BRACE);
+	if(c == '}') return this.make_token(TOKEN_RIGHT_BRACE);
+	if(c == '[') return this.make_token(TOKEN_LEFT_SQBR);
+	if(c == ']') return this.make_token(TOKEN_RIGHT_SQBR);
+	if(c == ':') return this.make_token(TOKEN_COLON);
+	if(c == ';') return this.make_token(TOKEN_SEMICOLON);
+	if(c == ',') return this.make_token(TOKEN_COMMA);
+	if(c == '.') return this.make_token(TOKEN_DOT);
+	if(c == '?') return this.make_token(TOKEN_QUESTION);
+	if(c == '~') return this.make_token(TOKEN_TILDE);
+	if(c == '-') return this.make_token(TOKEN_MINUS);
+	if(c == '!') return this.make_token(this.match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);
+	if(c == '+') return this.make_token(TOKEN_PLUS);
+	if(c == '*') return this.make_token(TOKEN_STAR);
+	if(c == '/') return this.make_token(TOKEN_SLASH);
+	if(c == '%') return this.make_token(TOKEN_PERCENT);
+	if(c == '&') return this.make_token(this.match('&') ? TOKEN_AMP_AMP : TOKEN_AMP);
+	if(c == '|') return this.make_token(this.match('|') ? TOKEN_BAR_BAR : TOKEN_BAR);
+	if(c == '^') return this.make_token(TOKEN_XOR);
+	if(c == '<') return this.make_token(this.less_than());
+	if(c == '>') return this.make_token(this.greater_than());
+	if(c == '=') return this.make_token(this.match('=') ? TOKEN_EQEQ : TOKEN_EQ);
+
+	return this.error_token("Unexpected character");
+}

@@ -1,0 +1,9 @@
+import "std/core.zpr";
+
+function ceil_multiple(num: int, n: int): int {
+	return ((num + n - 1) / n) * n;
+}
+
+function min(a: int, b: int): int {
+	return a < b ? a : b;
+}

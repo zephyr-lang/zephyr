@@ -1,0 +1,31 @@
+// Implements a basic 'cat'
+// ./cat <file1> [file2] [file3] [file4...]
+
+import "std/io.zpr";
+
+function main(argc: int, argv: i8**): int {
+	if(argc == 1) {
+		putsln("Expected at least one file");
+		return -1;
+	}
+
+	for(var i = 1; i < argc; i = i + 1) {
+		var filename = argv[i];
+
+		var file = fopen(filename, 'r');
+		if(file == null) {
+			puts("Failed to read file: ");
+			putsln(filename);
+			return -1;
+		}
+		var text = file.slurp(null);
+		file.close();
+		
+		puts(filename);
+		putsln(":");
+
+		putsln(text);
+	}
+
+	return 0;
+}

@@ -1,0 +1,1193 @@
+import "std/core.zpr";
+import "src/types.zpr";
+import "src/lexer.zpr";
+import "src/ast.zpr";
+import "src/builtin.zpr";
+
+struct Parser {
+	lexer: Lexer*;
+	current: Token*;
+	previous: Token*;
+
+	currentFunction: Node*;
+	currentBlock: Node*;
+
+	functions: Vector*;
+
+	globalVars: Vector*;
+
+	strings: Vector*;
+
+	definedTypes: Vector*;
+
+	lexerStack: Vector*;
+
+	openedFiles: Vector*;
+
+	constants: Vector*;
+
+	error: int;
+	panic: int;
+}
+
+function new_parser(lexer: Lexer*): Parser* {
+	var parser: Parser* = malloc(sizeof(Parser));
+	parser.lexer = lexer;
+	parser.functions = new_vector();
+	parser.globalVars = new_vector();
+	parser.strings = new_vector();
+	parser.definedTypes = new_vector();
+	parser.lexerStack = new_vector();
+	parser.openedFiles = new_vector();
+	parser.constants = new_vector();
+	return parser;
+}
+
+function new_node(type: int, position: Token*): Node* {
+	var node: Node* = malloc(sizeof(Node));
+	node.type = type;
+	node.position = position;
+	return node;
+}
+
+function Node.add_child(child: Node*) {
+	this.v.block.children.push(child);
+}
+
+function allow_expr_stmt(expr: Node*): int {
+	return expr.type == AST_CALL ||
+	       expr.type == AST_CALL_METHOD ||
+	       expr.type == AST_ASSIGN_VAR ||
+		   expr.type == AST_ASSIGN_GLOBAL_VAR ||
+		   expr.type == OP_ASSIGN_SUBSCRIPT ||
+		   expr.type == OP_ASSIGN_DEREF ||
+		   expr.type == OP_ASSIGN_MEMBER;
+}
+
+//TODO: Remove duplicate code between parser and typechecker
+function Parser.lookup_type(name: Token*): Type* {
+	for(var i = 0; i < this.definedTypes.size; i = i + 1) {
+		var type: Type* = this.definedTypes.at(i);
+
+		if(type.name.equals(name)) {
+			return type;
+		}
+	}
+
+	this.error("Unknown Type");
+
+	return null;
+}
+
+function Parser.error_at_token(token: Token*, message: i8*) {
+	if(this.panic) return;
+	this.panic = true;
+	eputs("["); eputs(token.filename); eputs(":"); eputd(token.line); eputs("] Error");
+
+	if(token.type == TOKEN_EOF) {
+		eputs(" @ EOF");
+	}
+	else if(token.type == TOKEN_ERROR) {
+		// No value to print
+	}
+	else {
+		eputs(" @ '"); eput_token_string(token); eputs("'");
+	}
+
+	eputs(": "); eputsln(message);
+
+	this.error = true;
+}
+
+function Parser.error(message: i8*) {
+	this.error_at_token(this.previous, message);
+}
+
+function Parser.error_current(message: i8*) {
+	this.error_at_token(this.current, message);
+}
+
+function Parser.advance() {
+	this.previous = this.current;
+
+	for(;;) {
+		this.current = this.lexer.next();
+		if(this.current.type != TOKEN_ERROR) break;
+
+		this.error_current(this.current.start);
+	}
+}
+
+function Parser.consume(type: int, message: i8*): Token* {
+	if(this.current.type == type) {
+		this.advance();
+		return this.previous;
+	}
+
+	this.error_current(message);
+	return this.current;
+}
+
+function Parser.check(type: int): int {
+	return this.current.type == type;
+}
+
+function Parser.match(type: int): int {
+	if(!this.check(type)) return false;
+	this.advance();
+	return true;
+}
+
+function Parser.peek(): Token* {
+	var start = this.lexer.start;
+	var current = start;
+	var line = this.lexer.line;
+	var tok = this.lexer.next();
+	this.lexer.start = start;
+	this.lexer.current = current;
+	this.lexer.line = line;
+	return tok;
+}
+
+function Parser.parse_type(): Type* {
+	this.advance();
+
+	var type = new_type();
+
+	if(this.previous.type == TOKEN_INT) type.type = DATA_TYPE_INT;
+	else if(this.previous.type == TOKEN_I8) type.type = DATA_TYPE_I8;
+	else if(this.previous.type == TOKEN_I16) type.type = DATA_TYPE_I16;
+	else if(this.previous.type == TOKEN_I32) type.type = DATA_TYPE_I32;
+	else if(this.previous.type == TOKEN_I64) type.type = DATA_TYPE_I64;
+	else if(this.previous.type == TOKEN_ANY) type.type = DATA_TYPE_ANY;
+	else if(this.previous.type == TOKEN_IDENTIFIER) {
+		type.type = DATA_TYPE_UNRESOLVED;
+		type.name = this.previous;
+	}
+	else {
+		this.error("Expected type");
+	}
+
+	while(this.match(TOKEN_STAR)) {
+		type.indirection = type.indirection + 1;
+	}
+
+	if(this.match(TOKEN_LEFT_SQBR)) {
+		type.isArray = true;
+		type.arrayLength = this.parse_constant();
+		type.indirection = type.indirection + 1;
+		this.consume(TOKEN_RIGHT_SQBR, "Expected ']' after array length");
+	}
+
+	return type;
+}
+
+function Parser.parse_constant(): int {
+	if(this.match(TOKEN_INT_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return 0;
+
+		return atoi(literal.start);
+	}
+	else if(this.match(TOKEN_CHAR_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return 0;
+
+		return literal.start[1];
+	}
+	else {
+		this.error_current("Expected constant value");
+		return 0;
+	}
+}
+
+function Parser.parse_call(name: Token*): Node* {
+	var call = new_node(AST_CALL, name);
+	call.v.funktion.name = name;
+	call.v.funktion.arguments = new_vector();
+
+	if(!this.check(TOKEN_RIGHT_PAREN)) {
+		var arg = this.parse_expression();
+
+		call.v.funktion.arguments.push(arg);
+
+		while(this.match(TOKEN_COMMA)) {
+			var arg = this.parse_expression();
+
+			call.v.funktion.arguments.push(arg);
+		}
+	}
+
+	this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after function arguments");
+
+	return call;
+}
+
+function Parser.parse_identifier(): Node* {
+	var name = this.previous;
+
+	if(this.match(TOKEN_LEFT_PAREN)) {
+		return this.parse_call(name);
+	}
+
+	var access = new_node(AST_ACCESS_VAR, name);
+	access.v.variable.name = name;
+	access.lvalue = LVALUE_LOCAL;
+	return access;
+}
+
+function Parser.parse_value(): Node* {
+	if(this.match(TOKEN_INT_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return null;
+
+		var literalNode = new_node(AST_INT_LITERAL, literal);
+		literalNode.v.literal.type = INT_TYPE;
+		literalNode.v.literal.az.integer = atoi(literal.start);
+
+		return literalNode;
+	}
+	else if(this.match(TOKEN_CHAR_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return null;
+
+		var literalNode = new_node(AST_CHAR_LITERAL, literal);
+		literalNode.v.literal.type = I8_TYPE;
+		literalNode.v.literal.az.integer = literal.start[1];
+
+		return literalNode;
+	}
+	else if(this.match(TOKEN_STRING)) {
+		var literal = this.previous;
+		if(this.error) return null;
+
+		var literalNode = new_node(AST_STRING, literal);
+		literalNode.v.literal.type = STR_TYPE;
+
+		var buf = malloc(literal.length - 2 + 1);
+		memcpy(buf, &literal.start[1], literal.length - 2);
+		buf[literal.length - 2] = 0;
+
+		literalNode.v.literal.az.string.chars = buf;
+		literalNode.v.literal.az.string.length = literal.length - 2;
+		literalNode.v.literal.az.string.id = this.strings.size;
+
+		this.strings.push(literalNode);
+
+		return literalNode;
+	}
+	else if(this.match(TOKEN_IDENTIFIER)) {
+		return this.parse_identifier();
+	}
+	else if(this.match(TOKEN_SIZEOF)) {
+		var expr = new_node(OP_SIZEOF, this.previous);
+		this.consume(TOKEN_LEFT_PAREN, "Expected '(' after sizeof");
+		var type = this.parse_type();
+		this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after sizeof type");
+		expr.computedType = type;
+		return expr;
+	}
+	else if(this.match(TOKEN_LEFT_PAREN)) {
+		var expr = this.parse_expression();
+		this.consume(TOKEN_RIGHT_PAREN, "Expected closing ')' after expression");
+		return expr;
+	}
+
+	this.error_current("Expected value");
+	return null;
+}
+
+function Parser.parse_member_access(): Node* {
+	var left = this.parse_value();
+
+	while(this.match(TOKEN_LEFT_SQBR) || this.match(TOKEN_DOT)) {
+		var op = this.previous;
+
+		if(op.type == TOKEN_LEFT_SQBR) {
+			var right = this.parse_expression();
+
+			this.consume(TOKEN_RIGHT_SQBR, "Expected ']' after subscript index");
+
+			var subscript = new_node(OP_ACCESS_SUBSCRIPT, op);
+			subscript.v.binary.lhs = left;
+			subscript.v.binary.rhs = right;
+			subscript.lvalue = LVALUE_SUBSCRIPT;
+			left = subscript;
+		}
+		else {
+			var memberName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
+
+			if(this.match(TOKEN_LEFT_PAREN)) {
+				var call = this.parse_call(memberName);
+				call.type = AST_CALL_METHOD;
+				call.v.funktion.name = memberName;
+				call.v.funktion.isMethod = true;
+				call.v.funktion.parent = left;
+				left = call;
+			}
+			else {
+				var member = new_node(OP_ACCESS_MEMBER, op);
+				member.v.member.name = memberName;
+				member.v.member.parent = left;
+				member.lvalue = LVALUE_MEMBER;
+				left = member;
+			}
+		}
+	}
+
+	return left;
+}
+
+function Parser.parse_unary(): Node* {
+	if(this.match(TOKEN_TILDE)) {
+		var op = this.previous;
+		var expr = this.parse_unary();
+		var bwnot = new_node(OP_BWNOT, op);
+		bwnot.v.unary = expr;
+		return bwnot;
+	}
+	else if(this.match(TOKEN_MINUS)) {
+		var op = this.previous;
+		var expr = this.parse_unary();
+		var neg = new_node(OP_NEG, op);
+		neg.v.unary = expr;
+		return neg;
+	}
+	else if(this.match(TOKEN_BANG)) {
+		var op = this.previous;
+		var expr = this.parse_unary();
+		var not = new_node(OP_NOT, op);
+		not.v.unary = expr;
+		return not;
+	}
+	else if(this.match(TOKEN_AMP)) {
+		var op = this.previous;
+		var expr = this.parse_unary();
+		var addrOf = new_node(OP_ADDROF, op);
+		addrOf.v.unary = expr;
+		return addrOf;
+	}
+	else if(this.match(TOKEN_STAR)) {
+		var op = this.previous;
+		var expr = this.parse_unary();
+		var deref = new_node(OP_DEREF, op);
+		deref.v.unary = expr;
+		deref.lvalue = LVALUE_DEREF;
+		return deref;
+	}
+
+	return this.parse_member_access();
+}
+
+function Parser.parse_as_cast(): Node* {
+	var left = this.parse_unary();
+
+	if(this.match(TOKEN_AS)) {
+		var op = this.previous;
+		var castTo = this.parse_type();
+
+		var cast = new_node(AST_CAST, op);
+		cast.v.unary = left;
+		cast.computedType = castTo;
+		left = cast;
+	}
+
+	return left;
+}
+
+function Parser.parse_term(): Node* {
+	var left = this.parse_as_cast();
+
+	while(this.match(TOKEN_STAR) || this.match(TOKEN_SLASH) || this.match(TOKEN_PERCENT)) {
+		var op = this.previous;
+
+		var right = this.parse_as_cast();
+
+		var type: int;
+		if(op.type == TOKEN_STAR) type = OP_MUL;
+		else if(op.type == TOKEN_SLASH) type = OP_DIV;
+		else if(op.type == TOKEN_PERCENT) type = OP_MOD;
+
+		var binary = new_node(type, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_arithmetic(): Node* {
+	var left = this.parse_term();
+
+	while(this.match(TOKEN_PLUS) || this.match(TOKEN_MINUS)) {
+		var op = this.previous;
+
+		var right = this.parse_term();
+
+		var type: int;
+		if(op.type == TOKEN_PLUS) type = OP_ADD;
+		else if(op.type == TOKEN_MINUS) type = OP_SUB;
+
+		var binary = new_node(type, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_shift(): Node* {
+	var left = this.parse_arithmetic();
+
+	while(this.match(TOKEN_LSH) || this.match(TOKEN_RSH)) {
+		var op = this.previous;
+
+		var right = this.parse_arithmetic();
+
+		var type: int;
+		if(op.type == TOKEN_LSH) type = OP_LSH;
+		else if(op.type == TOKEN_RSH) type = OP_RSH;
+
+		var binary = new_node(type, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_comparison(): Node* {
+	var left = this.parse_shift();
+
+	while(this.match(TOKEN_LESS) || this.match(TOKEN_LEQ)
+	     || this.match(TOKEN_GREATER) || this.match(TOKEN_GEQ)) {
+		var op = this.previous;
+
+		var right = this.parse_shift();
+
+		var type: int;
+		if(op.type == TOKEN_LESS) type = OP_LESS;
+		else if(op.type == TOKEN_LEQ) type = OP_LESS_EQ;
+		else if(op.type == TOKEN_GREATER) type = OP_GREATER;
+		else if(op.type == TOKEN_GEQ) type = OP_GREATER_EQ;
+
+		var binary = new_node(type, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_equality(): Node* {
+	var left = this.parse_comparison();
+
+	while(this.match(TOKEN_EQEQ) || this.match(TOKEN_BANG_EQ)) {
+		var op = this.previous;
+
+		var right = this.parse_comparison();
+
+		var type: int;
+		if(op.type == TOKEN_EQEQ) type = OP_EQUAL;
+		else if(op.type == TOKEN_BANG_EQ) type = OP_NOT_EQUAL;
+
+		var binary = new_node(type, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_bwand(): Node* {
+	var left = this.parse_equality();
+
+	while(this.match(TOKEN_AMP)) {
+		var op = this.previous;
+
+		var right = this.parse_equality();
+
+		var binary = new_node(OP_BWAND, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_xor(): Node* {
+	var left = this.parse_bwand();
+
+	while(this.match(TOKEN_XOR)) {
+		var op = this.previous;
+
+		var right = this.parse_bwand();
+
+		var binary = new_node(OP_XOR, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_bwor(): Node* {
+	var left = this.parse_xor();
+
+	while(this.match(TOKEN_BAR)) {
+		var op = this.previous;
+
+		var right = this.parse_xor();
+
+		var binary = new_node(OP_BWOR, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_and(): Node* {
+	var left = this.parse_bwor();
+
+	while(this.match(TOKEN_AMP_AMP)) {
+		var op = this.previous;
+
+		var right = this.parse_bwor();
+
+		var binary = new_node(OP_AND, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_or(): Node* {
+	var left = this.parse_and();
+
+	while(this.match(TOKEN_BAR_BAR)) {
+		var op = this.previous;
+
+		var right = this.parse_and();
+
+		var binary = new_node(OP_OR, op);
+		binary.v.binary.lhs = left;
+		binary.v.binary.rhs = right;
+		left = binary;
+	}
+
+	return left;
+}
+
+function Parser.parse_ternary_expression(): Node* {
+	var condition = this.parse_or();
+
+	if(this.match(TOKEN_QUESTION)) {
+		var op = this.previous;
+		var doTrue = this.parse_expression();
+
+		this.consume(TOKEN_COLON, "Expected ':' after true branch of ternary expression");
+
+		var doFalse = this.parse_expression();
+
+		var ternary = new_node(OP_TERNARY, op);
+		ternary.v.conditional.condition = condition;
+		ternary.v.conditional.doTrue = doTrue;
+		ternary.v.conditional.doFalse = doFalse;
+		return ternary;
+	}
+
+	return condition;
+}
+
+function Parser.parse_assignment_expression(): Node* {
+	var left = this.parse_ternary_expression();
+
+	while(this.match(TOKEN_EQ)) {
+		if(left.lvalue == LVALUE_NONE) {
+			this.error("Invalid lvalue for assignment");
+			return null;
+		}
+
+		var op = this.previous;
+
+		var right = this.parse_assignment_expression();
+
+		if(left.lvalue == LVALUE_LOCAL) {
+			var name = left.v.variable.name;
+			var assign = new_node(AST_ASSIGN_VAR, name);
+			assign.v.variable.name = name;
+			assign.v.variable.value = right;
+			left = assign;
+		}
+		else if(left.lvalue == LVALUE_SUBSCRIPT) {
+			var subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
+			subscript.v.ternary.lhs = left.v.binary.lhs;
+			subscript.v.ternary.mid = left.v.binary.rhs;
+			subscript.v.ternary.rhs = right;
+			left = subscript;
+		}
+		else if(left.lvalue == LVALUE_DEREF) {
+			var assign = new_node(OP_ASSIGN_DEREF, op);
+			assign.v.binary.lhs = left.v.unary;
+			assign.v.binary.rhs = right;
+			left = assign;
+		}
+		else if(left.lvalue == LVALUE_MEMBER) {
+			var assign = new_node(OP_ASSIGN_MEMBER, op);
+			assign.v.member.name = left.v.member.name;
+			assign.v.member.parent = left.v.member.parent;
+			assign.v.member.value = right;
+			left = assign;
+		}
+		else {
+			eputsln("Unreachable - invalid lvalue in parse_assignment_exression");
+			return null;
+		}
+	}
+
+	return left;
+}
+
+function Parser.parse_expression(): Node* {
+	return this.parse_assignment_expression();
+}
+
+function Parser.parse_if_statement(): Node* {
+	var ifStmt = new_node(AST_IF, this.previous);
+
+	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after if");
+
+	ifStmt.v.conditional.condition = this.parse_expression();
+
+	this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after if condition");
+
+	ifStmt.v.conditional.doTrue = this.parse_statement();
+
+	if(this.match(TOKEN_ELSE)) {
+		ifStmt.v.conditional.doFalse = this.parse_statement();
+	}
+
+	return ifStmt;
+}
+
+function Parser.parse_while_statement(): Node* {
+	var whileStmt = new_node(AST_WHILE, this.previous);
+
+	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after while");
+
+	whileStmt.v.conditional.condition = this.parse_expression();
+
+	this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after while condition");
+
+	whileStmt.v.conditional.doTrue = this.parse_statement();
+
+	return whileStmt;
+}
+
+function Parser.parse_for_statement(): Node* {
+	var forStmt = new_node(AST_FOR, this.previous);
+
+	var block = new_node(AST_BLOCK, this.previous);
+	block.v.block.children = new_vector();
+	block.v.block.parent = this.currentBlock;
+	this.currentBlock = block;
+
+	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after for");
+
+	if(this.match(TOKEN_SEMICOLON)) {
+		// No initialiser clause
+	}
+	else if(this.match(TOKEN_VAR)) {
+		forStmt.v.loop.initial = this.parse_var_declaration();
+	}
+	else if(this.match(TOKEN_IDENTIFIER)) {
+		forStmt.v.loop.initial = this.parse_statement();
+	}
+	else {
+		this.error_current("Expected for initializer clause");
+	}
+
+	if(!this.match(TOKEN_SEMICOLON)) {
+		forStmt.v.loop.condition = this.parse_expression();
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after condition");
+	}
+
+	if(!this.match(TOKEN_RIGHT_PAREN)) {
+		forStmt.v.loop.iteration = this.parse_expression();
+		this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after for clauses");
+	}
+
+	forStmt.v.loop.body = this.parse_statement();
+
+	block.add_child(forStmt);
+
+	this.currentBlock = block.v.block.parent;
+
+	return block;
+}
+
+function Parser.parse_return_statement(): Node* {
+	var returnStmt = new_node(AST_RETURN, this.previous);
+
+	if(!this.check(TOKEN_SEMICOLON))
+		returnStmt.v.unary = this.parse_expression();
+
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after return statement");
+
+	return returnStmt;
+}
+
+function Parser.parse_array_initialization(): Node* {
+	var array = new_node(AST_ARRAY_INIT, this.previous);
+	array.v.block.children = new_vector();
+
+	if(!this.check(TOKEN_RIGHT_SQBR)) {
+		var item = this.parse_expression();
+		array.add_child(item);
+
+		while(this.match(TOKEN_COMMA)) {
+			var item = this.parse_expression();
+			array.add_child(item);
+		}
+	}
+	this.consume(TOKEN_RIGHT_SQBR, "Expected ']' after array initialization");
+	return array;
+}
+
+function Parser.parse_var_declaration(): Node* {
+	var name = this.consume(TOKEN_IDENTIFIER, "Expected variable name");
+
+	var type = VOID_TYPE;
+
+	if(this.match(TOKEN_COLON)) {
+		type = this.parse_type();
+	}
+
+	var value: Node* = null;
+
+	if(this.match(TOKEN_EQ)) {
+		if(type.isArray && this.match(TOKEN_LEFT_SQBR)) {
+			value = this.parse_array_initialization();
+		}
+		else {
+			value = this.parse_expression();
+		}
+	}
+
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration");
+
+	var variable = new_node(AST_DEFINE_VAR, name);
+	variable.v.variable.name = name;
+	variable.v.variable.type = type;
+	variable.v.variable.value = value;
+
+	return variable;
+}
+
+function Parser.parse_statement(): Node* {
+	if(this.match(TOKEN_BREAK)) {
+		var pos = this.previous;
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after 'break'");
+		var breac = new_node(AST_BREAK, pos);
+		return breac;
+	}
+	else if(this.match(TOKEN_CONTINUE)) {
+		var pos = this.previous;
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after 'continue'");
+		var kontinue = new_node(AST_CONTINUE, pos);
+		return kontinue;
+	}
+	else if(this.match(TOKEN_IF)) {
+		return this.parse_if_statement();
+	}
+	else if(this.match(TOKEN_FOR)) {
+		return this.parse_for_statement();
+	}
+	else if(this.match(TOKEN_RETURN)) {
+		return this.parse_return_statement();
+	}
+	else if(this.match(TOKEN_VAR)) {
+		return this.parse_var_declaration();
+	}
+	else if(this.match(TOKEN_WHILE)) {
+		return this.parse_while_statement();
+	}
+	else if(this.match(TOKEN_LEFT_BRACE)) {
+		return this.parse_block();
+	}
+
+	var expr = this.parse_expression();
+
+	if(expr == null) return null;
+
+	if(!allow_expr_stmt(expr)) {
+		this.error("Expected statement");
+		return null;
+	}
+
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after expression");
+
+	var exprStmt = new_node(AST_EXPR_STMT, expr.position);
+	exprStmt.v.unary = expr;
+
+	return exprStmt;
+}
+
+function Parser.parse_block(): Node* {
+	var block = new_node(AST_BLOCK, this.previous);
+	block.v.block.children = new_vector();
+	block.v.block.parent = this.currentBlock;
+	this.currentBlock = block;
+
+	while(!this.check(TOKEN_RIGHT_BRACE)) {
+		var stmt = this.parse_statement();
+		if(this.error) break;
+		block.add_child(stmt);
+	}
+
+	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after block");
+
+	this.currentBlock = block.v.block.parent;
+	return block;
+}
+
+function Parser.parse_function(): Node* {
+	var name = this.consume(TOKEN_IDENTIFIER, "Expected function name");
+
+	var funktion = new_node(AST_FUNCTION, name);
+	funktion.v.funktion.arguments = new_vector();
+
+	if(this.match(TOKEN_DOT)) {
+		var parent = this.lookup_type(name);
+		if(parent == null) return null;
+
+		funktion.v.funktion.parentType = parent;
+		funktion.v.funktion.isMethod = true;
+		var methodName = this.consume(TOKEN_IDENTIFIER, "Expected function name");
+
+		var synthThis = synthetic_token(TOKEN_IDENTIFIER, "this");
+		var type = new_type();
+		type.type = DATA_TYPE_UNRESOLVED;
+		type.name = name;
+		type.indirection = 1;
+
+		var thisNode = new_node(AST_DEFINE_VAR, synthThis);
+		thisNode.v.variable.name = synthThis;
+		thisNode.v.variable.type = type;
+
+		funktion.v.funktion.arguments.push(thisNode);
+
+		parent.methods.push(funktion);
+		
+		name = methodName;
+	}
+
+	funktion.v.funktion.name = name;
+	
+	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after function name");
+	
+	if(!this.check(TOKEN_RIGHT_PAREN)) {
+		var argName = this.consume(TOKEN_IDENTIFIER, "Expected parameter name");
+		this.consume(TOKEN_COLON, "Expected ':' after parameter name");
+		var type = this.parse_type();
+
+		var arg = new_node(AST_DEFINE_VAR, argName);
+		arg.v.variable.name = argName;
+		arg.v.variable.type = type;
+		funktion.v.funktion.arguments.push(arg);
+
+		while(this.match(TOKEN_COMMA)) {
+			var argName = this.consume(TOKEN_IDENTIFIER, "Expected parameter name");
+			this.consume(TOKEN_COLON, "Expected ':' after parameter name");
+			var type = this.parse_type();
+
+			var arg = new_node(AST_DEFINE_VAR, argName);
+			arg.v.variable.name = argName;
+			arg.v.variable.type = type;
+
+			funktion.v.funktion.arguments.push(arg);
+		}
+	}
+
+	this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after function parameters");
+
+	var type: Type*;
+
+	if(this.match(TOKEN_COLON)) {
+		type = this.match(TOKEN_VOID) ? VOID_TYPE : this.parse_type();
+	}
+	else {
+		type = VOID_TYPE;
+	}
+
+	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before function body");
+
+	funktion.v.funktion.returnType = type;
+
+	this.currentFunction = funktion;
+
+	this.functions.push(funktion);
+
+	var body = this.parse_block();
+
+	funktion.v.funktion.body = body;
+
+	return funktion;
+}
+
+function Parser.parse_member_definition(type: Type*) {
+	var memName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
+
+	this.consume(TOKEN_COLON, "Expected ':' after member name");
+
+	if(this.match(TOKEN_UNION)) {
+		var vnion = this.parse_union_definition(true);
+
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		vnion.v.variable.name = memName;
+		vnion.computedType.name = memName;
+
+		var member = new_node(AST_MEMBER, memName);
+		member.v.variable.name = memName;
+		member.v.variable.type = vnion.computedType;
+		member.v.variable.value = vnion;
+
+		type.fields.push(member);
+	}
+	else if(this.match(TOKEN_STRUCT)) {
+		var strukt = this.parse_struct_definition(true);
+
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		strukt.v.variable.name = memName;
+		strukt.computedType.name = memName;
+
+		var member = new_node(AST_MEMBER, memName);
+		member.v.variable.name = memName;
+		member.v.variable.type = strukt.computedType;
+		member.v.variable.value = strukt;
+
+		type.fields.push(member);
+	}
+	else {
+		var memType = this.parse_type();
+
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+		var member = new_node(AST_MEMBER, memName);
+		member.v.variable.name = memName;
+		member.v.variable.type = memType;
+
+		type.fields.push(member);
+	}
+}
+
+function Parser.parse_struct_definition(member: int): Node* {
+	var name: Token*;
+
+	if(!member) {
+		name = this.consume(TOKEN_IDENTIFIER, "Expected struct name");
+	}
+
+	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before struct body");
+
+	if(this.match(TOKEN_RIGHT_BRACE)) this.error("Expected at least one struct member");
+
+	var structType = new_type();
+	structType.type = DATA_TYPE_STRUCT;
+	structType.name = name;
+	structType.fields = new_vector();
+	structType.methods = new_vector();
+
+	//TODO: do ... while
+	var run = true;
+
+	while(run || !this.check(TOKEN_RIGHT_BRACE)) {
+		run = false;
+
+		this.parse_member_definition(structType);
+	}
+
+	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after struct body");
+
+	var strukt = new_node(AST_STRUCT, name);
+	strukt.computedType = structType;
+
+	if(!member) {
+		strukt.v.variable.name = name;
+		this.definedTypes.push(structType);
+	}
+
+	return strukt;
+}
+
+function Parser.parse_union_definition(member: int): Node* {
+	var name: Token*;
+	
+	if(!member) {
+		name = this.consume(TOKEN_IDENTIFIER, "Expected union name");
+	}
+
+	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before union body");
+
+	if(this.match(TOKEN_RIGHT_BRACE)) this.error("Expected at least one union member");
+
+	var unionType = new_type();
+	unionType.type = DATA_TYPE_UNION;
+	unionType.name = name;
+	unionType.fields = new_vector();
+
+	//TODO: do ... while
+	var run = true;
+
+	while(run || !this.check(TOKEN_RIGHT_BRACE)) {
+		run = false;
+
+		this.parse_member_definition(unionType);
+	}
+
+	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after union body");
+
+	var vnion = new_node(AST_UNION, name);
+	vnion.computedType = unionType;
+
+	if(!member) {
+		vnion.v.variable.name = name;
+
+		this.definedTypes.push(unionType);
+	}
+
+	return vnion;
+}
+
+function Parser.parse_const_declaration(): Node* {
+	var name = this.consume(TOKEN_IDENTIFIER, "Expected constant name");
+
+	this.consume(TOKEN_EQ, "Expected '=' after constant name");
+
+	var val = this.parse_constant();
+
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after constant declaration");
+
+	var constant = new_node(AST_DEFINE_CONST, name);
+	constant.v.constant.name = name;
+	constant.v.constant.value = val;
+
+	this.constants.push(constant);
+
+	return constant;
+}
+
+function Parser.parse_import() {
+	var path = this.consume(TOKEN_STRING, "Expected import path");
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after import");
+
+	var spath = malloc(path.length - 2 + 1);
+	memcpy(spath, &path.start[1], path.length - 2);
+	spath[path.length - 2] = 0;
+
+	for(var i = 0; i < this.lexerStack.size; i = i + 1) {
+		var lexer: Lexer* = this.lexerStack.at(i);
+
+		if(streq(spath, lexer.filename)) {
+			this.error("Circular import detected");
+			return;
+		}
+	}
+
+	for(var i = 0; i < this.openedFiles.size; i = i + 1) {
+		if(streq(spath, this.openedFiles.at(i))) {
+			// Do nothing: already opened
+			return;
+		}
+	}
+
+	var file = fopen(spath, 'r');
+	if(file == null) {
+		putsln(spath);
+		this.error_at_token(path, "Could not open file");
+		return;
+	}
+	var source = file.slurp(null);
+	file.close();
+
+	var lexer = new_lexer(spath, source);
+
+	this.lexerStack.push(lexer);
+	this.openedFiles.push(spath);
+
+	this.lexer = lexer;
+	this.advance();
+}
+
+function Parser.parse_program(): Node* {
+	var program = new_node(AST_PROGRAM, this.current);
+	program.v.block.children = new_vector();
+
+	this.advance();
+
+	var builtins = parser_builtin_functions();
+
+	for(var i = 0; i < builtins.size; i = i + 1) {
+		this.functions.push(builtins.at(i));
+	}
+
+	this.lexerStack.push(this.lexer);
+
+	while(!this.match(TOKEN_EOF)) {
+		if(this.match(TOKEN_FUNCTION)) {
+			var funktion = this.parse_function();
+			program.add_child(funktion);
+		}
+		else if(this.match(TOKEN_VAR)) {
+			var variable = this.parse_var_declaration();
+			variable.type = AST_DEFINE_GLOBAL_VAR;
+			program.add_child(variable);
+		}
+		else if(this.match(TOKEN_CONST)) {
+			var constant = this.parse_const_declaration();
+			program.add_child(constant);
+		}
+		else if(this.match(TOKEN_STRUCT)) {
+			var strukt = this.parse_struct_definition(false);
+			program.add_child(strukt);
+		}
+		else if(this.match(TOKEN_UNION)) {
+			var vnion = this.parse_union_definition(false);
+			program.add_child(vnion);
+		}
+		else if(this.match(TOKEN_IMPORT)) {
+			this.parse_import();
+		}
+		else {
+			this.error_current("Expected definition");
+			break;
+		}
+
+		var tok = this.current;
+		var changedLexer = false;
+		while(tok.type == TOKEN_EOF && this.lexerStack.size > 1) {
+			changedLexer = true;
+			this.lexerStack.pop();
+			this.lexer = this.lexerStack.at(this.lexerStack.size - 1);
+			tok = this.peek();
+		}
+		if(changedLexer) {
+			this.advance();
+		}
+	}
+
+	return program;
+}

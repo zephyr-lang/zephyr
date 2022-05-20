@@ -1,0 +1,216 @@
+import "std/core.zpr";
+import "std/string.zpr";
+
+const stdin = 0;
+const stdout = 1;
+const stderr = 2;
+
+// ========== fput family ==========
+
+function fputln(fd: int) {
+	var n = 10;
+	write(fd, &n, 1);
+}
+
+function fputs(fd: int, str: i8*) {
+	write(fd, str, strlen(str));
+}
+
+function fputsln(fd: int, str: i8*) {
+	fputs(fd, str);
+	fputln(fd);
+}
+
+function fputc(fd: int, char: i8) {
+	write(fd, &char, 1);
+}
+
+// TODO: This function should take an unsigned integer, but they are not supported yet
+function fputu(fd: int, val: int) {
+	var buffer: i8[21];
+	uitoa(val, buffer);
+
+	fputs(fd, buffer);
+}
+
+function fputd(fd: int, val: int) {
+	var buffer: i8[21];
+	itoa(val, buffer, 10);
+
+	fputs(fd, buffer);
+}
+
+// ========== put family ==========
+
+function putln() {
+	fputln(stdout);
+}
+
+function puts(str: i8*) {
+	fputs(stdout, str);
+}
+
+function putsln(str: i8*) {
+	fputsln(stdout, str);
+}
+
+function putc(char: i8) {
+	fputc(stdout, char);
+}
+
+function putu(val: int) {
+	fputu(stdout, val);
+}
+
+function putd(val: int) {
+	fputd(stdout, val);
+}
+
+// ========== eput family ==========
+
+function eputln() {
+	fputln(stderr);
+}
+
+function eputs(str: i8*) {
+	fputs(stderr, str);
+}
+
+function eputsln(str: i8*) {
+	fputsln(stderr, str);
+}
+
+function eputc(char: i8) {
+	fputc(stderr, char);
+}
+
+function eputu(val: int) {
+	fputu(stderr, val);
+}
+
+function eputd(val: int) {
+	fputd(stderr, val);
+}
+
+// ========== Files ==========
+
+struct File {
+	fd: int;
+	name: i8*;
+
+	buffer: i8*;
+	bufferSize: int;
+}
+
+function fopen(name: i8*, mode: i8): File* {
+	var openMode: int;
+	if(mode == 'w') openMode = O_WRONLY | O_CREAT | O_TRUNC;
+	else if(mode == 'r') openMode = O_RDONLY;
+	else return null;
+
+	var f: File* = malloc(sizeof(File));
+	f.name = name;
+	f.fd = open(name, openMode, 438); // 0o666
+	if(f.fd < 0) {
+		free(f);
+		return null;
+	}
+	f.buffer = malloc(1024);
+	return f;
+}
+
+// ===== Writing =====
+
+function File.flush() {
+	if(this.bufferSize > 0) {
+		write(this.fd, this.buffer, this.bufferSize);
+		this.bufferSize = 0;
+	}
+}
+
+function File.write(buf: any*, size: int) {
+	if(this.bufferSize + size > 1024) {
+		this.flush();
+	}
+	if(size > 1024) {
+		write(this.fd, buf, size);
+	}
+	else {
+		memcpy(&this.buffer[this.bufferSize], buf, size);
+		this.bufferSize = this.bufferSize + size;
+	}
+}
+
+function File.putln() {
+	this.putc(10);
+}
+
+function File.puts(str: i8*) {
+	this.write(str, strlen(str));
+}
+
+function File.putsln(str: i8*) {
+	this.puts(str);
+	this.putln();
+}
+
+function File.putc(char: i8) {
+	this.write(&char, 1);
+}
+
+function File.putu(val: int) {
+	var buffer: i8[21];
+	uitoa(val, buffer);
+
+	this.write(buffer, strlen(buffer));
+}
+
+function File.putd(val: int) {
+	var buffer: i8[21];
+	itoa(val, buffer, 10);
+
+	this.write(buffer, strlen(buffer));
+}
+
+// ===== Reading =====
+
+function File.read(buf: any*, size: int): int {
+	if(buf == null) {
+		eputsln("buf == null!"); eputd(size); eputln();
+		exit(1);
+	}
+	var n = read(this.fd, buf, size);
+	return n;
+}
+
+function File.close() {
+	this.flush();
+	close(this.fd);
+	this.fd = -1;
+}
+
+function File.seek(offset: int, w: int): int {
+	var n = lseek(this.fd, offset, w);
+	return n;
+}
+
+function File.size(): int {
+	var pos = lseek(this.fd, 0, SEEK_CUR);
+	var size = lseek(this.fd, 0, SEEK_END);
+	lseek(this.fd, pos, SEEK_SET);
+	return size;
+}
+
+function File.slurp(sizeptr: int*): i8* {
+	var size = this.size();
+	var text: i8* = malloc(size + 1);
+	if(text == null) {
+		eputsln("text == null");
+		exit(1);
+	}
+
+	this.read(text, size);
+	text[size] = 0;
+	if(sizeptr as int) *sizeptr = size;
+	return text;
+}

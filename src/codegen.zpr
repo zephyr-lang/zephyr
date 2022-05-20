@@ -1,0 +1,815 @@
+import "std/core.zpr";
+import "std/io.zpr";
+import "std/math.zpr";
+import "src/ast.zpr";
+
+var cg_ARG_REGISTERS: i8*[6] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
+var cg_lableCount = 0;
+var cg_registersInUse = 0;
+var cg_continueLabel = 0;
+var cg_breakLabel = 0;
+
+function Type.qualifier(): i8* {
+	if(this.size() == 1) return "BYTE";
+	if(this.size() == 2) return "WORD";
+	if(this.size() == 4) return "DWORD";
+	if(this.size() == 8) return "QWORD";
+
+	eputsln("Unreachable - invalid size of type");
+	exit(1);
+	return null;
+}
+
+function Type.rax_subregister(): i8* {
+	if(this.size() == 1) return "al";
+	if(this.size() == 2) return "ax";
+	if(this.size() == 4) return "eax";
+	if(this.size() == 8) return "rax";
+
+	eputsln("Unreachable - invalid size of type");
+	exit(1);
+	return null;
+}
+
+function Type.movzx(): i8* {
+	if(this.size() == 1 || this.size() == 2) {
+		return "movzx";
+	}
+	return "mov";
+}
+
+function Type.movzx_rax_subregister(): i8* {
+	if(this.size() == 4) return "eax";
+	return "rax";
+}
+
+function Type.reserve(): i8* {
+	if(this.size() == 1) return "resb";
+	if(this.size() == 2) return "resw";
+	if(this.size() == 4) return "resd";
+	if(this.size() == 8) return "resq";
+
+	eputsln("Unreachable - invalid size of type");
+	exit(1);
+	return null;
+}
+
+function cmp_suffix(type: int): i8* {
+	if(type == OP_EQUAL) return "e";
+	if(type == OP_NOT_EQUAL) return "ne";
+	if(type == OP_LESS) return "l";
+	if(type == OP_LESS_EQ) return "le";
+	if(type == OP_GREATER) return "g";
+	if(type == OP_GREATER_EQ) return "ge";
+
+	eputs("Unsupported type in generate_unary_rax - "); eputs(node_type_to_string(type)); eputln();
+	exit(1);
+	return null;
+}
+
+function generate_addrof_rax(expr: Node*, out: File*) {
+	if(expr.v.unary.lvalue == LVALUE_LOCAL) {
+		out.puts("    lea rax, [rbp-"); out.putd(expr.v.unary.v.variable.stackOffset); out.putsln("]");
+	}
+	else if(expr.v.unary.lvalue == LVALUE_GLOBAL) {
+		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.unary.v.variable.name); out.putsln("]");
+	}
+	else if(expr.v.unary.lvalue == LVALUE_SUBSCRIPT) {
+		generate_expr_rax(expr.v.unary.v.binary.lhs, out);
+		out.putsln("    push rax");
+		generate_expr_rax(expr.v.unary.v.binary.rhs, out);
+		out.putsln("    mov rcx, rax");
+		out.putsln("    pop rax");
+
+		out.puts("    lea rax, [rax+rcx*"); out.putd(expr.v.unary.computedType.size()); out.putsln("]");
+	}
+	else if(expr.v.unary.lvalue == LVALUE_MEMBER) {
+		generate_expr_rax(expr.v.unary.v.member.parent, out);
+		var field = expr.v.unary.v.member.memberRef;
+		out.puts("    lea rax, [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	}
+	else {
+		eputs("Unsupported lvalue in generate_addrof_rax - "); eputd(expr.v.unary.lvalue); eputln();
+		exit(1);
+	}
+}
+
+function generate_deref_rax(expr: Node*, out: File*) {
+	if(expr.computedType.is_structural()) {
+		expr.print_position();
+		eputsln("Cannot copy structs (yet)");
+		exit(1);
+	}
+
+	generate_expr_rax(expr.v.unary, out);
+
+	out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister()); out.puts(", ");
+	out.puts(expr.computedType.qualifier()); out.putsln(" [rax]");
+}
+
+function generate_assign_deref(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    pop rcx");
+
+	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
+}
+
+function generate_unary_rax(expr: Node*, out: File*) {
+	if(expr.type == OP_BWNOT) {
+		generate_expr_rax(expr.v.unary, out);
+		out.putsln("    not rax");
+	}
+	else if(expr.type == OP_NEG) {
+		generate_expr_rax(expr.v.unary, out);
+		out.putsln("    neg rax");
+	}
+	else if(expr.type == OP_NOT) {
+		generate_expr_rax(expr.v.unary, out);
+		out.putsln("    test rax, rax");
+		out.putsln("    sete al");
+		out.putsln("    movzx rax, al");
+	}
+	else if(expr.type == OP_ADDROF) {
+		generate_addrof_rax(expr, out);
+	}
+	else if(expr.type == OP_DEREF) {
+		generate_deref_rax(expr, out);
+	}
+	else {
+		eputs("Unsupported type in generate_unary_rax - "); eputs(node_type_to_string(expr.type)); eputln();
+		exit(1);
+	}
+}
+
+function generate_logical_or_rax(expr: Node*, out: File*) {
+	var label = cg_lableCount = cg_lableCount + 1;
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    mov rax, 1");
+	out.putsln("    test rcx, rcx");
+	out.puts("    jne .l"); out.putd(label); out.putln();
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    test rax, rax");
+	out.putsln("    setne al");
+	out.putsln("    movzx rax, al");
+	out.puts(".l"); out.putd(label); out.putsln(":");
+}
+
+function generate_logical_and_rax(expr: Node*, out: File*) {
+	var label = cg_lableCount = cg_lableCount + 1;
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    test rax, rax");
+	out.puts("    je .l"); out.putd(label); out.putln();
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    test rax, rax");
+	out.putsln("    setne al");
+	out.putsln("    movzx rax, al");
+	out.puts(".l"); out.putd(label); out.putsln(":");
+}
+
+function generate_binary_rax(expr: Node*, out: File*) {
+	if(expr.type == OP_OR) {
+		generate_logical_or_rax(expr, out);
+		return;
+	}
+	else if(expr.type == OP_AND) {
+		generate_logical_and_rax(expr, out);
+		return;
+	}
+
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    pop rax");
+
+	if(expr.type == OP_ADD) {
+		out.putsln("    add rax, rcx");
+	}
+	else if(expr.type == OP_SUB) {
+		out.putsln("    sub rax, rcx");
+	}
+	else if(expr.type == OP_MUL) {
+		out.putsln("    imul rax, rcx");
+	}
+	else if(expr.type == OP_DIV) {
+		out.putsln("    cqo");
+		out.putsln("    idiv rcx");
+	}
+	else if(expr.type == OP_MOD) {
+		out.putsln("    cqo");
+		out.putsln("    idiv rcx");
+		out.putsln("    mov rax, rdx");
+	}
+	else if(expr.type == OP_BWAND) {
+		out.putsln("    and rax, rcx");
+	}
+	else if(expr.type == OP_BWOR) {
+		out.putsln("    or rax, rcx");
+	}
+	else if(expr.type == OP_XOR) {
+		out.putsln("    xor rax, rcx");
+	}
+	else if(expr.type == OP_LSH) {
+		out.putsln("    sal rax, cl");
+	}
+	else if(expr.type == OP_RSH) {
+		out.putsln("    sar rax, cl");
+	}
+	else if(expr.type == OP_EQUAL || expr.type == OP_NOT_EQUAL || expr.type == OP_LESS || expr.type == OP_LESS_EQ || expr.type == OP_GREATER || expr.type == OP_GREATER_EQ) {
+		out.putsln("    cmp rax, rcx");
+		out.puts("    set"); out.puts(cmp_suffix(expr.type)); out.putsln(" al");
+		out.putsln("    movzx rax, al");
+	}
+	else {
+		eputs("Unsupported type in generate_binary_rax - "); eputs(node_type_to_string(expr.type)); eputln();
+		exit(1);
+	}
+}
+
+function generate_call_rax(expr: Node*, out: File*) {
+	for(var i = 0; i < cg_registersInUse; i = i + 1) {
+		out.puts("    push "); out.putsln(cg_ARG_REGISTERS[i]);
+	}
+
+	var localRegUse = 0;
+
+	for(var i = 0; i < min(expr.v.funktion.arguments.size, 6); i = i + 1) {
+		generate_expr_rax(expr.v.funktion.arguments.at(i), out);
+		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i]); out.putsln(", rax");
+		cg_registersInUse = cg_registersInUse + 1;
+		localRegUse = localRegUse + 1;
+	}
+
+	for(var i = 0; i < expr.v.funktion.arguments.size - 6; i = i + 1) {
+		generate_expr_rax(expr.v.funktion.arguments.at(i + 6), out);
+		out.putsln("    push rax");
+	}
+
+	cg_registersInUse = cg_registersInUse - localRegUse;
+
+	out.puts("    call _f_"); out.put_token_string(expr.v.funktion.name); out.putln();
+
+	for(var i = 0; i < cg_registersInUse; i = i + 1) {
+		out.puts("    pop "); out.putsln(cg_ARG_REGISTERS[cg_registersInUse - i - 1]);
+	}
+}
+
+function generate_call_method_rax(expr: Node*, out: File*) {
+	for(var i = 0; i < cg_registersInUse; i = i + 1) {
+		out.puts("    push "); out.putsln(cg_ARG_REGISTERS[i]);
+	}
+
+	var localRegUse = 1;
+	cg_registersInUse = cg_registersInUse + 1;
+	
+	generate_expr_rax(expr.v.funktion.parent, out);
+	out.putsln("    mov rdi, rax");
+
+	for(var i = 0; i < min(expr.v.funktion.arguments.size, 5); i = i + 1) {
+		generate_expr_rax(expr.v.funktion.arguments.at(i), out);
+		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i + 1]); out.putsln(", rax");
+		cg_registersInUse = cg_registersInUse + 1;
+		localRegUse = localRegUse + 1;
+	}
+
+	for(var i = 0; i < expr.v.funktion.arguments.size - 5; i = i + 1) {
+		generate_expr_rax(expr.v.funktion.arguments.at(i + 5), out);
+		out.putsln("    push rax");
+	}
+
+	cg_registersInUse = cg_registersInUse - localRegUse;
+
+	out.puts("    call _m_"); out.put_token_string(expr.v.funktion.parentType.name); out.puts("_"); out.put_token_string(expr.v.funktion.name);
+	out.putln();
+
+	for(var i = 0; i < cg_registersInUse; i = i + 1) {
+		out.puts("    pop "); out.putsln(cg_ARG_REGISTERS[cg_registersInUse - i - 1]);
+	}
+}
+
+function generate_ternary_rax(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.conditional.condition, out);
+	out.putsln("    test rax, rax");
+	var falseLabel = cg_lableCount = cg_lableCount + 1;
+	var endLabel = cg_lableCount = cg_lableCount + 1;
+
+	out.puts("    je .l"); out.putd(falseLabel); out.putln();
+	generate_expr_rax(expr.v.conditional.doTrue, out);
+	out.puts("    jmp .l"); out.putd(endLabel); out.putln();
+
+	out.puts(".l"); out.putd(falseLabel); out.putsln(":");
+	generate_expr_rax(expr.v.conditional.doFalse, out);
+
+	out.puts(".l"); out.putd(endLabel); out.putsln(":");
+}
+
+function generate_access_var(expr: Node*, out: File*) {
+	if(expr.v.variable.type.isArray || expr.v.variable.type.is_structural()) {
+		out.puts("    lea rax, [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+		return;
+	}
+
+	out.puts("    "); out.puts(expr.v.variable.type.movzx()); out.puts(" "); out.puts(expr.v.variable.type.movzx_rax_subregister()); out.puts(", ");
+	out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+}
+
+function generate_assign_var(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.variable.value, out);
+
+	out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.puts("], ");
+	out.putsln(expr.v.variable.type.rax_subregister());
+}
+
+function generate_access_global_var(expr: Node*, out: File*) {
+	if(expr.v.variable.type.isArray || expr.v.variable.type.is_structural()) {
+		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
+		return;
+	}
+
+	out.puts("    "); out.puts(expr.v.variable.type.movzx()); out.puts(" "); out.puts(expr.v.variable.type.rax_subregister()); out.puts(", ");
+	out.puts(expr.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
+}
+
+function generate_assign_global_var(expr: Node*, out: File*) {
+	if(expr.v.variable.type.is_structural()) {
+		eputsln("Cannot copy structs (yet)");
+		exit(1);
+	}
+
+	generate_expr_rax(expr.v.variable.value, out);
+	out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.v.variable.name);
+	out.puts("], "); out.putsln(expr.v.variable.type.rax_subregister());
+}
+
+function generate_access_subscript(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    pop rax");
+
+	out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister());
+	out.puts(", "); out.puts(expr.computedType.qualifier()); out.puts(" [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+}
+
+function generate_assign_subscript(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.ternary.lhs, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.ternary.mid, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.ternary.rhs, out);
+	out.putsln("    pop rdx");
+	out.putsln("    pop rcx");
+
+	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx+rdx*"); out.putd(expr.computedType.size());
+	out.puts("], "); out.putsln(expr.computedType.rax_subregister());
+}
+
+function generate_access_member(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.member.parent, out);
+	var field = expr.v.member.memberRef;
+	
+	if(field.v.variable.type.is_structural()) {
+		out.puts("    lea rax, [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	}
+	else {
+		out.puts("    "); out.puts(field.v.variable.type.movzx()); out.puts(" "); out.puts(field.v.variable.type.movzx_rax_subregister());
+		out.puts(", "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	}
+}
+
+function generate_assign_member(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.member.parent, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.member.value, out);
+	out.putsln("    pop rcx");
+	var field = expr.v.member.memberRef;
+	out.puts("    mov "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rcx+"); out.putd(field.v.variable.stackOffset);
+	out.puts("], "); out.putsln(field.v.variable.type.rax_subregister());
+}
+
+function generate_copy(fields: Vector*, parentOffset: int, memberOffset: int, out: File*) {
+	for(var i = 0; i < fields.size; i = i + 1) {
+		var field: Node* = fields.at(i);
+
+		if(field.v.variable.type.is_structural()) {
+			generate_copy(field.v.variable.type.fields, field.v.variable.stackOffset, memberOffset, out);
+			continue;
+		}
+
+		out.puts("    mov rax, "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rcx+"); 
+		out.putd(field.v.variable.stackOffset + parentOffset); out.putsln("]");
+
+		out.puts("    mov "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rdx+"); 
+		out.putd(field.v.variable.stackOffset + parentOffset + memberOffset); out.putsln("], rax");
+	}
+}
+
+function generate_copy_struct(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.variable.value, out);
+
+	if(!expr.v.variable.type.is_structural()) {
+		out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.puts("], ");
+		out.putsln(expr.v.variable.type.rax_subregister());
+		return;
+	}
+
+	out.putsln("    mov rcx, rax");
+	out.puts("    lea rdx, [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+
+	generate_copy(expr.v.variable.type.fields, 0, 0, out);
+
+	out.putsln("    mov rax, rdx");
+}
+
+function generate_copy_struct_member(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.member.value, out);
+	out.putsln("    mov rcx, rax");
+	generate_expr_rax(expr.v.member.parent, out);
+	out.putsln("    mov rdx, rax");
+
+	var member = expr.v.member.memberRef;
+
+	generate_copy(member.v.variable.type.fields, 0, member.v.variable.stackOffset, out);
+
+	out.putsln("    mov rax, rdx");
+}
+
+function generate_copy_struct_deref(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    mov rdx, rax");
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    mov rcx, rax");
+
+	generate_copy(expr.computedType.fields, 0, 0, out);
+
+	out.putsln("    mov rax, rdx");
+}
+
+function generate_expr_rax(expr: Node*, out: File*) {
+	if(is_unary_op(expr.type)) {
+		generate_unary_rax(expr, out);
+	}
+	else if(is_binary_op(expr.type)) {
+		generate_binary_rax(expr, out);
+	}
+	else if(expr.type == AST_INT_LITERAL) {
+		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
+	}
+	else if(expr.type == AST_CHAR_LITERAL) {
+		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
+	}
+	else if(expr.type == AST_STRING) {
+		out.puts("    lea rax, [_s"); out.putd(expr.v.literal.az.string.id); out.putsln("]");
+	}
+	else if(expr.type == AST_ACCESS_VAR) {
+		generate_access_var(expr, out);
+	}
+	else if(expr.type == AST_ASSIGN_VAR) {
+		generate_assign_var(expr, out);
+	}
+	else if(expr.type == AST_ACCESS_GLOBAL_VAR) {
+		generate_access_global_var(expr, out);
+	}
+	else if(expr.type == AST_ASSIGN_GLOBAL_VAR) {
+		generate_assign_global_var(expr, out);
+	}
+	else if(expr.type == AST_CALL) {
+		generate_call_rax(expr, out);
+	}
+	else if(expr.type == AST_CALL_METHOD) {
+		generate_call_method_rax(expr, out);
+	}
+	else if(expr.type == OP_TERNARY) {
+		generate_ternary_rax(expr, out);
+	}
+	else if(expr.type == OP_SIZEOF) {
+		out.puts("    mov rax, "); out.putd(expr.computedType.size_offset()); out.putln();
+	}
+	else if(expr.type == OP_ACCESS_SUBSCRIPT) {
+		generate_access_subscript(expr, out);
+	}
+	else if(expr.type == OP_ASSIGN_SUBSCRIPT) {
+		generate_assign_subscript(expr, out);
+	}
+	else if(expr.type == OP_ASSIGN_DEREF) {
+		generate_assign_deref(expr, out);
+	}
+	else if(expr.type == AST_CAST) {
+		generate_expr_rax(expr.v.unary, out);
+	}
+	else if(expr.type == OP_ACCESS_MEMBER) {
+		generate_access_member(expr, out);
+	}
+	else if(expr.type == OP_ASSIGN_MEMBER) {
+		generate_assign_member(expr, out);
+	}
+	else if(expr.type == OP_COPY_STRUCT) {
+		generate_copy_struct(expr, out);
+	}
+	else if(expr.type == OP_COPY_STRUCT_MEMBER) {
+		generate_copy_struct_member(expr, out);
+	}
+	else if(expr.type == OP_COPY_STRUCT_DEREF) {
+		generate_copy_struct_deref(expr, out);
+	}
+	else {
+		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
+		exit(1);
+	}
+}
+
+function generate_if_statement(ifStmt: Node*, out: File*) {
+	generate_expr_rax(ifStmt.v.conditional.condition, out);
+	out.putsln("    test rax, rax");
+	var falseLabel = cg_lableCount = cg_lableCount + 1;
+	var endLabel = cg_lableCount = cg_lableCount + 1;
+
+	out.puts("    je .l"); out.putd(falseLabel); out.putln();
+
+	generate_statement(ifStmt.v.conditional.doTrue, out);
+
+	if(ifStmt.v.conditional.doFalse != null) {
+		out.puts("    jmp .l"); out.putd(endLabel); out.putln();
+	}
+
+	out.puts(".l"); out.putd(falseLabel); out.putsln(":");
+
+	if(ifStmt.v.conditional.doFalse != null) {
+		generate_statement(ifStmt.v.conditional.doFalse, out);
+		out.puts(".l"); out.putd(endLabel); out.putsln(":");
+	}
+}
+
+function generate_while_statement(whileStmt: Node*, out: File*) {
+	var condLabel = cg_lableCount = cg_lableCount + 1;
+	var bodyLabel = cg_lableCount = cg_lableCount + 1;
+	var endLabel = cg_lableCount = cg_lableCount + 1;
+
+	var prevContinueLabel = cg_continueLabel;
+	var prevBreakLabel = cg_breakLabel;
+	cg_continueLabel = condLabel;
+	cg_breakLabel = endLabel;
+
+	out.puts("    jmp .l"); out.putd(condLabel); out.putln();
+	out.puts(".l"); out.putd(bodyLabel); out.putsln(":");
+
+	generate_statement(whileStmt.v.conditional.doTrue, out);
+
+	out.puts(".l"); out.putd(condLabel); out.putsln(":");
+	generate_expr_rax(whileStmt.v.conditional.condition, out);
+	out.putsln("    test rax, rax");
+	out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
+
+	out.puts(".l"); out.putd(endLabel); out.putsln(":");
+	cg_breakLabel = prevBreakLabel;
+	cg_continueLabel = prevContinueLabel;
+}
+
+function generate_for_statement(forStmt: Node*, out: File*) {
+	if(forStmt.v.loop.initial != null)
+		generate_statement(forStmt.v.loop.initial, out);
+
+	var hasCondition = forStmt.v.loop.condition != null;
+	var condLabel = cg_lableCount = cg_lableCount + 1;
+	var bodyLabel = cg_lableCount = cg_lableCount + 1;
+	var endLabel = cg_lableCount = cg_lableCount + 1;
+	var iterationLabel: int;
+
+	var prevContinueLabel = cg_continueLabel;
+	var prevBreakLabel = cg_breakLabel;
+	cg_continueLabel = condLabel;
+	cg_breakLabel = endLabel;
+
+	if(forStmt.v.loop.iteration != null) {
+		iterationLabel = cg_lableCount = cg_lableCount + 1;
+		cg_continueLabel = iterationLabel;
+	}
+
+	if(hasCondition) {
+		out.puts("    jmp .l"); out.putd(condLabel); out.putln();
+	}
+	
+	out.puts(".l"); out.putd(bodyLabel); out.putsln(":");
+
+	generate_statement(forStmt.v.loop.body, out);
+
+	if(forStmt.v.loop.iteration != null) {
+		out.puts(".l"); out.putd(iterationLabel); out.putsln(":");
+		generate_expr_rax(forStmt.v.loop.iteration, out);
+	}
+
+	if(hasCondition) {
+		out.puts(".l"); out.putd(condLabel); out.putsln(":");
+		generate_expr_rax(forStmt.v.loop.condition, out);
+		out.putsln("    test rax, rax");
+		out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
+	}
+	else {
+		out.puts("    jmp .l"); out.putd(bodyLabel); out.putln();
+	}
+
+	out.puts(".l"); out.putd(endLabel); out.putsln(":");
+	cg_breakLabel = prevBreakLabel;
+	cg_continueLabel = prevContinueLabel;
+}
+
+function generate_define_var(stmt: Node*, out: File*) {
+	if(stmt.v.variable.value != null) {
+		if(stmt.v.variable.value.type == AST_ARRAY_INIT) {
+			var array = stmt.v.variable.value;
+			var itemType = copy_type(stmt.v.variable.type);
+			itemType.indirection = itemType.indirection - 1;
+			for(var i = 0; i < array.v.block.children.size; i = i + 1) {
+				generate_expr_rax(array.v.block.children.at(i), out);
+				out.puts("    mov "); out.puts(itemType.qualifier()); out.puts(" [rbp-"); out.putd(stmt.v.variable.stackOffset - (i * itemType.size()));
+				out.puts("], "); out.putsln(itemType.rax_subregister());
+			}
+			return;
+		}
+
+		generate_expr_rax(stmt.v.variable.value, out);
+
+		out.puts("    mov "); out.puts(stmt.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.v.variable.stackOffset);
+		out.puts("], "); out.putsln(stmt.v.variable.type.rax_subregister());
+	}
+}
+
+function generate_statement(stmt: Node*, out: File*) {
+	if(stmt.type == AST_IF) {
+		generate_if_statement(stmt, out);
+	}
+	else if(stmt.type == AST_WHILE) {
+		generate_while_statement(stmt, out);
+	}
+	else if(stmt.type == AST_FOR) {
+		generate_for_statement(stmt, out);
+	}
+	else if(stmt.type == AST_RETURN) {
+		if(stmt.v.unary != null)
+			generate_expr_rax(stmt.v.unary, out);
+		out.putsln("    leave");
+		out.putsln("    ret");
+	}
+	else if(stmt.type == AST_DEFINE_VAR) {
+		generate_define_var(stmt, out);
+	}
+	else if(stmt.type == AST_EXPR_STMT) {
+		generate_expr_rax(stmt.v.unary, out);
+	}
+	else if(stmt.type == AST_BLOCK) {
+		generate_block(stmt, out);
+	}
+	else if(stmt.type == AST_CONTINUE) {
+		out.puts("    jmp .l"); out.putd(cg_continueLabel); out.putln();
+	}
+	else if(stmt.type == AST_BREAK) {
+		out.puts("    jmp .l"); out.putd(cg_breakLabel); out.putln();
+	}
+	else {
+		eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();
+		exit(1);
+	}
+}
+
+function generate_block(block: Node*, out: File*) {
+	for(var i = 0; i < block.v.block.children.size; i = i + 1) {
+		generate_statement(block.v.block.children.at(i), out);
+	}
+}
+
+function generate_function(funktion: Node*, out: File*) {
+	if(!funktion.v.funktion.isMethod) {
+		out.puts("global _f_"); out.put_token_string(funktion.v.funktion.name); out.putln();
+		out.puts("_f_"); out.put_token_string(funktion.v.funktion.name); out.putsln(":");
+	}
+	else {
+		out.puts("global _m_"); out.put_token_string(funktion.v.funktion.parentType.name); 
+		out.puts("_"); out.put_token_string(funktion.v.funktion.name); out.putln();
+
+		out.puts("_m_"); out.put_token_string(funktion.v.funktion.parentType.name);
+		out.puts("_"); out.put_token_string(funktion.v.funktion.name); out.putsln(":");
+	}
+
+	out.putsln("    push rbp");
+	out.putsln("    mov rbp, rsp");
+
+	var stackDepth = ceil_multiple(funktion.v.funktion.localVariableStackOffset, 16);
+	if(stackDepth != 0) {
+		out.puts("    sub rsp, "); out.putd(stackDepth); out.putln();
+	}
+
+	for(var i = 0; i < min(funktion.v.funktion.arguments.size, 6); i = i + 1) {
+		out.puts("    mov QWORD [rbp-"); out.putd((funktion.v.funktion.arguments.at(i) as Node*).v.variable.stackOffset); out.puts("], "); out.putsln(cg_ARG_REGISTERS[i]);
+	}
+
+	for(var i = 0; i < funktion.v.funktion.arguments.size - 6; i = i + 1) {
+		out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.v.funktion.arguments.size - 6 - i))); out.putsln("]");
+		out.puts("    mov QWORD [rbp-"); out.putd((funktion.v.funktion.arguments.at(i) as Node*).v.variable.stackOffset); out.putsln("], rax");
+	}
+
+	generate_block(funktion.v.funktion.body, out);
+}
+
+function Parser.generate_program(ast: Node*, out: File*) {
+	out.putsln("section .text");
+	
+	generate_builtin_functions(out);
+
+	for(var i = 0; i < ast.v.block.children.size; i = i + 1) {
+		var node: Node* = ast.v.block.children.at(i);
+		if(node.type == AST_FUNCTION) {
+			generate_function(node, out);
+		}
+		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
+			// Handled below
+		}
+		else if(node.type == AST_DEFINE_CONST) {
+			// No code generated - expanded inline
+		}
+		else if(node.type == AST_STRUCT) {
+			// No code generated
+		}
+		else if(node.type == AST_UNION) {
+			// No code generated
+		}
+		else {
+			eputs("Unsupported type in generate_program - "); eputs(node_type_to_string(node.type)); eputln();
+			exit(1);
+		}
+	}
+
+	// Entry point of _start -> initialises state, calls main and exits (via syscall)
+	// Uses main's return value as the exit code
+	out.putsln("global _start");
+	out.putsln("_start:");
+
+	for(var i = 0; i < this.globalVars.size; i = i + 1) {
+		var variable: Node* = this.globalVars.at(i);
+		var type = variable.v.variable.type;
+
+		if(variable.v.variable.value != null) {
+			if(variable.v.variable.value.type == AST_ARRAY_INIT) {
+				var array = variable.v.variable.value;
+				var itemType = copy_type(type);
+				itemType.indirection = type.indirection - 1;
+
+				for(var i = 0; i < array.v.block.children.size; i = i + 1) {
+					generate_expr_rax(array.v.block.children.at(i), out);
+					out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_");
+					out.put_token_string(variable.v.variable.name); out.puts("+"); out.putd(i * itemType.size());
+					out.puts("], "); out.putsln(type.rax_subregister());
+				}
+				continue;
+			}
+
+			generate_expr_rax(variable.v.variable.value, out);
+
+			out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_"); out.put_token_string(variable.v.variable.name);
+			out.puts("], "); out.putsln(type.rax_subregister());
+		}
+	}
+
+	out.putsln("    pop rdi");
+	out.putsln("    mov rsi, rsp");
+
+	out.putsln("    call _f_main");
+	out.putsln("    mov rdi, rax");
+	out.putsln("    mov rax, 60");
+	out.putsln("    syscall");
+
+	if(this.globalVars.size > 0) {
+		out.putsln("section .bss");
+
+		for(var i = 0; i < this.globalVars.size; i = i + 1) {
+			var variable: Node* = this.globalVars.at(i);
+
+			out.puts("_g_"); out.put_token_string(variable.v.variable.name); out.puts(": ");
+			
+			var type = variable.v.variable.type;
+
+			if(type.isArray) {
+				var subType = copy_type(type);
+				subType.indirection = type.indirection - 1;
+				out.puts(subType.reserve()); out.puts(" "); out.putd(type.arrayLength); out.putln();
+			}
+			else {
+				out.puts(variable.v.variable.type.reserve()); out.putsln(" 1");
+			}
+		}
+	}
+
+	if(this.strings.size > 0) {
+		out.putsln("section .data");
+
+		for(var i = 0; i < this.strings.size; i = i + 1) {
+			var str: Node* = this.strings.at(i);
+
+			out.puts("_s"); out.putd(str.v.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.v.literal.az.string.chars);
+			out.putc('"'); out.putsln(", 0");
+		}
+	}
+}

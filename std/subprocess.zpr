@@ -1,0 +1,54 @@
+import "std/core.zpr";
+import "std/io.zpr";
+import "std/linux.zpr";
+
+function fork(): int {
+	return syscall0(SYS_fork);
+}
+
+function wait(status: int*): int {
+	return syscall4(SYS_wait4, -1, status, 0, 0);
+}
+
+function execve(filename: i8*, argv: i8**, envp: i8**): int {
+	return syscall3(SYS_execve, filename, argv, envp);
+}
+
+function WIFEXITED(status: int): int {
+	return (status & 127) == 0;
+}
+
+function WEXITSTATUS(status: int): int {
+	return (status >> 8) & 127;
+}
+
+function exec_command_env(args: i8**, envp: i8**): int {
+	var pid = fork();
+
+	if(pid == 0) {
+		execve(args[0], args, envp);
+		eputsln("Error in execve()");
+		exit(1);
+	}
+
+	var status: int;
+
+	if(wait(&status) < 0) {
+		eputsln("Error in wait()");
+		exit(1);
+	}
+
+	if(!WIFEXITED(status)) {
+		eputsln("Child did not exit normally");
+		exit(1);
+	}
+
+	var exitStatus = WEXITSTATUS(status);
+	
+	return exitStatus;
+}
+
+function exec_command(args: i8**): int {
+	var envp: i8*[1] = [ null ];
+	return exec_command_env(args, envp);
+}

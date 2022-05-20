@@ -1,0 +1,180 @@
+import "std/core.zpr";
+import "std/string.zpr";
+
+// Updating this list requires updating token_type_to_string
+var __tk_count = 0;
+var TOKEN_LEFT_PAREN = 0;
+var TOKEN_RIGHT_PAREN = __tk_count = __tk_count + 1;
+var TOKEN_LEFT_BRACE = __tk_count = __tk_count + 1;
+var TOKEN_RIGHT_BRACE = __tk_count = __tk_count + 1;
+var TOKEN_LEFT_SQBR = __tk_count = __tk_count + 1;
+var TOKEN_RIGHT_SQBR = __tk_count = __tk_count + 1;
+var TOKEN_COLON = __tk_count = __tk_count + 1;
+var TOKEN_SEMICOLON = __tk_count = __tk_count + 1;
+var TOKEN_COMMA = __tk_count = __tk_count + 1;
+var TOKEN_DOT = __tk_count = __tk_count + 1;
+var TOKEN_QUESTION = __tk_count = __tk_count + 1;
+var TOKEN_TILDE = __tk_count = __tk_count + 1;
+var TOKEN_MINUS = __tk_count = __tk_count + 1;
+var TOKEN_BANG = __tk_count = __tk_count + 1;
+var TOKEN_PLUS = __tk_count = __tk_count + 1;
+var TOKEN_STAR = __tk_count = __tk_count + 1;
+var TOKEN_SLASH = __tk_count = __tk_count + 1;
+var TOKEN_PERCENT = __tk_count = __tk_count + 1;
+var TOKEN_AMP = __tk_count = __tk_count + 1;
+var TOKEN_AMP_AMP = __tk_count = __tk_count + 1;
+var TOKEN_BAR = __tk_count = __tk_count + 1;
+var TOKEN_BAR_BAR = __tk_count = __tk_count + 1;
+var TOKEN_XOR = __tk_count = __tk_count + 1;
+var TOKEN_LESS = __tk_count = __tk_count + 1;
+var TOKEN_LSH = __tk_count = __tk_count + 1;
+var TOKEN_GREATER = __tk_count = __tk_count + 1;
+var TOKEN_RSH = __tk_count = __tk_count + 1;
+var TOKEN_EQ = __tk_count = __tk_count + 1;
+var TOKEN_EQEQ = __tk_count = __tk_count + 1;
+var TOKEN_BANG_EQ = __tk_count = __tk_count + 1;
+var TOKEN_LEQ = __tk_count = __tk_count + 1;
+var TOKEN_GEQ = __tk_count = __tk_count + 1;
+
+var TOKEN_INT_LITERAL = __tk_count = __tk_count + 1;
+var TOKEN_CHAR_LITERAL = __tk_count = __tk_count + 1;
+var TOKEN_STRING = __tk_count = __tk_count + 1;
+var TOKEN_IDENTIFIER = __tk_count = __tk_count + 1;
+
+var TOKEN_AS = __tk_count = __tk_count + 1;
+var TOKEN_ANY = __tk_count = __tk_count + 1;
+var TOKEN_BREAK = __tk_count = __tk_count + 1;
+var TOKEN_CONST = __tk_count = __tk_count + 1;
+var TOKEN_CONTINUE = __tk_count = __tk_count + 1;
+var TOKEN_ELSE = __tk_count = __tk_count + 1;
+var TOKEN_IF = __tk_count = __tk_count + 1;
+var TOKEN_IMPORT = __tk_count = __tk_count + 1;
+var TOKEN_INT = __tk_count = __tk_count + 1;
+var TOKEN_I8 = __tk_count = __tk_count + 1;
+var TOKEN_I16 = __tk_count = __tk_count + 1;
+var TOKEN_I32 = __tk_count = __tk_count + 1;
+var TOKEN_I64 = __tk_count = __tk_count + 1;
+var TOKEN_FOR = __tk_count = __tk_count + 1;
+var TOKEN_FUNCTION = __tk_count = __tk_count + 1;
+var TOKEN_RETURN = __tk_count = __tk_count + 1;
+var TOKEN_SIZEOF = __tk_count = __tk_count + 1;
+var TOKEN_STRUCT = __tk_count = __tk_count + 1;
+var TOKEN_UNION = __tk_count = __tk_count + 1;
+var TOKEN_VAR = __tk_count = __tk_count + 1;
+var TOKEN_VOID = __tk_count = __tk_count + 1;
+var TOKEN_WHILE = __tk_count = __tk_count + 1;
+
+var TOKEN_ERROR = __tk_count = __tk_count + 1;
+var TOKEN_EOF = __tk_count = __tk_count + 1;
+
+struct Token {
+	type: int;
+	start: i8*;
+	length: int;
+	line: int;
+	filename: i8*;
+}
+
+function token_type_to_string(type: int): i8* {
+	if(type == TOKEN_LEFT_PAREN) return "left-paren";
+	if(type == TOKEN_RIGHT_PAREN) return "right-paren";
+	if(type == TOKEN_LEFT_BRACE) return "left-brace";
+	if(type == TOKEN_RIGHT_BRACE) return "right-brace";
+	if(type == TOKEN_RIGHT_BRACE) return "right-sqbr";
+	if(type == TOKEN_RIGHT_BRACE) return "right-sqbr";
+	if(type == TOKEN_COLON) return "colon";
+	if(type == TOKEN_SEMICOLON) return "semicolon";
+	if(type == TOKEN_COMMA) return "comma";
+	if(type == TOKEN_DOT) return "dot";
+	if(type == TOKEN_QUESTION) return "question";
+	if(type == TOKEN_TILDE) return "tilde";
+	if(type == TOKEN_MINUS) return "minus";
+	if(type == TOKEN_BANG) return "bang";
+	if(type == TOKEN_PLUS) return "plus";
+	if(type == TOKEN_STAR) return "star";
+	if(type == TOKEN_SLASH) return "slash";
+	if(type == TOKEN_PERCENT) return "percent";
+	if(type == TOKEN_AMP) return "amp";
+	if(type == TOKEN_AMP_AMP) return "amp-amp";
+	if(type == TOKEN_BAR) return "bar";
+	if(type == TOKEN_BAR_BAR) return "bar-bar";
+	if(type == TOKEN_XOR) return "xor";
+	if(type == TOKEN_LESS) return "less";
+	if(type == TOKEN_LSH) return "lsh";
+	if(type == TOKEN_GREATER) return "greater";
+	if(type == TOKEN_RSH) return "rsh";
+	if(type == TOKEN_EQ) return "eq";
+	if(type == TOKEN_EQEQ) return "eq-eq";
+	if(type == TOKEN_BANG_EQ) return "bang-eq";
+	if(type == TOKEN_LEQ) return "leq";
+	if(type == TOKEN_GEQ) return "geq";
+
+	if(type == TOKEN_INT_LITERAL) return "int-literal";
+	if(type == TOKEN_CHAR_LITERAL) return "char-literal";
+	if(type == TOKEN_STRING) return "string";
+	if(type == TOKEN_IDENTIFIER) return "identifier";
+
+	if(type == TOKEN_AS) return "as";
+	if(type == TOKEN_ANY) return "any";
+	if(type == TOKEN_BREAK) return "break";
+	if(type == TOKEN_CONST) return "const";
+	if(type == TOKEN_CONTINUE) return "continue";
+	if(type == TOKEN_ELSE) return "else";
+	if(type == TOKEN_IF) return "if";
+	if(type == TOKEN_IMPORT) return "import";
+	if(type == TOKEN_INT) return "int";
+	if(type == TOKEN_I8) return "i8";
+	if(type == TOKEN_I16) return "i16";
+	if(type == TOKEN_I32) return "i32";
+	if(type == TOKEN_I64) return "i64";
+	if(type == TOKEN_FOR) return "for";
+	if(type == TOKEN_FUNCTION) return "function";
+	if(type == TOKEN_RETURN) return "return";
+	if(type == TOKEN_SIZEOF) return "sizeof";
+	if(type == TOKEN_STRUCT) return "struct";
+	if(type == TOKEN_UNION) return "union";
+	if(type == TOKEN_VAR) return "var";
+	if(type == TOKEN_VOID) return "void";
+	if(type == TOKEN_WHILE) return "while";
+
+	if(type == TOKEN_ERROR) return "error";
+	if(type == TOKEN_EOF) return "eof";
+
+	return "<unknown type>";
+}
+
+function put_token_string(token: Token*) {
+	// A bit of a hack
+	write(stdout, token.start, token.length);
+}
+
+function eput_token_string(token: Token*) {
+	// A bit of a hack
+	write(stderr, token.start, token.length);
+}
+
+function File.put_token_string(token: Token*) {
+	this.write(token.start, token.length);
+}
+
+function print_token(token: Token*) {
+	putd(token.line);
+	puts(" ");
+	puts(token_type_to_string(token.type));
+	puts(" '");
+	put_token_string(token);
+	puts("'");
+}
+
+function Token.equals(b: Token*): int {
+	return this.length == b.length && memeq(this.start, b.start, this.length);
+}
+
+function synthetic_token(type: int, value: i8*): Token* {
+	var token: Token* = malloc(sizeof(Token));
+	token.line = 0;
+	token.type = type;
+	token.start = value;
+	token.length = strlen(value);
+	return token;
+}

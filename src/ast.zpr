@@ -1,0 +1,569 @@
+import "std/vector.zpr";
+
+// Updating this list requires updating node_type_to_string and print_ast_depth
+var __nt_count = -1;
+var OP_BWNOT = __nt_count = __nt_count + 1;
+var OP_NEG = __nt_count = __nt_count + 1;
+var OP_NOT = __nt_count = __nt_count + 1;
+var OP_ADD = __nt_count = __nt_count + 1;
+var OP_SUB = __nt_count = __nt_count + 1;
+var OP_MUL = __nt_count = __nt_count + 1;
+var OP_DIV = __nt_count = __nt_count + 1;
+var OP_MOD = __nt_count = __nt_count + 1;
+var OP_BWAND = __nt_count = __nt_count + 1;
+var OP_BWOR = __nt_count = __nt_count + 1;
+var OP_XOR = __nt_count = __nt_count + 1;
+var OP_LSH = __nt_count = __nt_count + 1;
+var OP_RSH = __nt_count = __nt_count + 1;
+var OP_EQUAL = __nt_count = __nt_count + 1;
+var OP_NOT_EQUAL = __nt_count = __nt_count + 1;
+var OP_LESS = __nt_count = __nt_count + 1;
+var OP_LESS_EQ = __nt_count = __nt_count + 1;
+var OP_GREATER = __nt_count = __nt_count + 1;
+var OP_GREATER_EQ = __nt_count = __nt_count + 1;
+var OP_AND = __nt_count = __nt_count + 1;
+var OP_OR = __nt_count = __nt_count + 1;
+var OP_TERNARY = __nt_count = __nt_count + 1;
+var OP_ADDROF = __nt_count = __nt_count + 1;
+var OP_DEREF = __nt_count = __nt_count + 1;
+var OP_ASSIGN_DEREF = __nt_count = __nt_count + 1;
+var OP_SIZEOF = __nt_count = __nt_count + 1;
+var OP_ACCESS_SUBSCRIPT = __nt_count = __nt_count + 1;
+var OP_ASSIGN_SUBSCRIPT = __nt_count = __nt_count + 1;
+var OP_ACCESS_MEMBER = __nt_count = __nt_count + 1;
+var OP_ASSIGN_MEMBER = __nt_count = __nt_count + 1;
+var OP_COPY_STRUCT = __nt_count = __nt_count + 1;
+var OP_COPY_STRUCT_MEMBER = __nt_count = __nt_count + 1;
+var OP_COPY_STRUCT_DEREF = __nt_count = __nt_count + 1;
+var AST_INT_LITERAL = __nt_count = __nt_count + 1;
+var AST_CHAR_LITERAL = __nt_count = __nt_count + 1;
+var AST_STRING = __nt_count = __nt_count + 1;
+var AST_CALL = __nt_count = __nt_count + 1;
+var AST_CALL_METHOD = __nt_count = __nt_count + 1;
+var AST_DEFINE_CONST = __nt_count = __nt_count + 1;
+var AST_DEFINE_VAR = __nt_count = __nt_count + 1;
+var AST_ACCESS_VAR = __nt_count = __nt_count + 1;
+var AST_ASSIGN_VAR = __nt_count = __nt_count + 1;
+var AST_DEFINE_GLOBAL_VAR = __nt_count = __nt_count + 1;
+var AST_ACCESS_GLOBAL_VAR = __nt_count = __nt_count + 1;
+var AST_ASSIGN_GLOBAL_VAR = __nt_count = __nt_count + 1;
+var AST_ARRAY_INIT = __nt_count = __nt_count + 1;
+var AST_EXPR_STMT = __nt_count = __nt_count + 1;
+var AST_IF = __nt_count = __nt_count + 1;
+var AST_WHILE = __nt_count = __nt_count + 1;
+var AST_FOR = __nt_count = __nt_count + 1;
+var AST_CAST = __nt_count = __nt_count + 1;
+var AST_STRUCT = __nt_count = __nt_count + 1;
+var AST_UNION = __nt_count = __nt_count + 1;
+var AST_MEMBER = __nt_count = __nt_count + 1;
+var AST_CONTINUE = __nt_count = __nt_count + 1;
+var AST_BREAK = __nt_count = __nt_count + 1;
+var AST_RETURN = __nt_count = __nt_count + 1;
+var AST_FUNCTION = __nt_count = __nt_count + 1;
+var AST_BLOCK = __nt_count = __nt_count + 1;
+var AST_PROGRAM = __nt_count = __nt_count + 1;
+
+// Updating this list requires updating data_type_to_string
+var __dt_count = 0;
+var DATA_TYPE_VOID = 0;
+var DATA_TYPE_INT = __dt_count = __dt_count + 1;
+var DATA_TYPE_I8 = __dt_count = __dt_count + 1;
+var DATA_TYPE_I16 = __dt_count = __dt_count + 1;
+var DATA_TYPE_I32 = __dt_count = __dt_count + 1;
+var DATA_TYPE_I64 = __dt_count = __dt_count + 1;
+var DATA_TYPE_ANY = __dt_count = __dt_count + 1;
+var DATA_TYPE_STRUCT = __dt_count = __dt_count + 1;
+var DATA_TYPE_UNION = __dt_count = __dt_count + 1;
+var DATA_TYPE_UNRESOLVED = __dt_count = __dt_count + 1;
+
+struct Type {
+	type: int; // DataType
+	indirection: int;
+	isArray: int;
+	arrayLength: int;
+
+	name: Token*;
+	fields: Vector*;
+	methods: Vector*;
+
+	built: int;
+}
+
+var __lv_count = -1;
+var LVALUE_NONE = __lv_count = __lv_count + 1;
+var LVALUE_LOCAL = __lv_count = __lv_count + 1;
+var LVALUE_GLOBAL = __lv_count = __lv_count + 1;
+var LVALUE_SUBSCRIPT = __lv_count = __lv_count + 1;
+var LVALUE_DEREF = __lv_count = __lv_count + 1;
+var LVALUE_MEMBER = __lv_count = __lv_count + 1;
+
+struct Node {
+	type: int; // NodeType
+	position: Token*;
+	lvalue: int;
+	computedType: Type*;
+
+	v: union {
+		unary: Node*;
+
+		binary: struct {
+			lhs: Node*;
+			rhs: Node*;
+		};
+
+		ternary: struct {
+			lhs: Node*;
+			mid: Node*;
+			rhs: Node*;
+		};
+
+		conditional: struct {
+			condition: Node*;
+			doTrue: Node*;
+			doFalse: Node*;
+		};
+
+		loop: struct {
+			initial: Node*;
+			condition: Node*;
+			iteration: Node*;
+			body: Node*;
+		};
+
+		funktion: struct {
+			name: Token*;
+			returnType: Type*;
+			body: Node*;
+			hasImplicitBody: int;
+
+			isMethod: int;
+			parent: Node*;
+			parentType: Type*;
+
+			arguments: Vector*;
+
+			localVariableStackOffset: int;
+		};
+
+		block: struct {
+			children: Vector*;
+
+			hasReturned: int;
+
+			parent: Node*;
+			variables: Vector*;
+			currentStackOffset: int;
+		};
+
+		literal: struct {
+			type: Type*;
+
+			az: union {
+				integer: int;
+				string: struct {
+					chars: i8*;
+					length: int;
+					id: int;
+				};
+			};
+		};
+
+		variable: struct {
+			name: Token*;
+			type: Type*;
+			value: Node*;
+
+			stackOffset: int;
+		};
+
+		constant: struct {
+			name: Token*;
+			value: int;
+		};
+
+		member: struct {
+			name: Token*;
+			parent: Node*;
+			value: Node*;
+			memberRef: Node*;
+		};
+	};
+}
+
+function data_type_to_string(type: int): i8* {
+	if(type == DATA_TYPE_VOID) return "void";
+	if(type == DATA_TYPE_INT) return "int";
+	if(type == DATA_TYPE_I8) return "i8";
+	if(type == DATA_TYPE_I16) return "i16";
+	if(type == DATA_TYPE_I32) return "i32";
+	if(type == DATA_TYPE_I64) return "i64";
+	if(type == DATA_TYPE_ANY) return "any";
+	if(type == DATA_TYPE_UNRESOLVED || type == DATA_TYPE_STRUCT || type == DATA_TYPE_UNION) {
+		eputsln("Unreachable - data_type_to_string");
+		return null;
+	}
+
+	return "<unknown type>";
+}
+
+function struct_name_string(strukt: Type*): i8* {
+	var str = malloc(strukt.name.length + 1);
+	memcpy(str, strukt.name.start, strukt.name.length);
+	str[strukt.name.length] = 0;
+	return str;
+}
+
+function type_to_string(type: Type*): i8* {
+	var baseType: i8*;
+
+	if(type.type == DATA_TYPE_STRUCT || type.type == DATA_TYPE_UNION || type.type == DATA_TYPE_UNRESOLVED) {
+		baseType = struct_name_string(type);
+	}
+	else {
+		baseType = data_type_to_string(type.type);
+	}
+
+	var str: i8* = malloc(strlen(baseType) + type.indirection + 1);
+	strcpy(str, baseType);
+
+	for(var i = 0; i < type.indirection; i = i + 1) {
+		strcat(str, "*");
+	}
+	return str;
+}
+
+function node_type_to_string(type: int): i8* {
+	if(type == OP_BWNOT) return "~";
+	if(type == OP_NEG) return "-";
+	if(type == OP_NOT) return "!";
+	if(type == OP_ADD) return "+";
+	if(type == OP_SUB) return "-";
+	if(type == OP_MUL) return "*";
+	if(type == OP_DIV) return "/";
+	if(type == OP_MOD) return "%";
+	if(type == OP_BWAND) return "&";
+	if(type == OP_BWOR) return "|";
+	if(type == OP_XOR) return "^";
+	if(type == OP_LSH) return "<<";
+	if(type == OP_RSH) return ">>";
+	if(type == OP_EQUAL) return "==";
+	if(type == OP_NOT_EQUAL) return "!=";
+	if(type == OP_LESS) return "<";
+	if(type == OP_LESS_EQ) return "<=";
+	if(type == OP_GREATER) return ">";
+	if(type == OP_GREATER_EQ) return ">=";
+	if(type == OP_AND) return "&&";
+	if(type == OP_OR) return "||";
+	if(type == OP_TERNARY) return "?";
+	if(type == OP_ADDROF) return "&";
+	if(type == OP_DEREF) return "*";
+	if(type == OP_ASSIGN_DEREF) return "* =";
+	if(type == OP_SIZEOF) return "sizeof";
+	if(type == OP_ACCESS_SUBSCRIPT) return "[";
+	if(type == OP_ASSIGN_SUBSCRIPT) return "=[";
+	if(type == OP_COPY_STRUCT) return "copy struct";
+	if(type == AST_INT_LITERAL) return "int literal";
+	if(type == AST_CHAR_LITERAL) return "char literal";
+	if(type == AST_STRING) return "string";
+	if(type == AST_CALL) return "call";
+	if(type == AST_CALL_METHOD) return "call method";
+	if(type == AST_DEFINE_CONST) return "define const";
+	if(type == AST_DEFINE_VAR) return "define var";
+	if(type == AST_ACCESS_VAR) return "access var";
+	if(type == AST_ASSIGN_VAR) return "assign var";
+	if(type == AST_DEFINE_GLOBAL_VAR) return "define gvar";
+	if(type == AST_ACCESS_GLOBAL_VAR) return "access gvar";
+	if(type == AST_ASSIGN_GLOBAL_VAR) return "assign gvar";
+	if(type == AST_ARRAY_INIT) return "init array";
+	if(type == AST_EXPR_STMT) return "expr stmt";
+	if(type == AST_IF) return "if";
+	if(type == AST_WHILE) return "while";
+	if(type == AST_FOR) return "for";
+	if(type == AST_CAST) return "cast";
+	if(type == AST_STRUCT) return "struct";
+	if(type == AST_UNION) return "union";
+	if(type == AST_MEMBER) return "member";
+	if(type == AST_CONTINUE) return "continue";
+	if(type == AST_BREAK) return "break";
+	if(type == AST_RETURN) return "return";
+	if(type == AST_FUNCTION) return "function";
+	if(type == AST_BLOCK) return "block";
+	if(type == AST_PROGRAM) return "program";
+
+	return "<unknown node type>";
+}
+
+function is_unary_op(type: int): int {
+	return (
+		type == OP_BWNOT ||
+		type == OP_NEG ||
+		type == OP_NOT ||
+		type == OP_ADDROF ||
+		type == OP_DEREF
+	);
+}
+
+function is_binary_op(type: int): int {
+	return (
+		type == OP_ADD ||
+		type == OP_SUB ||
+		type == OP_MUL ||
+		type == OP_DIV ||
+		type == OP_MOD ||
+		type == OP_BWAND ||
+		type == OP_BWOR ||
+		type == OP_XOR ||
+		type == OP_LSH ||
+		type == OP_RSH ||
+		type == OP_EQUAL ||
+		type == OP_NOT_EQUAL ||
+		type == OP_LESS ||
+		type == OP_LESS_EQ ||
+		type == OP_GREATER ||
+		type == OP_GREATER_EQ ||
+		type == OP_OR ||
+		type == OP_AND
+	);
+}
+
+function print_ast_depth(node: Node*, depth: int) {
+	for(var i = 0; i < depth; i = i + 1) puts("  ");
+
+	if(is_unary_op(node.type)) {
+		putsln(node_type_to_string(node.type));
+		print_ast_depth(node.v.unary, depth + 1);
+	}
+	else if(is_binary_op(node.type)) {
+		putsln(node_type_to_string(node.type));
+		print_ast_depth(node.v.binary.lhs, depth + 1);
+		putln();
+		print_ast_depth(node.v.binary.rhs, depth + 1);
+	}
+	else if(node.type == AST_PROGRAM) {
+		for(var i = 0; i < node.v.block.children.size; i = i + 1)
+			print_ast_depth(node.v.block.children.at(i), depth);
+	}
+	else if(node.type == AST_BLOCK) {
+		putsln("{");
+		for(var i = 0; i < node.v.block.children.size; i = i + 1)
+			print_ast_depth(node.v.block.children.at(i), depth + 1);
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		putsln("}");
+	}
+	else if(node.type == AST_FUNCTION) {
+		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(node.v.funktion.returnType));
+		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+			var arg: Node* = node.v.funktion.arguments.at(i);
+			puts("("); put_token_string(arg.v.variable.name); puts(": "); puts(type_to_string(arg.v.variable.type)); puts(") ");
+		}
+		if(node.v.funktion.arguments.size > 0) putln();
+		if(!node.v.funktion.hasImplicitBody)
+			print_ast_depth(node.v.funktion.body, depth);
+	}
+	else if(node.type == AST_CALL) {
+		puts("call "); put_token_string(node.v.funktion.name); putln();
+		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+			var arg: Node* = node.v.funktion.arguments.at(i);
+			print_ast_depth(arg, depth + 1);
+			if(i != node.v.funktion.arguments.size -1 ) putln();
+		}
+	}
+	else if(node.type == AST_CALL_METHOD) {
+		puts("call "); put_token_string(node.v.funktion.name); putln();
+		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+			var arg: Node* = node.v.funktion.arguments.at(i);
+			print_ast_depth(arg, depth + 1);
+			if(i != node.v.funktion.arguments.size -1 ) putln();
+		}
+
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		putsln("of");
+		print_ast_depth(node.v.funktion.parent, depth + 1);
+	}
+	else if(node.type == AST_EXPR_STMT) {
+		putsln("pop");
+		print_ast_depth(node.v.unary, depth + 1);
+		putln();
+	}
+	else if(node.type == AST_IF) {
+		putsln("if");
+		print_ast_depth(node.v.conditional.condition, depth + 1);
+		putln();
+		print_ast_depth(node.v.conditional.doTrue, depth + 1);
+		putln();
+
+		if(node.v.conditional.doFalse != null) {
+			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			putsln("else");
+			print_ast_depth(node.v.conditional.doFalse, depth + 1);
+			putln();
+		}
+	}
+	else if(node.type == AST_WHILE) {
+		putsln("while");
+		print_ast_depth(node.v.conditional.condition, depth + 1);
+		putln();
+		print_ast_depth(node.v.conditional.doTrue, depth + 1);
+		putln();
+	}
+	else if(node.type == AST_FOR) {
+		putsln("for");
+		if(node.v.loop.initial != null)
+			print_ast_depth(node.v.loop.initial, depth + 1);
+		else {
+			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			putsln("(no initializer)");
+		}
+
+		if(node.v.loop.condition != null) {
+			print_ast_depth(node.v.loop.condition, depth + 1);
+			putln();
+		} else {
+			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			putsln("(no condition)");
+		}
+
+		if(node.v.loop.iteration != null) {
+			print_ast_depth(node.v.loop.iteration, depth + 1);
+			putln();
+		} else {
+			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			putsln("(no iteration)");
+		}
+
+		print_ast_depth(node.v.loop.body, depth + 1);
+		putln();
+	}
+	else if(node.type == AST_RETURN) {
+		putsln("return");
+		if(node.v.unary != null) {
+			print_ast_depth(node.v.unary, depth + 1);
+		}
+		else {
+			for(var i = 0; i < depth + 1; i = i + 1) puts("  ");
+			puts("(void)");
+		}
+		putln();
+	}
+	else if(node.type == AST_DEFINE_CONST) {
+		puts("const "); put_token_string(node.v.constant.name); puts(" = "); putd(node.v.constant.value); putln();
+	}
+	else if(node.type == AST_DEFINE_VAR || node.type == AST_DEFINE_GLOBAL_VAR) {
+		puts("var "); put_token_string(node.v.variable.name); puts(": "); putsln(type_to_string(node.v.variable.type));
+		if(node.v.variable.value != null) {
+			print_ast_depth(node.v.variable.value, depth + 1);
+			putln();
+		}
+	}
+	else if(node.type == AST_ACCESS_VAR || node.type == AST_ACCESS_GLOBAL_VAR) {
+		puts("(var "); put_token_string(node.v.variable.name); puts(")");
+	}
+	else if(node.type == AST_ASSIGN_VAR || node.type == AST_ASSIGN_GLOBAL_VAR) {
+		put_token_string(node.v.variable.name); putsln(" =");
+		print_ast_depth(node.v.variable.value, depth + 1);
+	}
+	else if(node.type == AST_INT_LITERAL) {
+		puts("(literal "); putd(node.v.literal.az.integer); puts(")");
+	}
+	else if(node.type == AST_CHAR_LITERAL) {
+		puts("(literal "); putc(node.v.literal.az.integer); puts(")");
+	}
+	else if(node.type == AST_STRING) {
+		puts("(literal "); puts(node.v.literal.az.string.chars); puts(")");
+	}
+	else if(node.type == OP_TERNARY) {
+		putsln("?");
+		print_ast_depth(node.v.conditional.condition, depth + 1);
+		putln();
+		print_ast_depth(node.v.conditional.doTrue, depth + 1);
+		putsln(":");
+		print_ast_depth(node.v.conditional.doFalse, depth + 1);
+	}
+	else if(node.type == OP_SIZEOF) {
+		puts("sizeof("); puts(type_to_string(node.computedType)); puts(")");
+	}
+	else if(node.type == OP_ACCESS_SUBSCRIPT) {
+		putsln("subscript [");
+		print_ast_depth(node.v.binary.lhs, depth + 1);
+		putln();
+		print_ast_depth(node.v.binary.rhs, depth + 1);
+		putln();
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		puts("]");
+	}
+	else if(node.type == OP_ASSIGN_SUBSCRIPT) {
+		putsln("subscript = [");
+		print_ast_depth(node.v.ternary.lhs, depth + 1);
+		putln();
+		print_ast_depth(node.v.ternary.mid, depth + 1);
+		putln();
+		print_ast_depth(node.v.ternary.rhs, depth + 1);
+		putln();
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		puts("]");
+	}
+	else if(node.type == AST_ARRAY_INIT) {
+		putsln("[");
+		for(var i = 0; i < node.v.block.children.size; i = i + 1) {
+			print_ast_depth(node.v.block.children.at(i), depth + 1);
+			putln();
+		}
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		puts("]");
+	}
+	else if(node.type == OP_DEREF) {
+		putsln("*");
+		print_ast_depth(node.v.unary, depth + 1);
+	}
+	else if(node.type == OP_ASSIGN_DEREF) {
+		putsln("* =");
+		print_ast_depth(node.v.binary.lhs, depth + 1);
+		putln();
+		print_ast_depth(node.v.binary.rhs, depth + 1);
+	}
+	else if(node.type == AST_CAST) {
+		putsln("cast");
+		print_ast_depth(node.v.unary, depth + 1);
+		putln();
+		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		puts("as "); puts(type_to_string(node.computedType));
+	}
+	else if(node.type == AST_STRUCT) {
+		puts("struct "); put_token_string(node.v.variable.name); putln();
+		for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
+			print_ast_depth(node.computedType.fields.at(i), depth + 1);
+		}
+	}
+	else if(node.type == AST_UNION) {
+		puts("union "); put_token_string(node.v.variable.name); putln();
+		for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
+			print_ast_depth(node.computedType.fields.at(i), depth + 1);
+		}
+	}
+	else if(node.type == AST_MEMBER) {
+		put_token_string(node.v.variable.name); puts(": "); putsln(type_to_string(node.v.variable.type));
+	}
+	else if(node.type == OP_ACCESS_MEMBER) {
+		puts("."); put_token_string(node.v.member.name); putln();
+		print_ast_depth(node.v.member.parent, depth + 1);
+	}
+	else if(node.type == OP_ASSIGN_MEMBER) {
+		puts("."); put_token_string(node.v.member.name); putln();
+		print_ast_depth(node.v.member.parent, depth + 1);
+		putln();
+		print_ast_depth(node.v.member.value, depth + 1);
+	}
+	else if(node.type == AST_CONTINUE) {
+		putsln("continue");
+	}
+	else if(node.type == AST_BREAK) {
+		putsln("break");
+	}
+	else {
+		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));
+	}
+}
+
+function print_ast(ast: Node*) {
+	print_ast_depth(ast, 0);
+}
