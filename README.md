@@ -1,6 +1,7 @@
 # Zephyr Programming Language
 
-Zephyr is a statically, strongly typed language which compiles to assembly.
+Zephyr is a statically, [strongly](https://en.wikipedia.org/wiki/Strong_and_weak_typing) typed language which compiles to assembly.
+Currently supported is [Linux](https://en.wikipedia.org/wiki/Linux) [x86_64](https://en.wikipedia.org/wiki/X86-64).
 
 ## *Zephyr is currently WIP and highly likely to change - use at your own risk!*
 
@@ -28,6 +29,8 @@ $ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
 $ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
 $ ...
 ```
+
+### Without make
 
 ```console
 $ yasm -felf64 -o ./bootstrap/bootstrap_x86_64_linux ./bootstrap/bootstrap_x86_64_linux.yasm
