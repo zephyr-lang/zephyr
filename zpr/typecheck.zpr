@@ -5,6 +5,8 @@ import "std/math.zpr";
 var tc_typeStack = new_vector();
 var tc_definedTypes = new_vector();
 
+var tc_checkingLoop = false;
+
 function Type.is_integral(): int {
 	return this.indirection == 0 && (
 		this.type == DATA_TYPE_INT ||
@@ -886,6 +888,9 @@ function Parser.type_check_if_statement(stmt: Node*) {
 }
 
 function Parser.type_check_while_statement(stmt: Node*) {
+	var wasCheckingLoop = tc_checkingLoop;
+	tc_checkingLoop = true;
+
 	this.type_check_expr(stmt.v.conditional.condition);
 
 	var conditionType: Type* = tc_typeStack.pop();
@@ -897,9 +902,14 @@ function Parser.type_check_while_statement(stmt: Node*) {
 	}
 
 	this.type_check_statement(stmt.v.conditional.doTrue);
+
+	tc_checkingLoop = wasCheckingLoop;
 }
 
 function Parser.type_check_for_statement(stmt: Node*) {
+	var wasCheckingLoop = tc_checkingLoop;
+	tc_checkingLoop = true;
+
 	if(stmt.v.loop.initial != null) this.type_check_statement(stmt.v.loop.initial);
 	if(stmt.v.loop.condition != null) {
 		this.type_check_expr(stmt.v.loop.condition);
@@ -917,6 +927,8 @@ function Parser.type_check_for_statement(stmt: Node*) {
 	}
 
 	this.type_check_statement(stmt.v.loop.body);
+
+	tc_checkingLoop = wasCheckingLoop;
 }
 
 function Parser.type_check_statement(stmt: Node*) {
@@ -957,6 +969,20 @@ function Parser.type_check_statement(stmt: Node*) {
 	else if(stmt.type == AST_BLOCK) {
 		this.type_check_block(stmt);
 		this.currentBlock.v.block.hasReturned = stmt.v.block.hasReturned;
+	}
+	else if(stmt.type == AST_CONTINUE) {
+		if(!tc_checkingLoop) {
+			stmt.print_position();
+			eputsln("Cannot use 'continue' outside of a loop");
+			exit(1);
+		}
+	}
+	else if(stmt.type == AST_BREAK) {
+		if(!tc_checkingLoop) {
+			stmt.print_position();
+			eputsln("Cannot use 'break' outside of a loop");
+			exit(1);
+		}
 	}
 	else {
 		eputsln("Unreachable - type_check_statement");

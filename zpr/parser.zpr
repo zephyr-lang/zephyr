@@ -796,7 +796,19 @@ function Parser.parse_var_declaration(): Node* {
 }
 
 function Parser.parse_statement(): Node* {
-	if(this.match(TOKEN_IF)) {
+	if(this.match(TOKEN_BREAK)) {
+		var pos = this.previous;
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after 'break'");
+		var breac = new_node(AST_BREAK, pos);
+		return breac;
+	}
+	else if(this.match(TOKEN_CONTINUE)) {
+		var pos = this.previous;
+		this.consume(TOKEN_SEMICOLON, "Expected ';' after 'continue'");
+		var kontinue = new_node(AST_CONTINUE, pos);
+		return kontinue;
+	}
+	else if(this.match(TOKEN_IF)) {
 		return this.parse_if_statement();
 	}
 	else if(this.match(TOKEN_FOR)) {

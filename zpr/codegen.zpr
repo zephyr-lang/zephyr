@@ -6,6 +6,8 @@ import "zpr/ast.zpr";
 var cg_ARG_REGISTERS: i8*[6] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
 var cg_lableCount = 0;
 var cg_registersInUse = 0;
+var cg_continueLabel = 0;
+var cg_breakLabel = 0;
 
 function Type.qualifier(): i8* {
 	if(this.size() == 1) return "BYTE";
@@ -543,6 +545,10 @@ function generate_if_statement(ifStmt: Node*, out: File*) {
 function generate_while_statement(whileStmt: Node*, out: File*) {
 	var condLabel = cg_lableCount = cg_lableCount + 1;
 	var bodyLabel = cg_lableCount = cg_lableCount + 1;
+	var endLabel = cg_lableCount = cg_lableCount + 1;
+
+	cg_continueLabel = condLabel;
+	cg_breakLabel = endLabel;
 
 	out.puts("    jmp .l"); out.putd(condLabel); out.putln();
 	out.puts(".l"); out.putd(bodyLabel); out.putsln(":");
@@ -553,6 +559,8 @@ function generate_while_statement(whileStmt: Node*, out: File*) {
 	generate_expr_rax(whileStmt.v.conditional.condition, out);
 	out.putsln("    test rax, rax");
 	out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
+
+	out.puts(".l"); out.putd(endLabel); out.putsln(":");
 }
 
 function generate_for_statement(forStmt: Node*, out: File*) {
@@ -562,6 +570,16 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 	var hasCondition = forStmt.v.loop.condition != null;
 	var condLabel = cg_lableCount = cg_lableCount + 1;
 	var bodyLabel = cg_lableCount = cg_lableCount + 1;
+	var endLabel = cg_lableCount = cg_lableCount + 1;
+	var iterationLabel: int;
+
+	cg_continueLabel = condLabel;
+	cg_breakLabel = endLabel;
+
+	if(forStmt.v.loop.iteration != null) {
+		iterationLabel = cg_lableCount = cg_lableCount + 1;
+		cg_continueLabel = iterationLabel;
+	}
 
 	if(hasCondition) {
 		out.puts("    jmp .l"); out.putd(condLabel); out.putln();
@@ -571,8 +589,10 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 
 	generate_statement(forStmt.v.loop.body, out);
 
-	if(forStmt.v.loop.iteration != null)
+	if(forStmt.v.loop.iteration != null) {
+		out.puts(".l"); out.putd(iterationLabel); out.putsln(":");
 		generate_expr_rax(forStmt.v.loop.iteration, out);
+	}
 
 	if(hasCondition) {
 		out.puts(".l"); out.putd(condLabel); out.putsln(":");
@@ -583,6 +603,8 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 	else {
 		out.puts("    jmp .l"); out.putd(bodyLabel); out.putln();
 	}
+
+	out.puts(".l"); out.putd(endLabel); out.putsln(":");
 }
 
 function generate_define_var(stmt: Node*, out: File*) {
@@ -630,6 +652,12 @@ function generate_statement(stmt: Node*, out: File*) {
 	}
 	else if(stmt.type == AST_BLOCK) {
 		generate_block(stmt, out);
+	}
+	else if(stmt.type == AST_CONTINUE) {
+		out.puts("    jmp .l"); out.putd(cg_continueLabel); out.putln();
+	}
+	else if(stmt.type == AST_BREAK) {
+		out.puts("    jmp .l"); out.putd(cg_breakLabel); out.putln();
 	}
 	else {
 		eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();

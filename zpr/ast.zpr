@@ -56,6 +56,8 @@ var AST_CAST = __nt_count = __nt_count + 1;
 var AST_STRUCT = __nt_count = __nt_count + 1;
 var AST_UNION = __nt_count = __nt_count + 1;
 var AST_MEMBER = __nt_count = __nt_count + 1;
+var AST_CONTINUE = __nt_count = __nt_count + 1;
+var AST_BREAK = __nt_count = __nt_count + 1;
 var AST_RETURN = __nt_count = __nt_count + 1;
 var AST_FUNCTION = __nt_count = __nt_count + 1;
 var AST_BLOCK = __nt_count = __nt_count + 1;
@@ -279,6 +281,8 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_STRUCT) return "struct";
 	if(type == AST_UNION) return "union";
 	if(type == AST_MEMBER) return "member";
+	if(type == AST_CONTINUE) return "continue";
+	if(type == AST_BREAK) return "break";
 	if(type == AST_RETURN) return "return";
 	if(type == AST_FUNCTION) return "function";
 	if(type == AST_BLOCK) return "block";
@@ -546,6 +550,12 @@ function print_ast_depth(node: Node*, depth: int) {
 		print_ast_depth(node.v.member.parent, depth + 1);
 		putln();
 		print_ast_depth(node.v.member.value, depth + 1);
+	}
+	else if(node.type == AST_CONTINUE) {
+		putsln("continue");
+	}
+	else if(node.type == AST_BREAK) {
+		putsln("break");
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));
