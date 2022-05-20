@@ -12,6 +12,23 @@ The assembly files in the ./bootstrap directory can be used for this.
 
 Firstly, you must have [yasm](https://yasm.tortall.net/) installed into your `$PATH`.
 
+### Note:
+To sync the bootstrap files you may need to run:
+```
+$ git lfs pull
+```
+
+### With make
+
+```
+$ make bootstrap
+
+$ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
+$ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
+$ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
+$ ...
+```
+
 ```console
 $ yasm -felf64 -o ./bootstrap/bootstrap_x86_64_linux ./bootstrap/bootstrap_x86_64_linux.yasm
 $ ld -o ./bootstrap/bootstrap_x86_64_linux ./bootstrap/bootstrap_x86_64_linux.o

@@ -1,22 +1,17 @@
-TARGET = ./build/zephyr
-CC = gcc
-CFLAGS = -g -Wall
+.PHONY: default all clean bootstrap bootstrapcmp
 
-.PHONY: default all clean
-
-default: $(TARGET)
+default: 
+	./build/zephyr -o ./build/zephyr ./src/main.zpr
 all: default
 
-OBJECTS = $(patsubst src/%.c, bin/%.o, $(wildcard src/*.c))
-HEADERS = $(wildcard src/*.h)
+bootstrap: bootstrapasm bootstrapcmp
 
-bin/%.o: src/%.c $(HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
+bootstrapasm:
+	yasm -felf64 -o ./bootstrap/bootstrap_x86_64_linux.o ./bootstrap/bootstrap_x86_64_linux.yasm
+	ld -o ./bootstrap/bootstrap_x86_64_linux ./bootstrap/bootstrap_x86_64_linux.o
 
-.PRECIOUS: $(TARGET) $(OBJECTS)
-
-$(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -Wall -o $@
+bootstrapcmp:
+	./bootstrap/bootstrap_x86_64_linux -o ./build/zephyr ./src/main.zpr
 
 clean:
 	-rm -f build/*.o
