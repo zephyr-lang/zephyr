@@ -1,0 +1,6 @@
+import "std/io.zpr";
+
+function main(): int {
+	putsln("Hello, World!");
+	return 0;
+}

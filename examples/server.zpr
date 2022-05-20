@@ -1,0 +1,128 @@
+// A very simple webserver
+// hosts the file 'index.html' locally
+// can be exited by navigating to /exit
+
+import "std/core.zpr";
+import "std/io.zpr";
+import "std/string.zpr";
+import "std/network.zpr";
+
+// localhost:8080
+const PORT = 8080;
+
+function respond(body: i8*): i8* {
+	var start = "HTTP/1.1 200 OK";
+	var newline: i8[3] = [13, 10, 0];
+
+	// Calculate size
+	var length = strlen(body);
+	var lenBuf: i8[20];
+	itoa(length, lenBuf, 10);
+
+	var response = malloc(256 + length);
+
+	memcpy(response, start, strlen(start) + 1);                     strcat(response, newline);
+	strcat(response, "Server: Zephyr PL Server/0.1.1");             strcat(response, newline);
+	strcat(response, "Connection: Closed");                         strcat(response, newline);
+	strcat(response, "Content-Type: text/html");                    strcat(response, newline);
+	strcat(response, "Content-Length: "); strcat(response, lenBuf); strcat(response, newline);
+	strcat(response, newline);
+	strcat(response, body);
+
+	return response;
+}
+
+function read_content(path: i8*): i8* {
+	var file = fopen(path, 'r');
+	if(file == null) {
+		puts("Failed to open file: ");
+		putsln(path);
+		exit(1);
+	}
+	var text = file.slurp(null);
+	file.close();
+	return text;
+}
+
+function main(): int {
+	var index = read_content("./examples/index.html");
+	var response = respond(index);
+	var errorResponse = respond("<head><title>Zephyr Server Shutoff</title></head><body><h1>Server shut off!</h1></body>");
+
+	var serverFd: int;
+
+	// Open Socket
+	if((serverFd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		putsln("Cannot create socket!");
+		return -1;
+	}
+
+	var address: sockaddr_in;
+	memset(&address, 0, sizeof(sockaddr_in));
+
+	address.sin_family = AF_INET;
+	address.sin_addr = htonl(INADDR_ANY);
+	address.sin_port = htons(PORT);
+
+	// Bind to port
+	if(bind(serverFd, &address, sizeof(sockaddr_in)) < 0) {
+		putsln("bind failed.");
+		return -1;
+	}
+
+	// Listen for up to 3 connections
+	if(listen(serverFd, 3) < 0) {
+		putsln("Failed in listen.");
+		return -1;
+	}
+
+	var newSocket: int;
+	var addrlen: int;
+
+	while(true) {
+		putsln("Waiting for connection");
+
+		// Accept connection
+		if((newSocket = accept(serverFd, &address, &addrlen)) < 0) {
+			putsln("Failed in accept.");
+			return -1;
+		}
+
+		var buffer: i8[2048];
+
+		// Read and print request
+		// Requests appear as:
+		// GET /index.html HTTP/1.1
+		// Host: localhost:8080
+		// Connection: keep-alive
+		// ...
+
+		var valread = read(newSocket, buffer, 2048);
+		putsln("Client Request:");
+		putsln(buffer);
+		
+		var head: i8*;
+		// Trim to first line
+		str_trim_to_char(buffer, 10, &head);
+		// Discard method (trim to /)
+		head = str_trim_to_char(head, '/', null);
+		var path: i8*;
+		// Trim to ' ', get path
+		str_trim_to_char(head, ' ', &path);
+
+		// exit on localhost:PORT/exit
+		if(streq(path, "exit")) {
+			write(newSocket, errorResponse, strlen(errorResponse));
+			close(newSocket);
+			break;
+		}
+
+		// Respond with http header + html body
+		write(newSocket, response, strlen(response));
+
+		close(newSocket);
+	}
+
+	close(serverFd);
+	return 0;
+}
