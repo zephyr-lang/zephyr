@@ -1,9 +1,11 @@
 import "std/core.zpr";
 import "std/io.zpr";
+import "std/math.zpr";
 import "zpr/ast.zpr";
 
 var cg_ARG_REGISTERS: i8*[6] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
 var cg_lableCount = 0;
+var cg_registersInUse = 0;
 
 function Type.qualifier(): i8* {
 	if(this.size() == 1) return "BYTE";
@@ -48,10 +50,6 @@ function Type.reserve(): i8* {
 	eputsln("Unreachable - invalid size of type");
 	exit(1);
 	return null;
-}
-
-function ceil_multiple(num: int, n: int): int {
-	return ((num + n - 1) / n) * n;
 }
 
 function cmp_suffix(type: int): i8* {
@@ -229,37 +227,63 @@ function generate_binary_rax(expr: Node*, out: File*) {
 }
 
 function generate_call_rax(expr: Node*, out: File*) {
-	if(expr.v.funktion.arguments.size > 6) {
-		eputsln("Functions cannot have more than 6 arguments");
-		eput_token_string(expr.v.funktion.name); eputln();
-		exit(1);
+	for(var i = 0; i < cg_registersInUse; i = i + 1) {
+		out.puts("    push "); out.putsln(cg_ARG_REGISTERS[i]);
 	}
 
-	for(var i = 0; i < expr.v.funktion.arguments.size; i = i + 1) {
+	var localRegUse = 0;
+
+	for(var i = 0; i < min(expr.v.funktion.arguments.size, 6); i = i + 1) {
 		generate_expr_rax(expr.v.funktion.arguments.at(i), out);
 		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i]); out.putsln(", rax");
+		cg_registersInUse = cg_registersInUse + 1;
+		localRegUse = localRegUse + 1;
 	}
 
+	for(var i = 0; i < expr.v.funktion.arguments.size - 6; i = i + 1) {
+		generate_expr_rax(expr.v.funktion.arguments.at(i + 6), out);
+		out.putsln("    push rax");
+	}
+
+	cg_registersInUse = cg_registersInUse - localRegUse;
+
 	out.puts("    call _f_"); out.put_token_string(expr.v.funktion.name); out.putln();
+
+	for(var i = 0; i < cg_registersInUse; i = i + 1) {
+		out.puts("    pop "); out.putsln(cg_ARG_REGISTERS[cg_registersInUse - i - 1]);
+	}
 }
 
 function generate_call_method_rax(expr: Node*, out: File*) {
-	if(expr.v.funktion.arguments.size > 6) {
-		eputsln("Methods cannot have more than 5 arguments");
-		eput_token_string(expr.v.funktion.name); eputln();
-		exit(1);
+	for(var i = 0; i < cg_registersInUse; i = i + 1) {
+		out.puts("    push "); out.putsln(cg_ARG_REGISTERS[i]);
 	}
 
+	var localRegUse = 0;
+	
 	generate_expr_rax(expr.v.funktion.parent, out);
 	out.putsln("    mov rdi, rax");
 
-	for(var i = 1; i < expr.v.funktion.arguments.size; i = i + 1) {
+	for(var i = 1; i < min(expr.v.funktion.arguments.size, 5); i = i + 1) {
 		generate_expr_rax(expr.v.funktion.arguments.at(i), out);
-		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i]); out.putsln(", rax");
+		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i + 1]); out.putsln(", rax");
+		cg_registersInUse = cg_registersInUse + 1;
+		localRegUse = localRegUse + 1;
 	}
+
+	for(var i = 0; i < expr.v.funktion.arguments.size - 5; i = i + 1) {
+		generate_expr_rax(expr.v.funktion.arguments.at(i + 5), out);
+		out.putsln("    push rax");
+	}
+
+	cg_registersInUse = cg_registersInUse - localRegUse;
 
 	out.puts("    call _m_"); out.put_token_string(expr.v.funktion.parentType.name); out.puts("_"); out.put_token_string(expr.v.funktion.name);
 	out.putln();
+
+	for(var i = 0; i < cg_registersInUse; i = i + 1) {
+		out.puts("    pop "); out.putsln(cg_ARG_REGISTERS[cg_registersInUse - i - 1]);
+	}
 }
 
 function generate_ternary_rax(expr: Node*, out: File*) {
@@ -639,15 +663,14 @@ function generate_function(funktion: Node*, out: File*) {
 	if(stackDepth != 0) {
 		out.puts("    sub rsp, "); out.putd(stackDepth); out.putln();
 	}
-	
-	if(funktion.v.funktion.arguments.size > 6) {
-		eputsln("Functions cannot have more than 6 arguments");
-		eput_token_string(funktion.v.funktion.name);
-		exit(1);
+
+	for(var i = 0; i < min(funktion.v.funktion.arguments.size, 6); i = i + 1) {
+		out.puts("mov QWORD [rbp-"); out.putd((funktion.v.funktion.arguments.at(i) as Node*).v.variable.stackOffset); out.puts("], "); out.putsln(cg_ARG_REGISTERS[i]);
 	}
 
-	for(var i = 0; i < funktion.v.funktion.arguments.size; i = i + 1) {
-		out.puts("mov QWORD [rbp-"); out.putd((funktion.v.funktion.arguments.at(i) as Node*).v.variable.stackOffset); out.puts("], "); out.putsln(cg_ARG_REGISTERS[i]);
+	for(var i = 0; i < funktion.v.funktion.arguments.size - 6; i = i + 1) {
+		out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.v.funktion.arguments.size - 6 - i))); out.putsln("]");
+		out.puts("    mov QWORD [rbp-"); out.putd((funktion.funktion.arguments.at(i) as Node*).v.variable.stackOffset); out.putsln("], rax");
 	}
 
 	generate_block(funktion.v.funktion.body, out);

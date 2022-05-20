@@ -43,7 +43,7 @@ function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
 		funktion.v.funktion.arguments.push(arg);
 	}
 
-	funktion.v.funktion.returnType = ANY_TYPE;
+	funktion.v.funktion.returnType = INT_TYPE;
 
 	funktion.v.funktion.hasImplicitBody = true;
 

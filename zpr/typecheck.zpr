@@ -1,5 +1,6 @@
 import "std/core.zpr";
 import "std/vector.zpr";
+import "std/math.zpr";
 
 var tc_typeStack = new_vector();
 var tc_definedTypes = new_vector();
@@ -32,7 +33,7 @@ function Type.assignable(b: Type*): int {
 	resolve_type(&this);
 	resolve_type(&b);
 
-	if(b.type == DATA_TYPE_ANY) {
+	if((a.type == DATA_TYPE_ANY || b.type == DATA_TYPE_ANY) && a.indirection == b.indirection) {
 		return true;
 	}
 
@@ -477,7 +478,7 @@ function Parser.type_check_method_call(expr: Node*) {
 	}
 
 	for(var i = 1; i < funktion.v.funktion.arguments.size; i = i + 1) {
-		var arg: Node* = expr.v.funktion.arguments.at(i);
+		var arg: Node* = expr.v.funktion.arguments.at(i - 1);
 		this.type_check_expr(arg);
 
 		var argType: Type* = tc_typeStack.pop();
@@ -968,7 +969,8 @@ function Parser.type_check_function(funktion: Node*) {
 			exit(1);
 		}
 
-		stackOffset = stackOffset + arg.v.variable.type.size();
+		//FIXME Have the correct qualifiers and registers used in codegen.zpr for arguments
+		stackOffset = stackOffset + ceil_multiple(arg.v.variable.type.size(), 8);
 
 		arg.v.variable.stackOffset = stackOffset;
 	}
