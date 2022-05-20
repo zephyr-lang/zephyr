@@ -20,6 +20,10 @@ struct Parser {
 
 	definedTypes: Vector*;
 
+	lexerStack: Vector*;
+
+	openedFiles: Vector*;
+
 	error: int;
 	panic: int;
 }
@@ -31,6 +35,8 @@ function new_parser(lexer: Lexer*): Parser* {
 	parser.globalVars = new_vector();
 	parser.strings = new_vector();
 	parser.definedTypes = new_vector();
+	parser.lexerStack = new_vector();
+	parser.openedFiles = new_vector();
 	return parser;
 }
 
@@ -127,6 +133,17 @@ function Parser.match(type: int): int {
 	if(!this.check(type)) return false;
 	this.advance();
 	return true;
+}
+
+function Parser.peek(): Token* {
+	var start = this.lexer.start;
+	var current = start;
+	var line = this.lexer.line;
+	var tok = this.lexer.next();
+	this.lexer.start = start;
+	this.lexer.current = current;
+	this.lexer.line = line;
+	return tok;
 }
 
 function Parser.parse_type(): Type* {
@@ -1030,6 +1047,48 @@ function Parser.parse_union_definition(member: int): Node* {
 	return vnion;
 }
 
+function Parser.parse_import() {
+	var path = this.consume(TOKEN_STRING, "Expected import path");
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after import");
+
+	var spath = malloc(path.length - 2 + 1);
+	memcpy(spath, &path.start[1], path.length - 2);
+	spath[path.length - 2] = 0;
+
+	for(var i = 0; i < this.lexerStack.size; i = i + 1) {
+		var lexer: Lexer* = this.lexerStack.at(i);
+
+		if(streq(spath, lexer.filename)) {
+			this.error("Circular import detected");
+			return;
+		}
+	}
+
+	for(var i = 0; i < this.openedFiles.size; i = i + 1) {
+		if(streq(spath, this.openedFiles.at(i))) {
+			// Do nothing: already opened
+			return;
+		}
+	}
+
+	var file = fopen(spath, 'r');
+	if(file == null) {
+		putsln(spath);
+		this.error_at_token(path, "Could not open file");
+		return;
+	}
+	var source = file.slurp(null);
+	file.close();
+
+	var lexer = new_lexer(spath, source);
+
+	this.lexerStack.push(lexer);
+	this.openedFiles.push(spath);
+
+	this.lexer = lexer;
+	this.advance();
+}
+
 function Parser.parse_program(): Node* {
 	var program = new_node(AST_PROGRAM, this.current);
 	program.v.block.children = new_vector();
@@ -1041,6 +1100,8 @@ function Parser.parse_program(): Node* {
 	for(var i = 0; i < builtins.size; i = i + 1) {
 		this.functions.push(builtins.at(i));
 	}
+
+	this.lexerStack.push(this.lexer);
 
 	while(!this.match(TOKEN_EOF)) {
 		if(this.match(TOKEN_FUNCTION)) {
@@ -1060,9 +1121,23 @@ function Parser.parse_program(): Node* {
 			var vnion = this.parse_union_definition(false);
 			program.add_child(vnion);
 		}
+		else if(this.match(TOKEN_IMPORT)) {
+			this.parse_import();
+		}
 		else {
 			this.error_current("Expected definition");
 			break;
+		}
+
+		var tok = this.current;
+		var changedLexer = false;
+		while(tok.type == TOKEN_EOF && this.lexerStack.size > 0) {
+			changedLexer = true;
+			this.lexer = this.lexerStack.pop();
+			tok = this.peek();
+		}
+		if(changedLexer) {
+			this.advance();
 		}
 	}
 
