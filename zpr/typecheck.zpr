@@ -33,6 +33,10 @@ function Type.assignable(b: Type*): int {
 	resolve_type(&this);
 	resolve_type(&b);
 
+	if(b.type == DATA_TYPE_ANY && b.indirection == 0) {
+		return true;
+	}
+
 	if((this.type == DATA_TYPE_ANY || b.type == DATA_TYPE_ANY) && this.indirection == b.indirection) {
 		return true;
 	}
@@ -602,7 +606,7 @@ function Parser.type_check_assign_subscript(expr: Node*) {
 	this.type_check_expr(expr.v.ternary.rhs);
 	var rhs: Type* = tc_typeStack.pop();
 
-	if(!rhs.assignable(index)) {
+	if(!rhs.assignable(itemType)) {
 		expr.print_position();
 		eputs("Cannot assign value of type '"); eputs(type_to_string(rhs)); eputs("' to array of elements '"); eputs(type_to_string(itemType));
 		eputsln("'");
@@ -736,7 +740,7 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == AST_STRING) {
 		tc_typeStack.push(STR_TYPE);
 	}
-	else if(expr.type == AST_ACCESS_VAR) {
+	else if(expr.type == AST_ACCESS_VAR || expr.type == AST_ACCESS_GLOBAL_VAR) {
 		this.type_check_access_var(expr);
 	}
 	else if(expr.type == AST_ASSIGN_VAR) {

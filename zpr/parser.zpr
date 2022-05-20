@@ -159,6 +159,7 @@ function Parser.parse_type(): Type* {
 	else if(this.previous.type == TOKEN_I16) type.type = DATA_TYPE_I16;
 	else if(this.previous.type == TOKEN_I32) type.type = DATA_TYPE_I32;
 	else if(this.previous.type == TOKEN_I64) type.type = DATA_TYPE_I64;
+	else if(this.previous.type == TOKEN_ANY) type.type = DATA_TYPE_ANY;
 	else if(this.previous.type == TOKEN_IDENTIFIER) {
 		type.type = DATA_TYPE_UNRESOLVED;
 		type.name = this.previous;
@@ -697,6 +698,11 @@ function Parser.parse_while_statement(): Node* {
 function Parser.parse_for_statement(): Node* {
 	var forStmt = new_node(AST_FOR, this.previous);
 
+	var block = new_node(AST_BLOCK, this.previous);
+	block.v.block.children = new_vector();
+	block.v.block.parent = this.currentBlock;
+	this.currentBlock = block;
+
 	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after for");
 
 	if(this.match(TOKEN_SEMICOLON)) {
@@ -724,7 +730,11 @@ function Parser.parse_for_statement(): Node* {
 
 	forStmt.v.loop.body = this.parse_statement();
 
-	return forStmt;
+	block.add_child(forStmt);
+
+	this.currentBlock = block.v.block.parent;
+
+	return block;
 }
 
 function Parser.parse_return_statement(): Node* {
