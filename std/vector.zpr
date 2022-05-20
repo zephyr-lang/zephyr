@@ -1,0 +1,59 @@
+import "std/core.zpr";
+import "std/io.zpr";
+
+struct Vector {
+	size: int;
+	capacity: int;
+	data: any**;
+}
+
+function new_vector_sized(capacity: int): Vector* {
+	var vec: Vector* = malloc(sizeof(Vector));
+	vec.size = 0;
+	vec.capacity = capacity;
+	vec.data = malloc(capacity * sizeof(any*));
+	return vec;
+}
+
+function new_vector(): Vector* {
+	// Initial capacity
+	return new_vector_sized(8);
+}
+
+function Vector.empty(): int {
+	return this.size == 0;
+}
+
+function Vector.at(index: int): any* {
+	if(index < 0 || index >= this.size) {
+		eputsln("Vector index out of bounds");
+		exit(-1);
+	}
+	return this.data[index];
+}
+
+function Vector.push(item: any*) {
+	if(this.size == this.capacity) {
+		var newCapacity = this.capacity * 2;
+		var newData = malloc(newCapacity * sizeof(any*));
+		memcpy(newData, this.data, this.capacity * sizeof(any*));
+		this.data = newData;
+		this.capacity = newCapacity;
+	}
+	this.data[this.size] = item;
+	this.size = this.size + 1;
+}
+
+function Vector.pop(): any* {
+	if(this.size == 0) {
+		eputsln("Empty vector popped");
+		exit(-1);
+	}
+
+	this.size = this.size - 1;
+	return this.data[this.size];
+}
+
+function Vector.top(): any* {
+	return this.data[this.size - 1];
+}

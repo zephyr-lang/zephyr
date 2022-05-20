@@ -1,0 +1,80 @@
+import "std/linux.zpr";
+
+const true = 1;
+const false = 0;
+
+var null: any*; // FIXME Should be a constant, but only integers are support ATM
+
+// Syscalls
+
+function exit(status: int): int {
+	return syscall1(SYS_exit, status);
+}
+
+function write(fd: int, s: any*, n: int): int {
+	return syscall3(SYS_write, fd, s, n);
+}
+
+function read(fd: int, s: any*, n: int): int {
+	return syscall3(SYS_read, fd, s, n);
+}
+
+function open(path: i8*, flags: int, mode: int): int {
+	return syscall3(SYS_open, path, flags, mode);
+}
+
+function close(fd: int): int {
+	return syscall1(SYS_close, fd);
+}
+
+function lseek(fd: int, offset: int, w: int): int {
+	return syscall3(SYS_lseek, fd, offset, w);
+}
+
+// Memory
+
+var __malloc_buffer: i8[15728640]; // 15 * 1024 * 1024 - 15MB
+var __malloc_buffer_offset = 0;
+
+function free(block: any*) {}
+
+function malloc(size: int): any* {
+	var offset = __malloc_buffer_offset;
+	if(offset + size >= 15728640) {
+		eputsln("!!!! Malloc out of memory");
+		exit(-1);
+	}
+	__malloc_buffer_offset = __malloc_buffer_offset + size;
+
+	var ptr = &__malloc_buffer[offset];
+	if(ptr == null) {
+		eputsln("ptr == null!");
+		exit(1);
+	}
+
+	return &__malloc_buffer[offset];
+}
+
+function memcpy(dst: any*, src: any*, size: int) {
+	var _dst = dst as i8*;
+	var _src = src as i8*;
+	for(var i = 0; i < size; i = i + 1) {
+		_dst[i] = _src[i];
+	}
+}
+
+function memeq(a: any*, b: any*, size: int): int {
+	var abytes: i8* = a as i8*;
+	var bbytes: i8* = b as i8*;
+	for(var i = 0; i < size; i = i + 1) {
+		if(abytes[i] != bbytes[i]) return false;
+	}
+	return true;
+}
+
+function memset(dst: any*, val: i8, size: int) {
+	var dst8: i8* = dst;
+	for(var i = 0; i < size; i = i + 1) {
+		dst8[i] = val;
+	}
+}
