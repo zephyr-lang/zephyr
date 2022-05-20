@@ -33,7 +33,7 @@ function Type.assignable(b: Type*): int {
 	resolve_type(&this);
 	resolve_type(&b);
 
-	if((a.type == DATA_TYPE_ANY || b.type == DATA_TYPE_ANY) && a.indirection == b.indirection) {
+	if((this.type == DATA_TYPE_ANY || b.type == DATA_TYPE_ANY) && this.indirection == b.indirection) {
 		return true;
 	}
 
@@ -163,6 +163,9 @@ function Parser.lookup_variable(name: Token*): Node* {
 		}
 	}
 
+	var constant = this.lookup_constant(name);
+	if(constant != null) return constant;
+
 	for(var i = 0; i < this.globalVars.size; i = i + 1) {
 		var variable: Node* = this.globalVars.at(i);
 
@@ -175,6 +178,17 @@ function Parser.lookup_variable(name: Token*): Node* {
 		var func: Node* = this.functions.at(i);
 		if(func.v.funktion.name.equals(name)) {
 			return func;
+		}
+	}
+
+	return null;
+}
+
+function Parser.lookup_constant(name: Token*): Node* {
+	for(var i = 0; i < this.constants.size; i = i + 1) {
+		var constant: Node* = this.constants.at(i);
+		if(constant.v.constant.name.equals(name)) {
+			return constant;
 		}
 	}
 
@@ -337,6 +351,15 @@ function Parser.type_check_access_var(expr: Node*) {
 
 		tc_typeStack.push(expr.v.variable.type);
 	}
+	else if(variable.type == AST_DEFINE_CONST) {
+		var value = variable.v.constant.value;
+
+		expr.type = AST_INT_LITERAL;
+		expr.v.literal.type = INT_TYPE;
+		expr.v.literal.az.integer = value;
+
+		tc_typeStack.push(INT_TYPE);
+	}
 	else {
 		expr.print_position();
 		eputsln("Can only access variables");
@@ -350,6 +373,11 @@ function Parser.type_check_assign_var(expr: Node*) {
 	if(variable == null) {
 		expr.print_position();
 		eputs("Unknown variable '"); eput_token_string(expr.v.variable.name); eputsln("' in current scope");
+		exit(1);
+	}
+	else if(variable.type == AST_DEFINE_CONST) {
+		expr.print_position();
+		eputsln("Cannot re-assign constant values");
 		exit(1);
 	}
 
@@ -390,7 +418,7 @@ function Parser.type_check_assign_var(expr: Node*) {
 		eputsln("Can only assign variables");
 		exit(1);
 	}
-	
+
 }
 
 function Parser.type_check_call(expr: Node*) {
@@ -1066,6 +1094,9 @@ function Parser.type_check(program: Node*) {
 		}
 		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
 			this.type_check_global_var(node);
+		}
+		else if(node.type == AST_DEFINE_CONST) {
+			// Do nothing - parser verifies that this is an integer
 		}
 		else if(node.type == AST_STRUCT) {
 			var offset = 0;

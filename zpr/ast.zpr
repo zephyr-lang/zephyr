@@ -40,6 +40,7 @@ var AST_CHAR_LITERAL = __nt_count = __nt_count + 1;
 var AST_STRING = __nt_count = __nt_count + 1;
 var AST_CALL = __nt_count = __nt_count + 1;
 var AST_CALL_METHOD = __nt_count = __nt_count + 1;
+var AST_DEFINE_CONST = __nt_count = __nt_count + 1;
 var AST_DEFINE_VAR = __nt_count = __nt_count + 1;
 var AST_ACCESS_VAR = __nt_count = __nt_count + 1;
 var AST_ASSIGN_VAR = __nt_count = __nt_count + 1;
@@ -171,6 +172,11 @@ struct Node {
 			stackOffset: int;
 		};
 
+		constant: struct {
+			name: Token*;
+			value: int;
+		};
+
 		member: struct {
 			name: Token*;
 			parent: Node*;
@@ -257,6 +263,7 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_STRING) return "string";
 	if(type == AST_CALL) return "call";
 	if(type == AST_CALL_METHOD) return "call method";
+	if(type == AST_DEFINE_CONST) return "define const";
 	if(type == AST_DEFINE_VAR) return "define var";
 	if(type == AST_ACCESS_VAR) return "access var";
 	if(type == AST_ASSIGN_VAR) return "assign var";
@@ -431,6 +438,9 @@ function print_ast_depth(node: Node*, depth: int) {
 			puts("(void)");
 		}
 		putln();
+	}
+	else if(node.type == AST_DEFINE_CONST) {
+		puts("const "); put_token_string(node.v.constant.name); puts(" = "); putd(node.v.constant.value); putln();
 	}
 	else if(node.type == AST_DEFINE_VAR || node.type == AST_DEFINE_GLOBAL_VAR) {
 		puts("var "); put_token_string(node.v.variable.name); puts(": "); putsln(type_to_string(node.v.variable.type));

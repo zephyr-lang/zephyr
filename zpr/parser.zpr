@@ -24,6 +24,8 @@ struct Parser {
 
 	openedFiles: Vector*;
 
+	constants: Vector*;
+
 	error: int;
 	panic: int;
 }
@@ -37,6 +39,7 @@ function new_parser(lexer: Lexer*): Parser* {
 	parser.definedTypes = new_vector();
 	parser.lexerStack = new_vector();
 	parser.openedFiles = new_vector();
+	parser.constants = new_vector();
 	return parser;
 }
 
@@ -1047,6 +1050,24 @@ function Parser.parse_union_definition(member: int): Node* {
 	return vnion;
 }
 
+function Parser.parse_const_declaration(): Node* {
+	var name = this.consume(TOKEN_IDENTIFIER, "Expected constant name");
+
+	this.consume(TOKEN_EQ, "Expected '=' after constant name");
+
+	var val = this.parse_constant();
+
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after constant declaration");
+
+	var constant = new_node(AST_DEFINE_CONST, name);
+	constant.v.constant.name = name;
+	constant.v.constant.value = val;
+
+	this.constants.push(constant);
+
+	return constant;
+}
+
 function Parser.parse_import() {
 	var path = this.consume(TOKEN_STRING, "Expected import path");
 	this.consume(TOKEN_SEMICOLON, "Expected ';' after import");
@@ -1112,6 +1133,10 @@ function Parser.parse_program(): Node* {
 			var variable = this.parse_var_declaration();
 			variable.type = AST_DEFINE_GLOBAL_VAR;
 			program.add_child(variable);
+		}
+		else if(this.match(TOKEN_CONST)) {
+			var constant = this.parse_const_declaration();
+			program.add_child(constant);
 		}
 		else if(this.match(TOKEN_STRUCT)) {
 			var strukt = this.parse_struct_definition(false);
