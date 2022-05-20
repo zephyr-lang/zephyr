@@ -96,6 +96,7 @@ function generate_addrof_rax(expr: Node*, out: File*) {
 
 function generate_deref_rax(expr: Node*, out: File*) {
 	if(expr.computedType.is_structural()) {
+		expr.print_position();
 		eputsln("Cannot copy structs (yet)");
 		exit(1);
 	}
@@ -261,12 +262,13 @@ function generate_call_method_rax(expr: Node*, out: File*) {
 		out.puts("    push "); out.putsln(cg_ARG_REGISTERS[i]);
 	}
 
-	var localRegUse = 0;
+	var localRegUse = 1;
+	cg_registersInUse = cg_registersInUse + 1;
 	
 	generate_expr_rax(expr.v.funktion.parent, out);
 	out.putsln("    mov rdi, rax");
 
-	for(var i = 1; i < min(expr.v.funktion.arguments.size, 5); i = i + 1) {
+	for(var i = 0; i < min(expr.v.funktion.arguments.size, 5); i = i + 1) {
 		generate_expr_rax(expr.v.funktion.arguments.at(i), out);
 		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i + 1]); out.putsln(", rax");
 		cg_registersInUse = cg_registersInUse + 1;
@@ -547,6 +549,8 @@ function generate_while_statement(whileStmt: Node*, out: File*) {
 	var bodyLabel = cg_lableCount = cg_lableCount + 1;
 	var endLabel = cg_lableCount = cg_lableCount + 1;
 
+	var prevContinueLabel = cg_continueLabel;
+	var prevBreakLabel = cg_breakLabel;
 	cg_continueLabel = condLabel;
 	cg_breakLabel = endLabel;
 
@@ -561,6 +565,8 @@ function generate_while_statement(whileStmt: Node*, out: File*) {
 	out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
 
 	out.puts(".l"); out.putd(endLabel); out.putsln(":");
+	cg_breakLabel = prevBreakLabel;
+	cg_continueLabel = prevContinueLabel;
 }
 
 function generate_for_statement(forStmt: Node*, out: File*) {
@@ -573,6 +579,8 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 	var endLabel = cg_lableCount = cg_lableCount + 1;
 	var iterationLabel: int;
 
+	var prevContinueLabel = cg_continueLabel;
+	var prevBreakLabel = cg_breakLabel;
 	cg_continueLabel = condLabel;
 	cg_breakLabel = endLabel;
 
@@ -605,6 +613,8 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 	}
 
 	out.puts(".l"); out.putd(endLabel); out.putsln(":");
+	cg_breakLabel = prevBreakLabel;
+	cg_continueLabel = prevContinueLabel;
 }
 
 function generate_define_var(stmt: Node*, out: File*) {

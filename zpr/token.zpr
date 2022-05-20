@@ -154,7 +154,7 @@ function eput_token_string(token: Token*) {
 }
 
 function File.put_token_string(token: Token*) {
-	write(this.fd, token.start, token.length);
+	this.write(token.start, token.length);
 }
 
 function print_token(token: Token*) {

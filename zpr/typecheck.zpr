@@ -174,7 +174,7 @@ function Parser.lookup_variable(name: Token*): Node* {
 
 	for(var i = 0; i < this.functions.size; i = i + 1) {
 		var func: Node* = this.functions.at(i);
-		if(func.v.funktion.name.equals(name)) {
+		if(func.v.funktion.name.equals(name) && !func.v.funktion.isMethod) {
 			return func;
 		}
 	}
@@ -742,7 +742,7 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == AST_ACCESS_VAR || expr.type == AST_ACCESS_GLOBAL_VAR) {
 		this.type_check_access_var(expr);
 	}
-	else if(expr.type == AST_ASSIGN_VAR) {
+	else if(expr.type == AST_ASSIGN_VAR || expr.type == AST_ASSIGN_GLOBAL_VAR) {
 		this.type_check_assign_var(expr);
 	}
 	else if(expr.type == AST_CALL) {
@@ -770,6 +770,7 @@ function Parser.type_check_expr(expr: Node*) {
 		// NOTE: All casts are completely allowed at the moment. Whether or not this is good
 		//       or requires a warning in some cases is to be decided.
 		this.type_check_expr(expr.v.unary);
+		resolve_type(&expr.computedType);
 		tc_typeStack.push(expr.computedType);
 	}
 	else if(expr.type == OP_ACCESS_MEMBER) {
@@ -1109,6 +1110,65 @@ function Parser.type_check_global_var(stmt: Node*) {
 	this.globalVars.push(stmt);
 }
 
+function add_offsets_to_union(unionType: Type*) {
+	if(unionType.built) return;
+	unionType.built = true;
+
+	for(var i = 0; i < unionType.fields.size; i = i + 1) {
+		var field: Node* = unionType.fields.at(i);
+		var type = field.v.variable.type;
+
+		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_UNION) && type.name.equals(unionType.name) && type.indirection == 0) {
+			field.print_position();
+			eputsln("A union cannot contain a member of itself (use a pointer instead)");
+			exit(1);
+		}
+
+		field.v.variable.stackOffset = 0;
+
+		resolve_type(&type);
+		resolve_type(&field.v.variable.type);
+
+		if(type.type == DATA_TYPE_STRUCT) {
+			add_offsets_to_struct(type);
+		}
+		else if(type.type == DATA_TYPE_UNION) {
+			add_offsets_to_union(type);
+		}
+	}
+}
+
+function add_offsets_to_struct(structType: Type*) {
+	if(structType.built) return;
+	structType.built = true;
+
+	var offset = 0;
+
+	for(var i = 0; i < structType.fields.size; i = i + 1) {
+		var field: Node* = structType.fields.at(i);
+		var type = field.v.variable.type;
+
+		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_STRUCT) && type.name.equals(structType.name) && type.indirection == 0) {
+			field.print_position();
+			eputsln("A struct cannot contain a member of itself (use a pointer instead)");
+			exit(1);
+		}
+
+		resolve_type(&type);
+		resolve_type(&field.v.variable.type);
+		
+		field.v.variable.stackOffset = offset;
+		offset = offset + field.v.variable.type.size_offset();
+
+		if(type.type == DATA_TYPE_STRUCT) {
+			add_offsets_to_struct(type);
+		}
+		else if(type.type == DATA_TYPE_UNION) {
+			add_offsets_to_union(type);
+		}
+	}
+}
+
 function Parser.type_check(program: Node*) {
 	tc_definedTypes = this.definedTypes;
 
@@ -1126,39 +1186,10 @@ function Parser.type_check(program: Node*) {
 			// Do nothing - parser verifies that this is an integer
 		}
 		else if(node.type == AST_STRUCT) {
-			var offset = 0;
-
-			for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
-				var member: Node* = node.computedType.fields.at(i);
-				var type = member.v.variable.type;
-
-				if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_STRUCT) && type.name.equals(node.computedType.name) && type.indirection == 0) {
-					member.print_position();
-					eputsln("A struct cannot contain a member of itself (use a pointer instead)");
-					exit(1);
-				}
-
-				resolve_type(&type);
-				
-				member.v.variable.stackOffset = offset;
-				offset = offset + member.v.variable.type.size_offset();
-			}
+			add_offsets_to_struct(node.computedType);
 		}
 		else if(node.type == AST_UNION) {
-			for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
-				var field: Node* = node.computedType.fields.at(i);
-				var type = field.v.variable.type;
-
-				if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_UNION) && type.name.equals(node.computedType.name) && type.indirection == 0) {
-					field.print_position();
-					eputsln("A union cannot contain a member of itself (use a pointer instead)");
-					exit(1);
-				}
-
-				field.v.variable.stackOffset = 0;
-
-				resolve_type(&type);
-			}
+			add_offsets_to_union(node.computedType);
 		}
 		else {
 			eputsln("Unreachable - unhandled node type in type_check (program)");

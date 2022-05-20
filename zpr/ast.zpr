@@ -85,6 +85,8 @@ struct Type {
 	name: Token*;
 	fields: Vector*;
 	methods: Vector*;
+
+	built: int;
 }
 
 var __lv_count = -1;
