@@ -121,6 +121,7 @@ void generate_unary_rax(Node* expr, FILE* out) {
 	else if(expr->type == OP_DEREF) {
 		if(sizeof_type(&expr->computedType) > 8) {
 			//TODO: Copy structs
+			print_position(expr->position);
 			fprintf(stderr, "Cannot copy structs (yet)\n");
 			exit(1);
 		}
@@ -331,7 +332,8 @@ void generate_expr_rax(Node* expr, FILE* out) {
 		generate_expr_rax(expr->function.parent, out);
 		fprintf(out, "    mov rdi, rax\n");
 
-		int localRegUse = 0;
+		int localRegUse = 1;
+		registersInUse++;
 
 		for(int i = 0; i < min(expr->function.argumentCount, 5); i++) {
 			generate_expr_rax(expr->function.arguments[i], out);
@@ -496,6 +498,8 @@ void generate_for_statement(Node* forStmt, FILE* out) {
 	int endLabel = labelCount++;
 	int iterationLabel;
 
+	int prevBreakLabel = breakLabel;
+	int prevContinueLabel = continueLabel;
 	continueLabel = condLabel;
 	breakLabel = endLabel;
 
@@ -527,6 +531,8 @@ void generate_for_statement(Node* forStmt, FILE* out) {
 	}
 
 	fprintf(out, ".l%d:\n", breakLabel);
+	breakLabel = prevBreakLabel;
+	continueLabel = prevContinueLabel;
 }
 
 void generate_while_statement(Node* whileStmt, FILE* out) {
@@ -534,6 +540,8 @@ void generate_while_statement(Node* whileStmt, FILE* out) {
 	int bodyLabel = labelCount++;
 	int endLabel = labelCount++;
 
+	int prevBreakLabel = breakLabel;
+	int prevContinueLabel = continueLabel;
 	continueLabel = condLabel;
 	breakLabel = endLabel;
 
@@ -548,6 +556,8 @@ void generate_while_statement(Node* whileStmt, FILE* out) {
 	fprintf(out, "    jne .l%d\n", bodyLabel);
 
 	fprintf(out, ".l%d:\n", breakLabel);
+	breakLabel = prevBreakLabel;
+	continueLabel = prevContinueLabel;
 }
 
 void generate_statement(Node* stmt, FILE* out) {

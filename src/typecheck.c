@@ -196,7 +196,7 @@ Node* lookup_variable(Parser* parser, Token name) {
 
 	for(int i = 0; i < parser->functionCount; i++) {
 		Token funcName = parser->functions[i]->function.name;
-		if(tokens_equal(funcName, name)) {
+		if(tokens_equal(funcName, name) && !parser->functions[i]->function.isMethod) {
 			return parser->functions[i];
 		}
 	}
@@ -438,6 +438,7 @@ void type_check_method_call(Parser* parser, Node* expr) {
 	type_check_expr(parser, expr->function.parent);
 
 	Type parentType = pop_type_stack();
+	resolve_type(&parentType);
 	Token name = expr->function.name;
 	Node* function;
 
@@ -695,7 +696,7 @@ void type_check_expr(Parser* parser, Node* expr) {
 	else if(expr->type == AST_ACCESS_VAR || expr->type == AST_ACCESS_GLOBAL_VAR) {
 		type_check_access_var(parser, expr);
 	}
-	else if(expr->type == AST_ASSIGN_VAR) {
+	else if(expr->type == AST_ASSIGN_VAR || expr->type == AST_ASSIGN_GLOBAL_VAR) {
 		type_check_assign_var(parser, expr);
 	}
 	else if(expr->type == AST_CALL) {
@@ -723,6 +724,7 @@ void type_check_expr(Parser* parser, Node* expr) {
 		// NOTE: All casts are completely allowed at the moment. Whether or not this is good
 		//       or requires a warning in some cases is to be decided.
 		type_check_expr(parser, expr->unary);
+		resolve_type(&expr->computedType);
 		push_type_stack(&expr->computedType);
 	}
 	else if(expr->type == OP_ACCESS_MEMBER) {
@@ -1042,6 +1044,62 @@ void type_check_global_var(Parser* parser, Node* stmt) {
 	parser->globalVars[parser->globalVarCount - 1] = stmt;
 }
 
+void add_offsets_to_struct(Type* structType);
+
+void add_offsets_to_union(Type* unionType) {
+	if(unionType->built) return;
+	unionType->built = true;
+	for(int i = 0; i < unionType->fieldCount; i++) {
+		Node* field = unionType->fields[i];
+		Type* type = &field->variable.type;
+				
+		if(tokens_equal(type->name, unionType->name) && type->indirection == 0) {
+			print_position(field->variable.name);
+			fprintf(stderr, "A union cannot contain a member of itself (use a pointer instead)\n");
+			exit(1);
+		}
+
+		field->variable.stackOffset = 0;
+
+		if(type->type == DATA_TYPE_STRUCT) {
+			add_offsets_to_struct(type);
+		}
+		else if(type->type == DATA_TYPE_UNION) {
+			add_offsets_to_union(type);
+		}
+
+		resolve_type(type);
+	}
+}
+
+void add_offsets_to_struct(Type* structType) {
+	if(structType->built) return;
+	structType->built = true;
+	int offset = 0;
+	for(int i = 0; i < structType->fieldCount; i++) {
+		Node* field = structType->fields[i];
+		Type* type = &field->variable.type;
+				
+		if(tokens_equal(type->name, structType->name) && type->indirection == 0) {
+			print_position(field->variable.name);
+			fprintf(stderr, "A struct cannot contain a member of itself (use a pointer instead)\n");
+			exit(1);
+		}
+
+		field->variable.stackOffset = offset;
+		offset += sizeof_type_var_offset(&field->variable.type);
+
+		resolve_type(type);
+
+		if(type->type == DATA_TYPE_STRUCT) {
+			add_offsets_to_struct(type);
+		}
+		else if(type->type == DATA_TYPE_UNION) {
+			add_offsets_to_union(type);
+		}
+	}
+}
+
 void type_check(Parser* parser, Node* program) {
 	assert(program->type == AST_PROGRAM);
 
@@ -1063,38 +1121,10 @@ void type_check(Parser* parser, Node* program) {
 			// Do nothing - parser verifies that this is an integer.
 		}
 		else if(node->type == AST_STRUCT) {
-			int offset = 0;
-			for(int i = 0; i < node->computedType.fieldCount; i++) {
-				Node* field = node->computedType.fields[i];
-				Type* type = &field->variable.type;
-				
-				if(tokens_equal(type->name, node->computedType.name) && type->indirection == 0) {
-					print_position(field->variable.name);
-					fprintf(stderr, "A struct cannot contain a member of itself (use a pointer instead)\n");
-					exit(1);
-				}
-
-				field->variable.stackOffset = offset;
-				offset += sizeof_type_var_offset(&field->variable.type);
-
-				resolve_type(type);
-			}
+			add_offsets_to_struct(&node->computedType);
 		}
 		else if(node->type == AST_UNION) {
-			for(int i = 0; i < node->computedType.fieldCount; i++) {
-				Node* field = node->computedType.fields[i];
-				Type* type = &field->variable.type;
-				
-				if(tokens_equal(type->name, node->computedType.name) && type->indirection == 0) {
-					print_position(field->variable.name);
-					fprintf(stderr, "A union cannot contain a member of itself (use a pointer instead)\n");
-					exit(1);
-				}
-
-				field->variable.stackOffset = 0;
-
-				resolve_type(type);
-			}
+			add_offsets_to_union(&node->computedType);
 		}
 		else {
 			assert(0 && "Unreachable - unhandled node in type_check (program)");

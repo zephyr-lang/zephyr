@@ -100,6 +100,8 @@ typedef struct Type {
 
 	Node** methods;
 	int methodCount;
+
+	bool built;
 } Type;
 
 typedef enum LValueType {

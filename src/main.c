@@ -131,7 +131,7 @@ int main(int argc, char const *argv[]) {
 	strcpy(objectFile, outFile);
 	strcat(objectFile, ".o");
 
-	char* yasmArgs[] = { "yasm", "-felf64", "-o", objectFile, asmFile, NULL };
+	char* yasmArgs[] = { "yasm", "-felf64", "-g", "dwarf2", "-o", objectFile, asmFile, NULL };
 
 	int status = run_command(yasmArgs);
 
