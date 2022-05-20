@@ -68,17 +68,11 @@ function cmp_suffix(type: int): i8* {
 }
 
 function generate_addrof_rax(expr: Node*, out: File*) {
-	if(expr.v.unary.lvalue == LVALUE_IDENTIFIER) {
-		if(expr.v.unary.type == AST_ACCESS_VAR) {
-			out.puts("    lea rax, [rbp-"); out.putd(expr.v.unary.v.variable.stackOffset); out.putsln("]");
-		}
-		else if(expr.v.unary.type == AST_ACCESS_GLOBAL_VAR) {
-			out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.unary.v.variable.name); out.putsln("]");
-		}
-		else {
-			eputs("Unsupported type of IDENTIFIER in generate_addrof_rax - "); eputsln(node_type_to_string(expr.type));
-			exit(1);
-		}
+	if(expr.v.unary.lvalue == LVALUE_LOCAL) {
+		out.puts("    lea rax, [rbp-"); out.putd(expr.v.unary.v.variable.stackOffset); out.putsln("]");
+	}
+	else if(expr.v.unary.lvalue == LVALUE_GLOBAL) {
+		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.unary.v.variable.name); out.putsln("]");
 	}
 	else if(expr.v.unary.lvalue == LVALUE_SUBSCRIPT) {
 		generate_expr_rax(expr.v.unary.v.binary.lhs, out);
@@ -295,11 +289,6 @@ function generate_access_var(expr: Node*, out: File*) {
 }
 
 function generate_assign_var(expr: Node*, out: File*) {
-	if(expr.v.variable.type.is_structural()) {
-		eputsln("Cannot copy structs (yet)");
-		exit(1);
-	}
-
 	generate_expr_rax(expr.v.variable.value, out);
 
 	out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.puts("], ");
@@ -374,6 +363,64 @@ function generate_assign_member(expr: Node*, out: File*) {
 	out.puts("], "); out.putsln(field.v.variable.type.rax_subregister());
 }
 
+function generate_copy(fields: Vector*, parentOffset: int, memberOffset: int, out: File*) {
+	for(var i = 0; i < fields.size; i = i + 1) {
+		var field: Node* = fields.at(i);
+
+		if(field.v.variable.type.is_structural()) {
+			generate_copy(field.v.variable.type.fields, field.v.variable.stackOffset, memberOffset, out);
+			continue;
+		}
+
+		out.puts("    mov rax, "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rcx+"); 
+		out.putd(field.v.variable.stackOffset + parentOffset); out.putsln("]");
+
+		out.puts("    mov "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rdx+"); 
+		out.putd(field.v.variable.stackOffset + parentOffset + memberOffset); out.putsln("], rax");
+	}
+}
+
+function generate_copy_struct(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.variable.value, out);
+
+	if(!expr.v.variable.type.is_structural()) {
+		out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.puts("], ");
+		out.putsln(expr.v.variable.type.rax_subregister());
+		return;
+	}
+
+	out.putsln("    mov rcx, rax");
+	out.puts("    lea rdx, [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+
+	generate_copy(expr.v.variable.type.fields, 0, 0, out);
+
+	out.putsln("    mov rax, rdx");
+}
+
+function generate_copy_struct_member(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.member.value, out);
+	out.putsln("    mov rcx, rax");
+	generate_expr_rax(expr.v.member.parent, out);
+	out.putsln("    mov rdx, rax");
+
+	var member = expr.v.member.memberRef;
+
+	generate_copy(member.v.variable.type.fields, 0, member.v.variable.stackOffset, out);
+
+	out.putsln("    mov rax, rdx");
+}
+
+function generate_copy_struct_deref(expr: Node*, out: File*) {
+	generate_expr_rax(expr.v.binary.lhs, out);
+	out.putsln("    mov rdx, rax");
+	generate_expr_rax(expr.v.binary.rhs, out);
+	out.putsln("    mov rcx, rax");
+
+	generate_copy(expr.computedType.fields, 0, 0, out);
+
+	out.putsln("    mov rax, rdx");
+}
+
 function generate_expr_rax(expr: Node*, out: File*) {
 	if(is_unary_op(expr.type)) {
 		generate_unary_rax(expr, out);
@@ -431,6 +478,15 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	}
 	else if(expr.type == OP_ASSIGN_MEMBER) {
 		generate_assign_member(expr, out);
+	}
+	else if(expr.type == OP_COPY_STRUCT) {
+		generate_copy_struct(expr, out);
+	}
+	else if(expr.type == OP_COPY_STRUCT_MEMBER) {
+		generate_copy_struct_member(expr, out);
+	}
+	else if(expr.type == OP_COPY_STRUCT_DEREF) {
+		generate_copy_struct_deref(expr, out);
 	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();

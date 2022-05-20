@@ -211,7 +211,7 @@ function Parser.parse_identifier(): Node* {
 
 	var access = new_node(AST_ACCESS_VAR, name);
 	access.v.variable.name = name;
-	access.lvalue = LVALUE_IDENTIFIER;
+	access.lvalue = LVALUE_LOCAL;
 	return access;
 }
 
@@ -602,7 +602,7 @@ function Parser.parse_assignment_expression(): Node* {
 
 		var right = this.parse_assignment_expression();
 
-		if(left.lvalue == LVALUE_IDENTIFIER) {
+		if(left.lvalue == LVALUE_LOCAL) {
 			var name = left.v.variable.name;
 			var assign = new_node(AST_ASSIGN_VAR, name);
 			assign.v.variable.name = name;

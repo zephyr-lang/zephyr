@@ -332,6 +332,7 @@ function Parser.type_check_access_var(expr: Node*) {
 	else if(variable.type == AST_DEFINE_GLOBAL_VAR) {
 		expr.v.variable.type = variable.v.variable.type;
 		expr.type = AST_ACCESS_GLOBAL_VAR;
+		expr.lvalue = LVALUE_GLOBAL;
 
 		tc_typeStack.push(expr.v.variable.type);
 	}
@@ -354,28 +355,30 @@ function Parser.type_check_assign_var(expr: Node*) {
 	this.type_check_expr(expr.v.variable.value);
 
 	var valueType: Type* = tc_typeStack.pop();
+	resolve_type(&valueType);
+	resolve_type(&variable.v.variable.type);
 
+	if(!valueType.assignable(variable.v.variable.type)) {
+		expr.print_position();
+		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(variable.v.variable.type));
+		eputsln("'");
+		exit(1);
+	}
+
+	if(valueType.is_structural()) {
+		expr.type = OP_COPY_STRUCT;
+		expr.v.variable.type = variable.v.variable.type;
+		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
+
+		tc_typeStack.push(expr.v.variable.type);
+	}
 	if(variable.type == AST_DEFINE_VAR) {
-		if(!valueType.assignable(variable.v.variable.type)) {
-			expr.print_position();
-			eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(variable.v.variable.type));
-			eputsln("'");
-			exit(1);
-		}
-
 		expr.v.variable.type = variable.v.variable.type;
 		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
 
 		tc_typeStack.push(expr.v.variable.type);
 	}
 	else if(variable.type == AST_DEFINE_GLOBAL_VAR) {
-		if(!valueType.assignable(variable.v.variable.type)) {
-			expr.print_position();
-			eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(variable.v.variable.type));
-			eputsln("'");
-			exit(1);
-		}
-
 		expr.v.variable.type = variable.v.variable.type;
 		expr.type = AST_ASSIGN_GLOBAL_VAR;
 
@@ -583,6 +586,7 @@ function Parser.type_check_assign_subscript(expr: Node*) {
 function Parser.type_check_assign_deref(expr: Node*) {
 	this.type_check_expr(expr.v.binary.lhs);
 	var refType: Type* = tc_typeStack.pop();
+	resolve_type(&refType);
 
 	if(refType.indirection == 0) {
 		expr.print_position();
@@ -592,6 +596,7 @@ function Parser.type_check_assign_deref(expr: Node*) {
 
 	this.type_check_expr(expr.v.binary.rhs);
 	var valueType: Type* = tc_typeStack.pop();
+	resolve_type(&valueType);
 
 	var subType = copy_type(refType);
 	subType.indirection = subType.indirection - 1;
@@ -601,6 +606,10 @@ function Parser.type_check_assign_deref(expr: Node*) {
 		eputs("Cannot assign value of type '"); eputs(type_to_string(valueType)); eputs("' to dereferenced type '"); eputs(type_to_string(subType));
 		eputsln("'");
 		exit(1);
+	}
+
+	if(valueType.is_structural()) {
+		expr.type = OP_COPY_STRUCT_DEREF;
 	}
 
 	expr.computedType = refType;
@@ -662,6 +671,7 @@ function Parser.type_check_assign_member(expr: Node*) {
 	expr.v.member.memberRef = field;
 
 	var fieldType = field.v.variable.type;
+	resolve_type(&field.v.variable.type);
 
 	this.type_check_expr(expr.v.member.value);
 
@@ -672,6 +682,10 @@ function Parser.type_check_assign_member(expr: Node*) {
 		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to member expecting '"); eputs(type_to_string(fieldType));
 		eputsln("'");
 		exit(1);
+	}
+
+	if(valueType.is_structural()) {
+		expr.type = OP_COPY_STRUCT_MEMBER;
 	}
 
 	tc_typeStack.push(fieldType);
@@ -766,6 +780,7 @@ function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
 
 function Parser.type_check_define_var(stmt: Node*) {
 	var declType = stmt.v.variable.type;
+	resolve_type(&declType);
 
 	var name = stmt.v.variable.name;
 

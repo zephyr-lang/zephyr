@@ -32,6 +32,9 @@ var OP_ACCESS_SUBSCRIPT = __nt_count = __nt_count + 1;
 var OP_ASSIGN_SUBSCRIPT = __nt_count = __nt_count + 1;
 var OP_ACCESS_MEMBER = __nt_count = __nt_count + 1;
 var OP_ASSIGN_MEMBER = __nt_count = __nt_count + 1;
+var OP_COPY_STRUCT = __nt_count = __nt_count + 1;
+var OP_COPY_STRUCT_MEMBER = __nt_count = __nt_count + 1;
+var OP_COPY_STRUCT_DEREF = __nt_count = __nt_count + 1;
 var AST_INT_LITERAL = __nt_count = __nt_count + 1;
 var AST_CHAR_LITERAL = __nt_count = __nt_count + 1;
 var AST_STRING = __nt_count = __nt_count + 1;
@@ -83,7 +86,8 @@ struct Type {
 
 var __lv_count = -1;
 var LVALUE_NONE = __lv_count = __lv_count + 1;
-var LVALUE_IDENTIFIER = __lv_count = __lv_count + 1;
+var LVALUE_LOCAL = __lv_count = __lv_count + 1;
+var LVALUE_GLOBAL = __lv_count = __lv_count + 1;
 var LVALUE_SUBSCRIPT = __lv_count = __lv_count + 1;
 var LVALUE_DEREF = __lv_count = __lv_count + 1;
 var LVALUE_MEMBER = __lv_count = __lv_count + 1;
@@ -247,6 +251,7 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_SIZEOF) return "sizeof";
 	if(type == OP_ACCESS_SUBSCRIPT) return "[";
 	if(type == OP_ASSIGN_SUBSCRIPT) return "=[";
+	if(type == OP_COPY_STRUCT) return "copy struct";
 	if(type == AST_INT_LITERAL) return "int literal";
 	if(type == AST_CHAR_LITERAL) return "char literal";
 	if(type == AST_STRING) return "string";
