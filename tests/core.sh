@@ -85,6 +85,45 @@ assert_exit_code 12 "function x():int { return 12; } function main():int { retur
 assert_exit_code 11 "function x(y: int, z: int): int { return y + z; } function main(): int { return x(5, 6); }"
 assert_compilation_error "function x():int {} function main():int { return x(1); }"
 assert_compilation_error "function x(){} function main():int { return x(); }"
+
+assert_stdout "1
+2
+3
+4
+5
+6
+7" "
+function z(a1: int, a2: int, a3: int, a4: int, a5: int, a6: int, a7: int) {
+	printu(a1);
+	printu(a2);
+	printu(a3);
+	printu(a4);
+	printu(a5);
+	printu(a6);
+	printu(a7);
+}
+
+function main(): int {
+	z(1,2,3,4,5,6,7);
+	return 0;
+}
+"
+
+assert_stdout "99" "
+function add(a: int, b: int): int {
+	return a + b;
+}
+
+function mul(a: int, b: int): int {
+	return a * b;
+}
+
+function main(): int {
+	printu(mul(add(5, 6), add(3, 6)));
+	return 0;
+}
+"
+
 echo " Done"
 
 echo -n "Typing: "
@@ -299,6 +338,16 @@ function main(): int {
 	printu(*ip);
 
 	return 0;
+}
+"
+
+assert_exit_code 0 "
+import \"std/core.zpr\";
+function main(): int {
+	var i = 0;
+	var ip = &i;
+
+	return ip == null;
 }
 "
 
@@ -929,5 +978,20 @@ function main(): int {
 	return 0;
 }
 "
+
+echo " Done"
+
+echo -n "Argv: "
+
+assert_stdout_argv "hello
+world" "
+import \"std/io.zpr\";
+function main(argc: int, argv: i8**): int {
+	for(var i = 1; i < argc; i = i + 1) {
+		putsln(argv[i]);
+	}
+	return 0;
+}
+" hello world
 
 echo " Done"

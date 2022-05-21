@@ -708,7 +708,7 @@ function generate_function(funktion: Node*, out: File*) {
 
 	for(var i = 0; i < funktion.v.funktion.arguments.size - 6; i = i + 1) {
 		out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.v.funktion.arguments.size - 6 - i))); out.putsln("]");
-		out.puts("    mov QWORD [rbp-"); out.putd((funktion.v.funktion.arguments.at(i) as Node*).v.variable.stackOffset); out.putsln("], rax");
+		out.puts("    mov QWORD [rbp-"); out.putd((funktion.v.funktion.arguments.at(i + 6) as Node*).v.variable.stackOffset); out.putsln("], rax");
 	}
 
 	generate_block(funktion.v.funktion.body, out);

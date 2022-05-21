@@ -41,16 +41,12 @@ function free(block: any*) {}
 function malloc(size: int): any* {
 	var offset = __malloc_buffer_offset;
 	if(offset + size >= 15728640) {
-		eputsln("!!!! Malloc out of memory");
+		write(2, "MALLOC ERR", 10);
 		exit(-1);
 	}
 	__malloc_buffer_offset = __malloc_buffer_offset + size;
 
 	var ptr = &__malloc_buffer[offset];
-	if(ptr == null) {
-		eputsln("ptr == null!");
-		exit(1);
-	}
 
 	return &__malloc_buffer[offset];
 }
