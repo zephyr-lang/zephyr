@@ -143,6 +143,8 @@ struct Node {
 			arguments: Vector*;
 
 			localVariableStackOffset: int;
+
+			used: int;
 		};
 
 		block: struct {

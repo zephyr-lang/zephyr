@@ -149,6 +149,21 @@ function Parser.peek(): Token* {
 	return tok;
 }
 
+function Parser.find_string(needle: Node*): Node* {
+	var length = needle.v.literal.az.string.length;
+	var chars = needle.v.literal.az.string.chars;
+
+	for(var i = 0; i < this.strings.size; i = i + 1) {
+		var str: Node* = this.strings.at(i);
+
+		if(str.v.literal.az.string.length == length && streq(str.v.literal.az.string.chars, chars)) {
+			return str;
+		}
+	}
+
+	return null;
+}
+
 function Parser.parse_type(): Type* {
 	this.advance();
 
@@ -272,9 +287,15 @@ function Parser.parse_value(): Node* {
 		literalNode.v.literal.az.string.length = literal.length - 2;
 		literalNode.v.literal.az.string.id = this.strings.size;
 
-		this.strings.push(literalNode);
+		var str = this.find_string(literalNode);
+		if(str == null) {
+			this.strings.push(literalNode);
+			return literalNode;
+		}
 
-		return literalNode;
+		free(buf);
+		free(literalNode);
+		return str;
 	}
 	else if(this.match(TOKEN_IDENTIFIER)) {
 		return this.parse_identifier();

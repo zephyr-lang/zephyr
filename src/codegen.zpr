@@ -722,7 +722,8 @@ function Parser.generate_program(ast: Node*, out: File*) {
 	for(var i = 0; i < ast.v.block.children.size; i = i + 1) {
 		var node: Node* = ast.v.block.children.at(i);
 		if(node.type == AST_FUNCTION) {
-			generate_function(node, out);
+			if(node.v.funktion.used)
+				generate_function(node, out);
 		}
 		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
 			// Handled below

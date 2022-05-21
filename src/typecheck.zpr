@@ -439,6 +439,8 @@ function Parser.type_check_call(expr: Node*) {
 		exit(1);
 	}
 
+	funktion.v.funktion.used = true;
+
 	if(funktion.v.funktion.arguments.size != expr.v.funktion.arguments.size) {
 		expr.print_position();
 		eputs("Call expected "); eputd(funktion.v.funktion.arguments.size); eputs(" arguments but got "); eputd(expr.v.funktion.arguments.size); eputln();
@@ -487,6 +489,8 @@ function Parser.type_check_method_call(expr: Node*) {
 		eputs("Cannot access method on type '"); eputs(type_to_string(parentType)); eputsln("'");
 		exit(1);
 	}
+
+	funktion.v.funktion.used = true;
 
 	expr.v.funktion.parentType = parentType;
 
@@ -1172,12 +1176,18 @@ function add_offsets_to_struct(structType: Type*) {
 function Parser.type_check(program: Node*) {
 	tc_definedTypes = this.definedTypes;
 
+	var mainTok = synthetic_token(TOKEN_IDENTIFIER, "main");
+
 	for(var i = 0; i < program.v.block.children.size; i = i + 1) {
 		var node: Node* = program.v.block.children.at(i);
 
 		if(node.type == AST_FUNCTION) {
 			if(!node.v.funktion.hasImplicitBody)
 				this.type_check_function(node);
+
+			if(node.v.funktion.name.equals(mainTok)) {
+				node.v.funktion.used = true;
+			}
 		}
 		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
 			this.type_check_global_var(node);
