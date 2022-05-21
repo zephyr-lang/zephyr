@@ -50,8 +50,7 @@ function Vector.pop(): any* {
 		exit(-1);
 	}
 
-	this.size = this.size - 1;
-	return this.data[this.size];
+	return this.data[--this.size];
 }
 
 function Vector.top(): any* {

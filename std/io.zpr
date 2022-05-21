@@ -137,7 +137,7 @@ function File.write(buf: any*, size: int) {
 	}
 	else {
 		memcpy(&this.buffer[this.bufferSize], buf, size);
-		this.bufferSize = this.bufferSize + size;
+		this.bufferSize += size;
 	}
 }
 
@@ -175,10 +175,6 @@ function File.putd(val: int) {
 // ===== Reading =====
 
 function File.read(buf: any*, size: int): int {
-	if(buf == null) {
-		eputsln("buf == null!"); eputd(size); eputln();
-		exit(1);
-	}
 	var n = read(this.fd, buf, size);
 	return n;
 }
@@ -204,11 +200,6 @@ function File.size(): int {
 function File.slurp(sizeptr: int*): i8* {
 	var size = this.size();
 	var text: i8* = malloc(size + 1);
-	if(text == null) {
-		eputsln("text == null");
-		exit(1);
-	}
-
 	this.read(text, size);
 	text[size] = 0;
 	if(sizeptr as int) *sizeptr = size;

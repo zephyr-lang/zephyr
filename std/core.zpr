@@ -44,7 +44,7 @@ function malloc(size: int): any* {
 		write(2, "MALLOC ERR", 10);
 		exit(-1);
 	}
-	__malloc_buffer_offset = __malloc_buffer_offset + size;
+	__malloc_buffer_offset += size;
 
 	var ptr = &__malloc_buffer[offset];
 
@@ -54,7 +54,7 @@ function malloc(size: int): any* {
 function memcpy(dst: any*, src: any*, size: int) {
 	var _dst = dst as i8*;
 	var _src = src as i8*;
-	for(var i = 0; i < size; i = i + 1) {
+	for(var i = 0; i < size; ++i) {
 		_dst[i] = _src[i];
 	}
 }
@@ -62,7 +62,7 @@ function memcpy(dst: any*, src: any*, size: int) {
 function memeq(a: any*, b: any*, size: int): int {
 	var abytes: i8* = a as i8*;
 	var bbytes: i8* = b as i8*;
-	for(var i = 0; i < size; i = i + 1) {
+	for(var i = 0; i < size; ++i) {
 		if(abytes[i] != bbytes[i]) return false;
 	}
 	return true;
@@ -70,7 +70,7 @@ function memeq(a: any*, b: any*, size: int): int {
 
 function memset(dst: any*, val: i8, size: int) {
 	var dst8: i8* = dst;
-	for(var i = 0; i < size; i = i + 1) {
+	for(var i = 0; i < size; ++i) {
 		dst8[i] = val;
 	}
 }

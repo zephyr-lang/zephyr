@@ -237,7 +237,7 @@ function type_to_string(type: Type*): i8* {
 	var str: i8* = malloc(strlen(baseType) + type.indirection + 1);
 	strcpy(str, baseType);
 
-	for(var i = 0; i < type.indirection; i = i + 1) {
+	for(var i = 0; i < type.indirection; ++i) {
 		strcat(str, "*");
 	}
 	return str;
@@ -338,7 +338,7 @@ function is_binary_op(type: int): int {
 }
 
 function print_ast_depth(node: Node*, depth: int) {
-	for(var i = 0; i < depth; i = i + 1) puts("  ");
+	for(var i = 0; i < depth; ++i) puts("  ");
 
 	if(is_unary_op(node.type)) {
 		putsln(node_type_to_string(node.type));
@@ -351,19 +351,19 @@ function print_ast_depth(node: Node*, depth: int) {
 		print_ast_depth(node.v.binary.rhs, depth + 1);
 	}
 	else if(node.type == AST_PROGRAM) {
-		for(var i = 0; i < node.v.block.children.size; i = i + 1)
+		for(var i = 0; i < node.v.block.children.size; ++i)
 			print_ast_depth(node.v.block.children.at(i), depth);
 	}
 	else if(node.type == AST_BLOCK) {
 		putsln("{");
-		for(var i = 0; i < node.v.block.children.size; i = i + 1)
+		for(var i = 0; i < node.v.block.children.size; ++i)
 			print_ast_depth(node.v.block.children.at(i), depth + 1);
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		putsln("}");
 	}
 	else if(node.type == AST_FUNCTION) {
 		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(node.v.funktion.returnType));
-		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+		for(var i = 0; i < node.v.funktion.arguments.size; ++i) {
 			var arg: Node* = node.v.funktion.arguments.at(i);
 			puts("("); put_token_string(arg.v.variable.name); puts(": "); puts(type_to_string(arg.v.variable.type)); puts(") ");
 		}
@@ -373,7 +373,7 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == AST_CALL) {
 		puts("call "); put_token_string(node.v.funktion.name); putln();
-		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+		for(var i = 0; i < node.v.funktion.arguments.size; ++i) {
 			var arg: Node* = node.v.funktion.arguments.at(i);
 			print_ast_depth(arg, depth + 1);
 			if(i != node.v.funktion.arguments.size -1 ) putln();
@@ -381,13 +381,13 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == AST_CALL_METHOD) {
 		puts("call "); put_token_string(node.v.funktion.name); putln();
-		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+		for(var i = 0; i < node.v.funktion.arguments.size; ++i) {
 			var arg: Node* = node.v.funktion.arguments.at(i);
 			print_ast_depth(arg, depth + 1);
 			if(i != node.v.funktion.arguments.size -1 ) putln();
 		}
 
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		putsln("of");
 		print_ast_depth(node.v.funktion.parent, depth + 1);
 	}
@@ -404,7 +404,7 @@ function print_ast_depth(node: Node*, depth: int) {
 		putln();
 
 		if(node.v.conditional.doFalse != null) {
-			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("else");
 			print_ast_depth(node.v.conditional.doFalse, depth + 1);
 			putln();
@@ -422,7 +422,7 @@ function print_ast_depth(node: Node*, depth: int) {
 		if(node.v.loop.initial != null)
 			print_ast_depth(node.v.loop.initial, depth + 1);
 		else {
-			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("(no initializer)");
 		}
 
@@ -430,7 +430,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.v.loop.condition, depth + 1);
 			putln();
 		} else {
-			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("(no condition)");
 		}
 
@@ -438,7 +438,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.v.loop.iteration, depth + 1);
 			putln();
 		} else {
-			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("(no iteration)");
 		}
 
@@ -451,7 +451,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.v.unary, depth + 1);
 		}
 		else {
-			for(var i = 0; i < depth + 1; i = i + 1) puts("  ");
+			for(var i = 0; i < depth + 1; ++i) puts("  ");
 			puts("(void)");
 		}
 		putln();
@@ -495,16 +495,16 @@ function print_ast_depth(node: Node*, depth: int) {
 		putln();
 		print_ast_depth(node.v.binary.rhs, depth + 1);
 		putln();
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		puts("]");
 	}
 	else if(node.type == AST_ARRAY_INIT) {
 		putsln("[");
-		for(var i = 0; i < node.v.block.children.size; i = i + 1) {
+		for(var i = 0; i < node.v.block.children.size; ++i) {
 			print_ast_depth(node.v.block.children.at(i), depth + 1);
 			putln();
 		}
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		puts("]");
 	}
 	else if(node.type == OP_DEREF) {
@@ -515,24 +515,24 @@ function print_ast_depth(node: Node*, depth: int) {
 		putsln("cast");
 		print_ast_depth(node.v.unary, depth + 1);
 		putln();
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		puts("as "); puts(type_to_string(node.computedType));
 	}
 	else if(node.type == AST_STRUCT) {
 		puts("struct "); put_token_string(node.v.variable.name); putln();
-		for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
+		for(var i = 0; i < node.computedType.fields.size; ++i) {
 			print_ast_depth(node.computedType.fields.at(i), depth + 1);
 		}
 	}
 	else if(node.type == AST_UNION) {
 		puts("union "); put_token_string(node.v.variable.name); putln();
-		for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
+		for(var i = 0; i < node.computedType.fields.size; ++i) {
 			print_ast_depth(node.computedType.fields.at(i), depth + 1);
 		}
 	}
 	else if(node.type == AST_ENUM) {
 		putsln("enum");
-		for(var i = 0; i < node.v.block.children.size; i = i + 1) {
+		for(var i = 0; i < node.v.block.children.size; ++i) {
 			print_ast_depth(node.v.block.children.at(i), depth + 1);
 		}
 	}

@@ -57,7 +57,11 @@ function Node.add_child(child: Node*) {
 function allow_expr_stmt(expr: Node*): int {
 	return expr.type == AST_CALL ||
 	       expr.type == AST_CALL_METHOD ||
-		   expr.type == OP_ASSIGN;
+		   expr.type == OP_ASSIGN ||
+		   expr.type == OP_PRE_INCREMENT ||
+		   expr.type == OP_PRE_DECREMENT ||
+		   expr.type == OP_POST_INCREMENT ||
+		   expr.type == OP_POST_DECREMENT;
 }
 
 function is_assignment(type: int): int {
@@ -76,7 +80,7 @@ function is_assignment(type: int): int {
 
 //TODO: Remove duplicate code between parser and typechecker
 function Parser.lookup_type(name: Token*): Type* {
-	for(var i = 0; i < this.definedTypes.size; i = i + 1) {
+	for(var i = 0; i < this.definedTypes.size; ++i) {
 		var type: Type* = this.definedTypes.at(i);
 
 		if(type.name.equals(name)) {
@@ -163,7 +167,7 @@ function Parser.find_string(needle: Node*): Node* {
 	var length = needle.v.literal.az.string.length;
 	var chars = needle.v.literal.az.string.chars;
 
-	for(var i = 0; i < this.strings.size; i = i + 1) {
+	for(var i = 0; i < this.strings.size; ++i) {
 		var str: Node* = this.strings.at(i);
 
 		if(str.v.literal.az.string.length == length && streq(str.v.literal.az.string.chars, chars)) {
@@ -1160,7 +1164,7 @@ function Parser.parse_import() {
 	memcpy(spath, &path.start[1], path.length - 2);
 	spath[path.length - 2] = 0;
 
-	for(var i = 0; i < this.lexerStack.size; i = i + 1) {
+	for(var i = 0; i < this.lexerStack.size; ++i) {
 		var lexer: Lexer* = this.lexerStack.at(i);
 
 		if(streq(spath, lexer.filename)) {
@@ -1169,7 +1173,7 @@ function Parser.parse_import() {
 		}
 	}
 
-	for(var i = 0; i < this.openedFiles.size; i = i + 1) {
+	for(var i = 0; i < this.openedFiles.size; ++i) {
 		if(streq(spath, this.openedFiles.at(i))) {
 			// Do nothing: already opened
 			return;
@@ -1202,7 +1206,7 @@ function Parser.parse_program(): Node* {
 
 	var builtins = parser_builtin_functions();
 
-	for(var i = 0; i < builtins.size; i = i + 1) {
+	for(var i = 0; i < builtins.size; ++i) {
 		this.functions.push(builtins.at(i));
 	}
 

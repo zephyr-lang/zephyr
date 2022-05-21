@@ -34,7 +34,7 @@ function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
 	
 	funktion.v.funktion.arguments.push(nr);
 
-	for(var i = 0; i < argCount; i = i + 1) {
+	for(var i = 0; i < argCount; ++i) {
 		var argTok = synthetic_token(TOKEN_IDENTIFIER, "arg");
 		var arg = new_node(AST_DEFINE_VAR, argTok);
 		arg.v.variable.name = argTok;
@@ -105,7 +105,7 @@ function generate_builtin_functions(out: File*) {
 	var ARG_REGISTERS: i8*[6] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
 	var SYS_REGISTERS: i8*[6] = [ "rax", "rdi", "rsi", "rdx", "r10", "r8" ];
 
-	for(var i = 0; i <= 5; i = i + 1) {
+	for(var i = 0; i <= 5; ++i) {
 		out.puts("_f_syscall"); out.putd(i); out.putsln(":");
 
 		for(var arg = 0; arg <= i; arg = arg + 1) {
