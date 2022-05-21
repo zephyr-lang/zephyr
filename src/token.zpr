@@ -2,71 +2,72 @@ import "std/core.zpr";
 import "std/string.zpr";
 
 // Updating this list requires updating token_type_to_string
-var __tk_count = 0;
-var TOKEN_LEFT_PAREN = 0;
-var TOKEN_RIGHT_PAREN = __tk_count = __tk_count + 1;
-var TOKEN_LEFT_BRACE = __tk_count = __tk_count + 1;
-var TOKEN_RIGHT_BRACE = __tk_count = __tk_count + 1;
-var TOKEN_LEFT_SQBR = __tk_count = __tk_count + 1;
-var TOKEN_RIGHT_SQBR = __tk_count = __tk_count + 1;
-var TOKEN_COLON = __tk_count = __tk_count + 1;
-var TOKEN_SEMICOLON = __tk_count = __tk_count + 1;
-var TOKEN_COMMA = __tk_count = __tk_count + 1;
-var TOKEN_DOT = __tk_count = __tk_count + 1;
-var TOKEN_QUESTION = __tk_count = __tk_count + 1;
-var TOKEN_TILDE = __tk_count = __tk_count + 1;
-var TOKEN_MINUS = __tk_count = __tk_count + 1;
-var TOKEN_BANG = __tk_count = __tk_count + 1;
-var TOKEN_PLUS = __tk_count = __tk_count + 1;
-var TOKEN_STAR = __tk_count = __tk_count + 1;
-var TOKEN_SLASH = __tk_count = __tk_count + 1;
-var TOKEN_PERCENT = __tk_count = __tk_count + 1;
-var TOKEN_AMP = __tk_count = __tk_count + 1;
-var TOKEN_AMP_AMP = __tk_count = __tk_count + 1;
-var TOKEN_BAR = __tk_count = __tk_count + 1;
-var TOKEN_BAR_BAR = __tk_count = __tk_count + 1;
-var TOKEN_XOR = __tk_count = __tk_count + 1;
-var TOKEN_LESS = __tk_count = __tk_count + 1;
-var TOKEN_LSH = __tk_count = __tk_count + 1;
-var TOKEN_GREATER = __tk_count = __tk_count + 1;
-var TOKEN_RSH = __tk_count = __tk_count + 1;
-var TOKEN_EQ = __tk_count = __tk_count + 1;
-var TOKEN_EQEQ = __tk_count = __tk_count + 1;
-var TOKEN_BANG_EQ = __tk_count = __tk_count + 1;
-var TOKEN_LEQ = __tk_count = __tk_count + 1;
-var TOKEN_GEQ = __tk_count = __tk_count + 1;
+enum TokenType {
+	TOKEN_LEFT_PAREN,
+	TOKEN_RIGHT_PAREN,
+	TOKEN_LEFT_BRACE,
+	TOKEN_RIGHT_BRACE,
+	TOKEN_LEFT_SQBR,
+	TOKEN_RIGHT_SQBR,
+	TOKEN_COLON,
+	TOKEN_SEMICOLON,
+	TOKEN_COMMA,
+	TOKEN_DOT,
+	TOKEN_QUESTION,
+	TOKEN_TILDE,
+	TOKEN_MINUS,
+	TOKEN_BANG,
+	TOKEN_PLUS,
+	TOKEN_STAR,
+	TOKEN_SLASH,
+	TOKEN_PERCENT,
+	TOKEN_AMP,
+	TOKEN_AMP_AMP,
+	TOKEN_BAR,
+	TOKEN_BAR_BAR,
+	TOKEN_XOR,
+	TOKEN_LESS,
+	TOKEN_LSH,
+	TOKEN_GREATER,
+	TOKEN_RSH,
+	TOKEN_EQ,
+	TOKEN_EQEQ,
+	TOKEN_BANG_EQ,
+	TOKEN_LEQ,
+	TOKEN_GEQ,
 
-var TOKEN_INT_LITERAL = __tk_count = __tk_count + 1;
-var TOKEN_CHAR_LITERAL = __tk_count = __tk_count + 1;
-var TOKEN_STRING = __tk_count = __tk_count + 1;
-var TOKEN_IDENTIFIER = __tk_count = __tk_count + 1;
+	TOKEN_INT_LITERAL,
+	TOKEN_CHAR_LITERAL,
+	TOKEN_STRING,
+	TOKEN_IDENTIFIER,
 
-var TOKEN_AS = __tk_count = __tk_count + 1;
-var TOKEN_ANY = __tk_count = __tk_count + 1;
-var TOKEN_BREAK = __tk_count = __tk_count + 1;
-var TOKEN_CONST = __tk_count = __tk_count + 1;
-var TOKEN_CONTINUE = __tk_count = __tk_count + 1;
-var TOKEN_ELSE = __tk_count = __tk_count + 1;
-var TOKEN_ENUM = __tk_count = __tk_count + 1;
-var TOKEN_IF = __tk_count = __tk_count + 1;
-var TOKEN_IMPORT = __tk_count = __tk_count + 1;
-var TOKEN_INT = __tk_count = __tk_count + 1;
-var TOKEN_I8 = __tk_count = __tk_count + 1;
-var TOKEN_I16 = __tk_count = __tk_count + 1;
-var TOKEN_I32 = __tk_count = __tk_count + 1;
-var TOKEN_I64 = __tk_count = __tk_count + 1;
-var TOKEN_FOR = __tk_count = __tk_count + 1;
-var TOKEN_FUNCTION = __tk_count = __tk_count + 1;
-var TOKEN_RETURN = __tk_count = __tk_count + 1;
-var TOKEN_SIZEOF = __tk_count = __tk_count + 1;
-var TOKEN_STRUCT = __tk_count = __tk_count + 1;
-var TOKEN_UNION = __tk_count = __tk_count + 1;
-var TOKEN_VAR = __tk_count = __tk_count + 1;
-var TOKEN_VOID = __tk_count = __tk_count + 1;
-var TOKEN_WHILE = __tk_count = __tk_count + 1;
+	TOKEN_AS,
+	TOKEN_ANY,
+	TOKEN_BREAK,
+	TOKEN_CONST,
+	TOKEN_CONTINUE,
+	TOKEN_ELSE,
+	TOKEN_ENUM,
+	TOKEN_IF,
+	TOKEN_IMPORT,
+	TOKEN_INT,
+	TOKEN_I8,
+	TOKEN_I16,
+	TOKEN_I32,
+	TOKEN_I64,
+	TOKEN_FOR,
+	TOKEN_FUNCTION,
+	TOKEN_RETURN,
+	TOKEN_SIZEOF,
+	TOKEN_STRUCT,
+	TOKEN_UNION,
+	TOKEN_VAR,
+	TOKEN_VOID,
+	TOKEN_WHILE,
 
-var TOKEN_ERROR = __tk_count = __tk_count + 1;
-var TOKEN_EOF = __tk_count = __tk_count + 1;
+	TOKEN_ERROR,
+	TOKEN_EOF
+}
 
 struct Token {
 	type: int;
