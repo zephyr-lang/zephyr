@@ -69,7 +69,9 @@ function is_assignment(type: int): int {
 	       type == TOKEN_PERCENT_EQ ||
 	       type == TOKEN_AMP_EQ ||
 	       type == TOKEN_BAR_EQ ||
-	       type == TOKEN_XOR_EQ;
+	       type == TOKEN_XOR_EQ ||
+		   type == TOKEN_LSH_EQ ||
+		   type == TOKEN_RSH_EQ;
 }
 
 //TODO: Remove duplicate code between parser and typechecker

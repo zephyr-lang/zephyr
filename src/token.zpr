@@ -47,6 +47,8 @@ enum TokenType {
 	TOKEN_AMP_EQ,
 	TOKEN_BAR_EQ,
 	TOKEN_XOR_EQ,
+	TOKEN_LSH_EQ,
+	TOKEN_RSH_EQ,
 
 	TOKEN_INT_LITERAL,
 	TOKEN_CHAR_LITERAL,
@@ -131,6 +133,8 @@ function token_type_to_string(type: int): i8* {
 	if(type == TOKEN_AMP_EQ) return "&=";
 	if(type == TOKEN_BAR_EQ) return "|=";
 	if(type == TOKEN_XOR_EQ) return "^=";
+	if(type == TOKEN_LSH_EQ) return "<<=";
+	if(type == TOKEN_RSH_EQ) return ">>=";
 
 	if(type == TOKEN_INT_LITERAL) return "int-literal";
 	if(type == TOKEN_CHAR_LITERAL) return "char-literal";

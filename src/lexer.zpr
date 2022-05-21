@@ -167,7 +167,13 @@ function Lexer.less_than(): int {
 	var type = TOKEN_LESS;
 
 	if(this.match('=')) type = TOKEN_LEQ;
-	else if(this.match('<')) type = TOKEN_LSH;
+	else if(this.match('<')) {
+		type = TOKEN_LSH;
+
+		if(this.match('=')) {
+			type = TOKEN_LSH_EQ;
+		}
+	}
 	
 	return type;
 }
@@ -176,7 +182,13 @@ function Lexer.greater_than(): int {
 	var type = TOKEN_GREATER;
 
 	if(this.match('=')) type = TOKEN_GEQ;
-	else if(this.match('>')) type = TOKEN_RSH;
+	else if(this.match('>')) {
+		type = TOKEN_RSH;
+
+		if(this.match('=')) {
+			type = TOKEN_RSH_EQ;
+		}
+	}
 	
 	return type;
 }

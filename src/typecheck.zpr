@@ -261,6 +261,8 @@ function assignment_op_to_node_type(op: int): int {
 	if(op == TOKEN_AMP_EQ) return OP_BWAND;
 	if(op == TOKEN_BAR_EQ) return OP_BWOR;
 	if(op == TOKEN_XOR_EQ) return OP_XOR;
+	if(op == TOKEN_LSH_EQ) return OP_LSH;
+	if(op == TOKEN_RSH_EQ) return OP_RSH;
 
 	eputsln("Unreachable in assignment_op_to_node_type");
 	exit(1);
