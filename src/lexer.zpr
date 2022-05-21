@@ -91,6 +91,7 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("const")) return TOKEN_CONST;
 	if(this.match_keyword("continue")) return TOKEN_CONTINUE;
 	if(this.match_keyword("else")) return TOKEN_ELSE;
+	if(this.match_keyword("enum")) return TOKEN_ENUM;
 	if(this.match_keyword("if")) return TOKEN_IF;
 	if(this.match_keyword("import")) return TOKEN_IMPORT;
 	if(this.match_keyword("int")) return TOKEN_INT;

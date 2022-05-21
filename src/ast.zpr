@@ -55,6 +55,7 @@ var AST_FOR = __nt_count = __nt_count + 1;
 var AST_CAST = __nt_count = __nt_count + 1;
 var AST_STRUCT = __nt_count = __nt_count + 1;
 var AST_UNION = __nt_count = __nt_count + 1;
+var AST_ENUM = __nt_count = __nt_count + 1;
 var AST_MEMBER = __nt_count = __nt_count + 1;
 var AST_CONTINUE = __nt_count = __nt_count + 1;
 var AST_BREAK = __nt_count = __nt_count + 1;
@@ -284,6 +285,7 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_CAST) return "cast";
 	if(type == AST_STRUCT) return "struct";
 	if(type == AST_UNION) return "union";
+	if(type == AST_ENUM) return "enum";
 	if(type == AST_MEMBER) return "member";
 	if(type == AST_CONTINUE) return "continue";
 	if(type == AST_BREAK) return "break";
@@ -540,6 +542,12 @@ function print_ast_depth(node: Node*, depth: int) {
 		puts("union "); put_token_string(node.v.variable.name); putln();
 		for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
 			print_ast_depth(node.computedType.fields.at(i), depth + 1);
+		}
+	}
+	else if(node.type == AST_ENUM) {
+		putsln("enum");
+		for(var i = 0; i < node.v.block.children.size; i = i + 1) {
+			print_ast_depth(node.v.block.children.at(i), depth + 1);
 		}
 	}
 	else if(node.type == AST_MEMBER) {

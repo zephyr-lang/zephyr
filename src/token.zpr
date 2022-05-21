@@ -47,6 +47,7 @@ var TOKEN_BREAK = __tk_count = __tk_count + 1;
 var TOKEN_CONST = __tk_count = __tk_count + 1;
 var TOKEN_CONTINUE = __tk_count = __tk_count + 1;
 var TOKEN_ELSE = __tk_count = __tk_count + 1;
+var TOKEN_ENUM = __tk_count = __tk_count + 1;
 var TOKEN_IF = __tk_count = __tk_count + 1;
 var TOKEN_IMPORT = __tk_count = __tk_count + 1;
 var TOKEN_INT = __tk_count = __tk_count + 1;
@@ -120,6 +121,7 @@ function token_type_to_string(type: int): i8* {
 	if(type == TOKEN_CONST) return "const";
 	if(type == TOKEN_CONTINUE) return "continue";
 	if(type == TOKEN_ELSE) return "else";
+	if(type == TOKEN_ELSE) return "enum";
 	if(type == TOKEN_IF) return "if";
 	if(type == TOKEN_IMPORT) return "import";
 	if(type == TOKEN_INT) return "int";

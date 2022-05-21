@@ -1111,6 +1111,39 @@ function Parser.parse_const_declaration(): Node* {
 	return constant;
 }
 
+function Parser.parse_enum_declaration(): Node* {
+	var name = this.consume(TOKEN_IDENTIFIER, "Expected enum name");
+
+	this.consume(TOKEN_LEFT_BRACE, "Expected '{' after enum name");
+
+	var envm = new_node(AST_ENUM, name);
+	envm.v.block.children = new_vector();
+
+	//TODO: do..while
+	var run = true;
+
+	var count = 0;
+
+	while(run || this.match(TOKEN_COMMA)) {
+		run = false;
+		var constantName = this.consume(TOKEN_IDENTIFIER, "Expected constant name");
+
+		var constant = new_node(AST_DEFINE_CONST, name);
+		constant.v.constant.name = constantName;
+		constant.v.constant.value = count;
+
+		this.constants.push(constant);
+
+		envm.v.block.children.push(constant);
+
+		count = count + 1;
+	}
+
+	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after enum body");
+
+	return envm;
+}
+
 function Parser.parse_import() {
 	var path = this.consume(TOKEN_STRING, "Expected import path");
 	this.consume(TOKEN_SEMICOLON, "Expected ';' after import");
@@ -1188,6 +1221,10 @@ function Parser.parse_program(): Node* {
 		else if(this.match(TOKEN_UNION)) {
 			var vnion = this.parse_union_definition(false);
 			program.add_child(vnion);
+		}
+		else if(this.match(TOKEN_ENUM)) {
+			var envm = this.parse_enum_declaration();
+			program.add_child(envm);
 		}
 		else if(this.match(TOKEN_IMPORT)) {
 			this.parse_import();
