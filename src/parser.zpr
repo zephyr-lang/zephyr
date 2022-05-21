@@ -57,9 +57,6 @@ function Node.add_child(child: Node*) {
 function allow_expr_stmt(expr: Node*): int {
 	return expr.type == AST_CALL ||
 	       expr.type == AST_CALL_METHOD ||
-		   expr.type == OP_ASSIGN_SUBSCRIPT ||
-		   expr.type == OP_ASSIGN_DEREF ||
-		   expr.type == OP_ASSIGN_MEMBER ||
 		   expr.type == OP_ASSIGN;
 }
 
@@ -643,37 +640,10 @@ function Parser.parse_assignment_expression(): Node* {
 
 		var right = this.parse_assignment_expression();
 
-		if(left.lvalue == LVALUE_LOCAL) {
-			var name = left.v.variable.name;
-			var assign = new_node(OP_ASSIGN, name);
-			assign.v.assignment.lhs = left;
-			assign.v.assignment.rhs = right;
-			left = assign;
-		}
-		else if(left.lvalue == LVALUE_SUBSCRIPT) {
-			var subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
-			subscript.v.ternary.lhs = left.v.binary.lhs;
-			subscript.v.ternary.mid = left.v.binary.rhs;
-			subscript.v.ternary.rhs = right;
-			left = subscript;
-		}
-		else if(left.lvalue == LVALUE_DEREF) {
-			var assign = new_node(OP_ASSIGN_DEREF, op);
-			assign.v.binary.lhs = left.v.unary;
-			assign.v.binary.rhs = right;
-			left = assign;
-		}
-		else if(left.lvalue == LVALUE_MEMBER) {
-			var assign = new_node(OP_ASSIGN_MEMBER, op);
-			assign.v.member.name = left.v.member.name;
-			assign.v.member.parent = left.v.member.parent;
-			assign.v.member.value = right;
-			left = assign;
-		}
-		else {
-			eputsln("Unreachable - invalid lvalue in parse_assignment_exression");
-			return null;
-		}
+		var assign = new_node(OP_ASSIGN, left.position);
+		assign.v.assignment.lhs = left;
+		assign.v.assignment.rhs = right;
+		left = assign;
 	}
 
 	return left;

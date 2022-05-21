@@ -26,15 +26,9 @@ enum NodeType {
 	OP_TERNARY,
 	OP_ADDROF,
 	OP_DEREF,
-	OP_ASSIGN_DEREF,
 	OP_SIZEOF,
 	OP_ACCESS_SUBSCRIPT,
-	OP_ASSIGN_SUBSCRIPT,
 	OP_ACCESS_MEMBER,
-	OP_ASSIGN_MEMBER,
-	OP_COPY_STRUCT,
-	OP_COPY_STRUCT_MEMBER,
-	OP_COPY_STRUCT_DEREF,
 	OP_ASSIGN,
 
 	AST_INT_LITERAL,
@@ -268,11 +262,8 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_TERNARY) return "?";
 	if(type == OP_ADDROF) return "&";
 	if(type == OP_DEREF) return "*";
-	if(type == OP_ASSIGN_DEREF) return "* =";
 	if(type == OP_SIZEOF) return "sizeof";
 	if(type == OP_ACCESS_SUBSCRIPT) return "[";
-	if(type == OP_ASSIGN_SUBSCRIPT) return "=[";
-	if(type == OP_COPY_STRUCT) return "copy struct";
 	if(type == AST_INT_LITERAL) return "int literal";
 	if(type == AST_CHAR_LITERAL) return "char literal";
 	if(type == AST_STRING) return "string";
@@ -497,17 +488,6 @@ function print_ast_depth(node: Node*, depth: int) {
 		for(var i = 0; i < depth; i = i + 1) puts("  ");
 		puts("]");
 	}
-	else if(node.type == OP_ASSIGN_SUBSCRIPT) {
-		putsln("subscript = [");
-		print_ast_depth(node.v.ternary.lhs, depth + 1);
-		putln();
-		print_ast_depth(node.v.ternary.mid, depth + 1);
-		putln();
-		print_ast_depth(node.v.ternary.rhs, depth + 1);
-		putln();
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
-		puts("]");
-	}
 	else if(node.type == AST_ARRAY_INIT) {
 		putsln("[");
 		for(var i = 0; i < node.v.block.children.size; i = i + 1) {
@@ -520,12 +500,6 @@ function print_ast_depth(node: Node*, depth: int) {
 	else if(node.type == OP_DEREF) {
 		putsln("*");
 		print_ast_depth(node.v.unary, depth + 1);
-	}
-	else if(node.type == OP_ASSIGN_DEREF) {
-		putsln("* =");
-		print_ast_depth(node.v.binary.lhs, depth + 1);
-		putln();
-		print_ast_depth(node.v.binary.rhs, depth + 1);
 	}
 	else if(node.type == AST_CAST) {
 		putsln("cast");
@@ -558,12 +532,6 @@ function print_ast_depth(node: Node*, depth: int) {
 	else if(node.type == OP_ACCESS_MEMBER) {
 		puts("."); put_token_string(node.v.member.name); putln();
 		print_ast_depth(node.v.member.parent, depth + 1);
-	}
-	else if(node.type == OP_ASSIGN_MEMBER) {
-		puts("."); put_token_string(node.v.member.name); putln();
-		print_ast_depth(node.v.member.parent, depth + 1);
-		putln();
-		print_ast_depth(node.v.member.value, depth + 1);
 	}
 	else if(node.type == AST_CONTINUE) {
 		putsln("continue");

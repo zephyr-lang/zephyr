@@ -107,15 +107,6 @@ function generate_deref_rax(expr: Node*, out: File*) {
 	out.puts(expr.computedType.qualifier()); out.putsln(" [rax]");
 }
 
-function generate_assign_deref(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.binary.lhs, out);
-	out.putsln("    push rax");
-	generate_expr_rax(expr.v.binary.rhs, out);
-	out.putsln("    pop rcx");
-
-	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
-}
-
 function generate_unary_rax(expr: Node*, out: File*) {
 	if(expr.type == OP_BWNOT) {
 		generate_expr_rax(expr.v.unary, out);
@@ -337,19 +328,6 @@ function generate_access_subscript(expr: Node*, out: File*) {
 	out.puts(", "); out.puts(expr.computedType.qualifier()); out.puts(" [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
 }
 
-function generate_assign_subscript(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.ternary.lhs, out);
-	out.putsln("    push rax");
-	generate_expr_rax(expr.v.ternary.mid, out);
-	out.putsln("    push rax");
-	generate_expr_rax(expr.v.ternary.rhs, out);
-	out.putsln("    pop rdx");
-	out.putsln("    pop rcx");
-
-	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx+rdx*"); out.putd(expr.computedType.size());
-	out.puts("], "); out.putsln(expr.computedType.rax_subregister());
-}
-
 function generate_access_member(expr: Node*, out: File*) {
 	generate_expr_rax(expr.v.member.parent, out);
 	var field = expr.v.member.memberRef;
@@ -363,72 +341,21 @@ function generate_access_member(expr: Node*, out: File*) {
 	}
 }
 
-function generate_assign_member(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.member.parent, out);
-	out.putsln("    push rax");
-	generate_expr_rax(expr.v.member.value, out);
-	out.putsln("    pop rcx");
-	var field = expr.v.member.memberRef;
-	out.puts("    mov "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rcx+"); out.putd(field.v.variable.stackOffset);
-	out.puts("], "); out.putsln(field.v.variable.type.rax_subregister());
-}
-
-function generate_copy(fields: Vector*, parentOffset: int, memberOffset: int, out: File*) {
+function generate_copy(fields: Vector*, parentOffset: int, out: File*) {
 	for(var i = 0; i < fields.size; i = i + 1) {
 		var field: Node* = fields.at(i);
 
 		if(field.v.variable.type.is_structural()) {
-			generate_copy(field.v.variable.type.fields, field.v.variable.stackOffset, memberOffset, out);
+			generate_copy(field.v.variable.type.fields, field.v.variable.stackOffset, out);
 			continue;
 		}
 
-		out.puts("    mov rax, "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rcx+"); 
+		out.puts("    mov rdx, "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rax+"); 
 		out.putd(field.v.variable.stackOffset + parentOffset); out.putsln("]");
 
-		out.puts("    mov "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rdx+"); 
-		out.putd(field.v.variable.stackOffset + parentOffset + memberOffset); out.putsln("], rax");
+		out.puts("    mov "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rcx+"); 
+		out.putd(field.v.variable.stackOffset + parentOffset); out.putsln("], rdx");
 	}
-}
-
-function generate_copy_struct(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.variable.value, out);
-
-	if(!expr.v.variable.type.is_structural()) {
-		out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.puts("], ");
-		out.putsln(expr.v.variable.type.rax_subregister());
-		return;
-	}
-
-	out.putsln("    mov rcx, rax");
-	out.puts("    lea rdx, [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
-
-	generate_copy(expr.v.variable.type.fields, 0, 0, out);
-
-	out.putsln("    mov rax, rdx");
-}
-
-function generate_copy_struct_member(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.member.value, out);
-	out.putsln("    mov rcx, rax");
-	generate_expr_rax(expr.v.member.parent, out);
-	out.putsln("    mov rdx, rax");
-
-	var member = expr.v.member.memberRef;
-
-	generate_copy(member.v.variable.type.fields, 0, member.v.variable.stackOffset, out);
-
-	out.putsln("    mov rax, rdx");
-}
-
-function generate_copy_struct_deref(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.binary.lhs, out);
-	out.putsln("    mov rdx, rax");
-	generate_expr_rax(expr.v.binary.rhs, out);
-	out.putsln("    mov rcx, rax");
-
-	generate_copy(expr.computedType.fields, 0, 0, out);
-
-	out.putsln("    mov rax, rdx");
 }
 
 function generate_lvalue_rax(expr: Node*, out: File*) {
@@ -438,6 +365,29 @@ function generate_lvalue_rax(expr: Node*, out: File*) {
 	else if(expr.lvalue == LVALUE_GLOBAL) {
 		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
 	}
+	else if(expr.lvalue == LVALUE_SUBSCRIPT) {
+		generate_expr_rax(expr.v.binary.lhs, out);
+		out.putsln("    push rax");
+		generate_expr_rax(expr.v.binary.rhs, out);
+		out.putsln("    mov rcx, rax");
+		out.putsln("    pop rax");
+
+		out.puts("    lea rax, [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+	}
+	else if(expr.lvalue == LVALUE_DEREF) {
+		generate_expr_rax(expr.v.unary, out);
+	}
+	else if(expr.lvalue == LVALUE_MEMBER) {
+		generate_expr_rax(expr.v.member.parent, out);
+		var field = expr.v.member.memberRef;
+		
+		out.puts("    lea rax, [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	}
+	else {
+		eputsln("Unreachable - unknown lvalue in generate_lvalue_rax");
+		eputd(expr.lvalue); eputln();
+		exit(1);
+	}
 }
 
 function generate_assign_rax(expr: Node*, out: File*) {
@@ -446,7 +396,12 @@ function generate_assign_rax(expr: Node*, out: File*) {
 	generate_expr_rax(expr.v.assignment.rhs, out);
 	out.putsln("    pop rcx");
 
-	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
+	if(expr.computedType.is_structural()) {
+		generate_copy(expr.computedType.fields, 0, out);
+	}
+	else {
+		out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
+	}
 }
 
 function generate_expr_rax(expr: Node*, out: File*) {
@@ -486,29 +441,11 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	else if(expr.type == OP_ACCESS_SUBSCRIPT) {
 		generate_access_subscript(expr, out);
 	}
-	else if(expr.type == OP_ASSIGN_SUBSCRIPT) {
-		generate_assign_subscript(expr, out);
-	}
-	else if(expr.type == OP_ASSIGN_DEREF) {
-		generate_assign_deref(expr, out);
-	}
 	else if(expr.type == AST_CAST) {
 		generate_expr_rax(expr.v.unary, out);
 	}
 	else if(expr.type == OP_ACCESS_MEMBER) {
 		generate_access_member(expr, out);
-	}
-	else if(expr.type == OP_ASSIGN_MEMBER) {
-		generate_assign_member(expr, out);
-	}
-	else if(expr.type == OP_COPY_STRUCT) {
-		generate_copy_struct(expr, out);
-	}
-	else if(expr.type == OP_COPY_STRUCT_MEMBER) {
-		generate_copy_struct_member(expr, out);
-	}
-	else if(expr.type == OP_COPY_STRUCT_DEREF) {
-		generate_copy_struct_deref(expr, out);
 	}
 	else if(expr.type == OP_ASSIGN) {
 		generate_assign_rax(expr, out);

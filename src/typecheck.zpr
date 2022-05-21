@@ -528,76 +528,6 @@ function Parser.type_check_access_subscript(expr: Node*) {
 	tc_typeStack.push(itemType);
 }
 
-function Parser.type_check_assign_subscript(expr: Node*) {
-	this.type_check_expr(expr.v.ternary.lhs);
-	var lhs: Type* = tc_typeStack.pop();
-
-	if(lhs.indirection == 0) {
-		expr.print_position();
-		eputs("Cannot subscript value type '"); eputs(type_to_string(lhs)); eputsln("'");
-		exit(1);
-	}
-
-	this.type_check_expr(expr.v.ternary.mid);
-	var index: Type* = tc_typeStack.pop();
-
-	if(!index.assignable(INT_TYPE)) {
-		expr.print_position();
-		eputs("Cannot subscript with index of type '"); eputs(type_to_string(index)); eputsln("'");
-		exit(1);
-	}
-	
-	var itemType = copy_type(lhs);
-	itemType.indirection = itemType.indirection - 1;
-
-	expr.computedType = itemType;
-
-	this.type_check_expr(expr.v.ternary.rhs);
-	var rhs: Type* = tc_typeStack.pop();
-
-	if(!rhs.assignable(itemType)) {
-		expr.print_position();
-		eputs("Cannot assign value of type '"); eputs(type_to_string(rhs)); eputs("' to array of elements '"); eputs(type_to_string(itemType));
-		eputsln("'");
-		exit(1);
-	}
-
-	tc_typeStack.push(itemType);
-}
-
-function Parser.type_check_assign_deref(expr: Node*) {
-	this.type_check_expr(expr.v.binary.lhs);
-	var refType: Type* = tc_typeStack.pop();
-	resolve_type(&refType);
-
-	if(refType.indirection == 0) {
-		expr.print_position();
-		eputs("Cannot dereference non-pointer type '"); eputs(type_to_string(refType)); eputsln("'");
-		exit(1);
-	}
-
-	this.type_check_expr(expr.v.binary.rhs);
-	var valueType: Type* = tc_typeStack.pop();
-	resolve_type(&valueType);
-
-	var subType = copy_type(refType);
-	subType.indirection = subType.indirection - 1;
-
-	if(!valueType.assignable(subType)) {
-		expr.print_position();
-		eputs("Cannot assign value of type '"); eputs(type_to_string(valueType)); eputs("' to dereferenced type '"); eputs(type_to_string(subType));
-		eputsln("'");
-		exit(1);
-	}
-
-	if(valueType.is_structural()) {
-		expr.type = OP_COPY_STRUCT_DEREF;
-	}
-
-	expr.computedType = refType;
-	tc_typeStack.push(refType);
-}
-
 function Parser.type_check_access_member(expr: Node*) {
 	this.type_check_expr(expr.v.member.parent);
 
@@ -624,53 +554,6 @@ function Parser.type_check_access_member(expr: Node*) {
 	expr.v.member.memberRef = field;
 
 	tc_typeStack.push(field.v.variable.type);
-}
-
-function Parser.type_check_assign_member(expr: Node*) {
-	this.type_check_expr(expr.v.member.parent);
-
-	var parentType: Type* = tc_typeStack.pop();
-	resolve_type(&parentType);
-
-	var name = expr.v.member.name;
-	var field: Node*;
-
-	if(parentType.is_structural_base() && parentType.indirection == 0) {
-		field = parentType.lookup_field(name);
-	}
-	else if(parentType.is_structural_base() && parentType.indirection == 1 && !parentType.isArray) {
-		var copy = copy_type(parentType);
-		copy.indirection = copy.indirection - 1;
-
-		field = copy.lookup_field(name);
-	}
-	else {
-		expr.print_position();
-		eputs("Cannot access member on type '"); eputs(type_to_string(parentType)); eputsln("'");
-		exit(1);
-	}
-
-	expr.v.member.memberRef = field;
-
-	var fieldType = field.v.variable.type;
-	resolve_type(&field.v.variable.type);
-
-	this.type_check_expr(expr.v.member.value);
-
-	var valueType: Type* = tc_typeStack.pop();
-
-	if(!valueType.assignable(fieldType)) {
-		expr.print_position();
-		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to member expecting '"); eputs(type_to_string(fieldType));
-		eputsln("'");
-		exit(1);
-	}
-
-	if(valueType.is_structural()) {
-		expr.type = OP_COPY_STRUCT_MEMBER;
-	}
-
-	tc_typeStack.push(fieldType);
 }
 
 function Parser.type_check_assign(expr: Node*) {
@@ -736,12 +619,6 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == OP_ACCESS_SUBSCRIPT) {
 		this.type_check_access_subscript(expr);
 	}
-	else if(expr.type == OP_ASSIGN_SUBSCRIPT) {
-		this.type_check_assign_subscript(expr);
-	}
-	else if(expr.type == OP_ASSIGN_DEREF) {
-		this.type_check_assign_deref(expr);
-	}
 	else if(expr.type == AST_CAST) {
 		// NOTE: All casts are completely allowed at the moment. Whether or not this is good
 		//       or requires a warning in some cases is to be decided.
@@ -751,9 +628,6 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == OP_ACCESS_MEMBER) {
 		this.type_check_access_member(expr);
-	}
-	else if(expr.type == OP_ASSIGN_MEMBER) {
-		this.type_check_assign_member(expr);
 	}
 	else if(expr.type == OP_ASSIGN) {
 		this.type_check_assign(expr);
