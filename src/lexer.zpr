@@ -181,6 +181,24 @@ function Lexer.greater_than(): int {
 	return type;
 }
 
+function Lexer.amp(): int {
+	var type = TOKEN_AMP;
+
+	if(this.match('=')) type = TOKEN_AMP_EQ;
+	else if(this.match('&')) type = TOKEN_AMP_AMP;
+	
+	return type;
+}
+
+function Lexer.bar(): int {
+	var type = TOKEN_BAR;
+
+	if(this.match('=')) type = TOKEN_BAR_EQ;
+	else if(this.match('|')) type = TOKEN_BAR_BAR;
+	
+	return type;
+}
+
 function Lexer.next(): Token* {
 	this.skip_whitespace();
 
@@ -208,15 +226,15 @@ function Lexer.next(): Token* {
 	if(c == '.') return this.make_token(TOKEN_DOT);
 	if(c == '?') return this.make_token(TOKEN_QUESTION);
 	if(c == '~') return this.make_token(TOKEN_TILDE);
-	if(c == '-') return this.make_token(TOKEN_MINUS);
+	if(c == '-') return this.make_token(this.match('=') ? TOKEN_MINUS_EQ : TOKEN_MINUS);
 	if(c == '!') return this.make_token(this.match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);
-	if(c == '+') return this.make_token(TOKEN_PLUS);
-	if(c == '*') return this.make_token(TOKEN_STAR);
-	if(c == '/') return this.make_token(TOKEN_SLASH);
-	if(c == '%') return this.make_token(TOKEN_PERCENT);
-	if(c == '&') return this.make_token(this.match('&') ? TOKEN_AMP_AMP : TOKEN_AMP);
-	if(c == '|') return this.make_token(this.match('|') ? TOKEN_BAR_BAR : TOKEN_BAR);
-	if(c == '^') return this.make_token(TOKEN_XOR);
+	if(c == '+') return this.make_token(this.match('=') ? TOKEN_PLUS_EQ : TOKEN_PLUS);
+	if(c == '*') return this.make_token(this.match('=') ? TOKEN_STAR_EQ : TOKEN_STAR);
+	if(c == '/') return this.make_token(this.match('=') ? TOKEN_SLASH_EQ : TOKEN_SLASH);
+	if(c == '%') return this.make_token(this.match('=') ? TOKEN_PERCENT_EQ : TOKEN_PERCENT);
+	if(c == '&') return this.make_token(this.amp());
+	if(c == '|') return this.make_token(this.bar());
+	if(c == '^') return this.make_token(this.match('=') ? TOKEN_XOR_EQ : TOKEN_XOR);
 	if(c == '<') return this.make_token(this.less_than());
 	if(c == '>') return this.make_token(this.greater_than());
 	if(c == '=') return this.make_token(this.match('=') ? TOKEN_EQEQ : TOKEN_EQ);

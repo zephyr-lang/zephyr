@@ -252,6 +252,29 @@ function Type.lookup_method(name: Token*): Node* {
 	return null;
 }
 
+function assignment_op_to_node_type(op: int): int {
+	if(op == TOKEN_PLUS_EQ) return OP_ADD;
+	if(op == TOKEN_MINUS_EQ) return OP_SUB;
+	if(op == TOKEN_STAR_EQ) return OP_MUL;
+	if(op == TOKEN_SLASH_EQ) return OP_DIV;
+	if(op == TOKEN_PERCENT_EQ) return OP_MOD;
+	if(op == TOKEN_AMP_EQ) return OP_BWAND;
+	if(op == TOKEN_BAR_EQ) return OP_BWOR;
+	if(op == TOKEN_XOR_EQ) return OP_XOR;
+
+	eputsln("Unreachable in assignment_op_to_node_type");
+	exit(1);
+	return 0;
+}
+
+function synthetic_binary_op(op: Token*, lhs: Node*, rhs: Node*): Node* {
+	var type = assignment_op_to_node_type(op.type);
+	var node = new_node(type, op);
+	node.v.binary.lhs = lhs;
+	node.v.binary.rhs = rhs;
+	return node;
+}
+
 function Parser.type_check_addrof(expr: Node*) {
 	if(!expr.v.unary.lvalue) {
 		expr.print_position();
@@ -567,6 +590,14 @@ function Parser.type_check_assign(expr: Node*) {
 
 	var lhs: Type* = tc_typeStack.pop();
 	resolve_type(lhs);
+
+	if(expr.v.assignment.op.type != TOKEN_EQ) {
+		expr.v.assignment.rhs = synthetic_binary_op(
+			expr.v.assignment.op,
+			expr.v.assignment.lhs,
+			expr.v.assignment.rhs
+		);
+	}
 
 	this.type_check_expr(expr.v.assignment.rhs);
 

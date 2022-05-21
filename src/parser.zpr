@@ -60,6 +60,18 @@ function allow_expr_stmt(expr: Node*): int {
 		   expr.type == OP_ASSIGN;
 }
 
+function is_assignment(type: int): int {
+	return type == TOKEN_EQ ||
+	       type == TOKEN_PLUS_EQ ||
+	       type == TOKEN_MINUS_EQ ||
+	       type == TOKEN_STAR_EQ ||
+	       type == TOKEN_SLASH_EQ ||
+	       type == TOKEN_PERCENT_EQ ||
+	       type == TOKEN_AMP_EQ ||
+	       type == TOKEN_BAR_EQ ||
+	       type == TOKEN_XOR_EQ;
+}
+
 //TODO: Remove duplicate code between parser and typechecker
 function Parser.lookup_type(name: Token*): Type* {
 	for(var i = 0; i < this.definedTypes.size; i = i + 1) {
@@ -630,7 +642,9 @@ function Parser.parse_ternary_expression(): Node* {
 function Parser.parse_assignment_expression(): Node* {
 	var left = this.parse_ternary_expression();
 
-	while(this.match(TOKEN_EQ)) {
+	while(is_assignment(this.current.type)) {
+		this.advance();
+
 		if(left.lvalue == LVALUE_NONE) {
 			this.error("Invalid lvalue for assignment");
 			return null;
@@ -643,6 +657,7 @@ function Parser.parse_assignment_expression(): Node* {
 		var assign = new_node(OP_ASSIGN, left.position);
 		assign.v.assignment.lhs = left;
 		assign.v.assignment.rhs = right;
+		assign.v.assignment.op = op;
 		left = assign;
 	}
 

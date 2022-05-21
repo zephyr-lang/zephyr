@@ -31,6 +31,7 @@ enum NodeType {
 	OP_ACCESS_MEMBER,
 	OP_ASSIGN,
 
+	AST_RELATIVE,
 	AST_INT_LITERAL,
 	AST_CHAR_LITERAL,
 	AST_STRING,
@@ -191,6 +192,7 @@ struct Node {
 		assignment: struct {
 			lhs: Node*;
 			rhs: Node*;
+			op: Token*;
 		};
 	};
 }
@@ -540,7 +542,7 @@ function print_ast_depth(node: Node*, depth: int) {
 		putsln("break");
 	}
 	else if(node.type == OP_ASSIGN) {
-		putsln("=");
+		putsln(token_type_to_string(node.v.assignment.op.type));
 		print_ast_depth(node.v.assignment.lhs, depth);
 		print_ast_depth(node.v.assignment.rhs, depth + 1);
 	}

@@ -389,6 +389,9 @@ function generate_lvalue_rax(expr: Node*, out: File*) {
 function generate_assign_rax(expr: Node*, out: File*) {
 	generate_lvalue_rax(expr.v.assignment.lhs, out);
 	out.putsln("    push rax");
+	if(expr.v.assignment.op.type != TOKEN_EQ) {
+		expr.v.assignment.rhs.v.binary.lhs.type = AST_RELATIVE;
+	}
 	generate_expr_rax(expr.v.assignment.rhs, out);
 	out.putsln("    pop rcx");
 
@@ -445,6 +448,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	}
 	else if(expr.type == OP_ASSIGN) {
 		generate_assign_rax(expr, out);
+	}
+	else if(expr.type == AST_RELATIVE) {
+		out.putsln("    mov rax, [rax]");
 	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
