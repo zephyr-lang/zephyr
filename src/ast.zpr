@@ -26,15 +26,16 @@ enum NodeType {
 	OP_TERNARY,
 	OP_ADDROF,
 	OP_DEREF,
-	OP_ASSIGN_DEREF,
 	OP_SIZEOF,
 	OP_ACCESS_SUBSCRIPT,
-	OP_ASSIGN_SUBSCRIPT,
 	OP_ACCESS_MEMBER,
-	OP_ASSIGN_MEMBER,
-	OP_COPY_STRUCT,
-	OP_COPY_STRUCT_MEMBER,
-	OP_COPY_STRUCT_DEREF,
+	OP_ASSIGN,
+	OP_PRE_INCREMENT,
+	OP_PRE_DECREMENT,
+	OP_POST_INCREMENT,
+	OP_POST_DECREMENT,
+
+	AST_RELATIVE,
 	AST_INT_LITERAL,
 	AST_CHAR_LITERAL,
 	AST_STRING,
@@ -43,10 +44,8 @@ enum NodeType {
 	AST_DEFINE_CONST,
 	AST_DEFINE_VAR,
 	AST_ACCESS_VAR,
-	AST_ASSIGN_VAR,
 	AST_DEFINE_GLOBAL_VAR,
 	AST_ACCESS_GLOBAL_VAR,
-	AST_ASSIGN_GLOBAL_VAR,
 	AST_ARRAY_INIT,
 	AST_EXPR_STMT,
 	AST_IF,
@@ -193,6 +192,12 @@ struct Node {
 			value: Node*;
 			memberRef: Node*;
 		};
+
+		assignment: struct {
+			lhs: Node*;
+			rhs: Node*;
+			op: Token*;
+		};
 	};
 }
 
@@ -232,7 +237,7 @@ function type_to_string(type: Type*): i8* {
 	var str: i8* = malloc(strlen(baseType) + type.indirection + 1);
 	strcpy(str, baseType);
 
-	for(var i = 0; i < type.indirection; i = i + 1) {
+	for(var i = 0; i < type.indirection; ++i) {
 		strcat(str, "*");
 	}
 	return str;
@@ -263,11 +268,12 @@ function node_type_to_string(type: int): i8* {
 	if(type == OP_TERNARY) return "?";
 	if(type == OP_ADDROF) return "&";
 	if(type == OP_DEREF) return "*";
-	if(type == OP_ASSIGN_DEREF) return "* =";
 	if(type == OP_SIZEOF) return "sizeof";
 	if(type == OP_ACCESS_SUBSCRIPT) return "[";
-	if(type == OP_ASSIGN_SUBSCRIPT) return "=[";
-	if(type == OP_COPY_STRUCT) return "copy struct";
+	if(type == OP_PRE_INCREMENT) return "++";
+	if(type == OP_PRE_DECREMENT) return "--";
+	if(type == OP_POST_INCREMENT) return "++";
+	if(type == OP_POST_DECREMENT) return "--";
 	if(type == AST_INT_LITERAL) return "int literal";
 	if(type == AST_CHAR_LITERAL) return "char literal";
 	if(type == AST_STRING) return "string";
@@ -276,10 +282,8 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_DEFINE_CONST) return "define const";
 	if(type == AST_DEFINE_VAR) return "define var";
 	if(type == AST_ACCESS_VAR) return "access var";
-	if(type == AST_ASSIGN_VAR) return "assign var";
 	if(type == AST_DEFINE_GLOBAL_VAR) return "define gvar";
 	if(type == AST_ACCESS_GLOBAL_VAR) return "access gvar";
-	if(type == AST_ASSIGN_GLOBAL_VAR) return "assign gvar";
 	if(type == AST_ARRAY_INIT) return "init array";
 	if(type == AST_EXPR_STMT) return "expr stmt";
 	if(type == AST_IF) return "if";
@@ -334,7 +338,7 @@ function is_binary_op(type: int): int {
 }
 
 function print_ast_depth(node: Node*, depth: int) {
-	for(var i = 0; i < depth; i = i + 1) puts("  ");
+	for(var i = 0; i < depth; ++i) puts("  ");
 
 	if(is_unary_op(node.type)) {
 		putsln(node_type_to_string(node.type));
@@ -347,19 +351,19 @@ function print_ast_depth(node: Node*, depth: int) {
 		print_ast_depth(node.v.binary.rhs, depth + 1);
 	}
 	else if(node.type == AST_PROGRAM) {
-		for(var i = 0; i < node.v.block.children.size; i = i + 1)
+		for(var i = 0; i < node.v.block.children.size; ++i)
 			print_ast_depth(node.v.block.children.at(i), depth);
 	}
 	else if(node.type == AST_BLOCK) {
 		putsln("{");
-		for(var i = 0; i < node.v.block.children.size; i = i + 1)
+		for(var i = 0; i < node.v.block.children.size; ++i)
 			print_ast_depth(node.v.block.children.at(i), depth + 1);
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		putsln("}");
 	}
 	else if(node.type == AST_FUNCTION) {
 		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(node.v.funktion.returnType));
-		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+		for(var i = 0; i < node.v.funktion.arguments.size; ++i) {
 			var arg: Node* = node.v.funktion.arguments.at(i);
 			puts("("); put_token_string(arg.v.variable.name); puts(": "); puts(type_to_string(arg.v.variable.type)); puts(") ");
 		}
@@ -369,7 +373,7 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == AST_CALL) {
 		puts("call "); put_token_string(node.v.funktion.name); putln();
-		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+		for(var i = 0; i < node.v.funktion.arguments.size; ++i) {
 			var arg: Node* = node.v.funktion.arguments.at(i);
 			print_ast_depth(arg, depth + 1);
 			if(i != node.v.funktion.arguments.size -1 ) putln();
@@ -377,13 +381,13 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == AST_CALL_METHOD) {
 		puts("call "); put_token_string(node.v.funktion.name); putln();
-		for(var i = 0; i < node.v.funktion.arguments.size; i = i + 1) {
+		for(var i = 0; i < node.v.funktion.arguments.size; ++i) {
 			var arg: Node* = node.v.funktion.arguments.at(i);
 			print_ast_depth(arg, depth + 1);
 			if(i != node.v.funktion.arguments.size -1 ) putln();
 		}
 
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		putsln("of");
 		print_ast_depth(node.v.funktion.parent, depth + 1);
 	}
@@ -400,7 +404,7 @@ function print_ast_depth(node: Node*, depth: int) {
 		putln();
 
 		if(node.v.conditional.doFalse != null) {
-			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("else");
 			print_ast_depth(node.v.conditional.doFalse, depth + 1);
 			putln();
@@ -418,7 +422,7 @@ function print_ast_depth(node: Node*, depth: int) {
 		if(node.v.loop.initial != null)
 			print_ast_depth(node.v.loop.initial, depth + 1);
 		else {
-			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("(no initializer)");
 		}
 
@@ -426,7 +430,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.v.loop.condition, depth + 1);
 			putln();
 		} else {
-			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("(no condition)");
 		}
 
@@ -434,7 +438,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.v.loop.iteration, depth + 1);
 			putln();
 		} else {
-			for(var i = 0; i < depth; i = i + 1) puts("  ");
+			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("(no iteration)");
 		}
 
@@ -447,7 +451,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.v.unary, depth + 1);
 		}
 		else {
-			for(var i = 0; i < depth + 1; i = i + 1) puts("  ");
+			for(var i = 0; i < depth + 1; ++i) puts("  ");
 			puts("(void)");
 		}
 		putln();
@@ -464,10 +468,6 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == AST_ACCESS_VAR || node.type == AST_ACCESS_GLOBAL_VAR) {
 		puts("(var "); put_token_string(node.v.variable.name); puts(")");
-	}
-	else if(node.type == AST_ASSIGN_VAR || node.type == AST_ASSIGN_GLOBAL_VAR) {
-		put_token_string(node.v.variable.name); putsln(" =");
-		print_ast_depth(node.v.variable.value, depth + 1);
 	}
 	else if(node.type == AST_INT_LITERAL) {
 		puts("(literal "); putd(node.v.literal.az.integer); puts(")");
@@ -495,61 +495,44 @@ function print_ast_depth(node: Node*, depth: int) {
 		putln();
 		print_ast_depth(node.v.binary.rhs, depth + 1);
 		putln();
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
-		puts("]");
-	}
-	else if(node.type == OP_ASSIGN_SUBSCRIPT) {
-		putsln("subscript = [");
-		print_ast_depth(node.v.ternary.lhs, depth + 1);
-		putln();
-		print_ast_depth(node.v.ternary.mid, depth + 1);
-		putln();
-		print_ast_depth(node.v.ternary.rhs, depth + 1);
-		putln();
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		puts("]");
 	}
 	else if(node.type == AST_ARRAY_INIT) {
 		putsln("[");
-		for(var i = 0; i < node.v.block.children.size; i = i + 1) {
+		for(var i = 0; i < node.v.block.children.size; ++i) {
 			print_ast_depth(node.v.block.children.at(i), depth + 1);
 			putln();
 		}
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		puts("]");
 	}
 	else if(node.type == OP_DEREF) {
 		putsln("*");
 		print_ast_depth(node.v.unary, depth + 1);
 	}
-	else if(node.type == OP_ASSIGN_DEREF) {
-		putsln("* =");
-		print_ast_depth(node.v.binary.lhs, depth + 1);
-		putln();
-		print_ast_depth(node.v.binary.rhs, depth + 1);
-	}
 	else if(node.type == AST_CAST) {
 		putsln("cast");
 		print_ast_depth(node.v.unary, depth + 1);
 		putln();
-		for(var i = 0; i < depth; i = i + 1) puts("  ");
+		for(var i = 0; i < depth; ++i) puts("  ");
 		puts("as "); puts(type_to_string(node.computedType));
 	}
 	else if(node.type == AST_STRUCT) {
 		puts("struct "); put_token_string(node.v.variable.name); putln();
-		for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
+		for(var i = 0; i < node.computedType.fields.size; ++i) {
 			print_ast_depth(node.computedType.fields.at(i), depth + 1);
 		}
 	}
 	else if(node.type == AST_UNION) {
 		puts("union "); put_token_string(node.v.variable.name); putln();
-		for(var i = 0; i < node.computedType.fields.size; i = i + 1) {
+		for(var i = 0; i < node.computedType.fields.size; ++i) {
 			print_ast_depth(node.computedType.fields.at(i), depth + 1);
 		}
 	}
 	else if(node.type == AST_ENUM) {
 		putsln("enum");
-		for(var i = 0; i < node.v.block.children.size; i = i + 1) {
+		for(var i = 0; i < node.v.block.children.size; ++i) {
 			print_ast_depth(node.v.block.children.at(i), depth + 1);
 		}
 	}
@@ -560,17 +543,32 @@ function print_ast_depth(node: Node*, depth: int) {
 		puts("."); put_token_string(node.v.member.name); putln();
 		print_ast_depth(node.v.member.parent, depth + 1);
 	}
-	else if(node.type == OP_ASSIGN_MEMBER) {
-		puts("."); put_token_string(node.v.member.name); putln();
-		print_ast_depth(node.v.member.parent, depth + 1);
-		putln();
-		print_ast_depth(node.v.member.value, depth + 1);
-	}
 	else if(node.type == AST_CONTINUE) {
 		putsln("continue");
 	}
 	else if(node.type == AST_BREAK) {
 		putsln("break");
+	}
+	else if(node.type == OP_ASSIGN) {
+		putsln(token_type_to_string(node.v.assignment.op.type));
+		print_ast_depth(node.v.assignment.lhs, depth);
+		print_ast_depth(node.v.assignment.rhs, depth + 1);
+	}
+	else if(node.type == OP_PRE_INCREMENT) {
+		putsln("pre++");
+		print_ast_depth(node.v.unary, depth + 1);
+	}
+	else if(node.type == OP_PRE_DECREMENT) {
+		putsln("pre--");
+		print_ast_depth(node.v.unary, depth + 1);
+	}
+	else if(node.type == OP_POST_INCREMENT) {
+		putsln("post++");
+		print_ast_depth(node.v.unary, depth + 1);
+	}
+	else if(node.type == OP_POST_DECREMENT) {
+		putsln("post--");
+		print_ast_depth(node.v.unary, depth + 1);
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

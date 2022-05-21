@@ -27,11 +27,11 @@ function usage_exit(out: int, code: int) {
 }
 
 function parse_cli_args(argc: int, argv: i8**): i8** {
-	for(var i = 0; i < argc; i = i + 1) {
+	for(var i = 0; i < argc; ++i) {
 		if(streq(argv[i], "-c")) {
 			if(argc - i == 0) usage_exit(stderr, 1);
 			m_cliSource = argv[i + 1];
-			i = i + 1;
+			++i;
 		}
 		else if(streq(argv[i], "-d")) {
 			m_dumpAst = true;
@@ -42,7 +42,7 @@ function parse_cli_args(argc: int, argv: i8**): i8** {
 		else if(streq(argv[i], "-o")) {
 			if(argc - i == 0) usage_exit(stderr, 1);
 			m_outFile = argv[i + 1];
-			i = i + 1;
+			++i;
 		}
 		else if(streq(argv[i], "--")) {
 			break;

@@ -22,18 +22,18 @@ function Type.is_void(): int {
 }
 
 function Type.is_structural(): int {
-	resolve_type(&this);
+	resolve_type(this);
 	return this.is_structural_base() && this.indirection == 0;
 }
 
 function Type.is_structural_base(): int {
-	resolve_type(&this);
+	resolve_type(this);
 	return this.type == DATA_TYPE_STRUCT || this.type == DATA_TYPE_UNION;
 }
 
 function Type.assignable(b: Type*): int {
-	resolve_type(&this);
-	resolve_type(&b);
+	resolve_type(this);
+	resolve_type(b);
 
 	if(b.type == DATA_TYPE_ANY && b.indirection == 0) {
 		return true;
@@ -69,7 +69,7 @@ function Type.size_offset(): int {
 }
 
 function Type.size(): int {
-	resolve_type(&this);
+	resolve_type(this);
 	if(this.indirection != 0) return 8;
 
 	if(this.type == DATA_TYPE_INT) return 8;
@@ -80,14 +80,14 @@ function Type.size(): int {
 	if(this.type == DATA_TYPE_ANY) return 8;
 	if(this.type == DATA_TYPE_STRUCT) {
 		var size = 0;
-		for(var i = 0; i < this.fields.size; i = i + 1) {
+		for(var i = 0; i < this.fields.size; ++i) {
 			size = size + (this.fields.at(i) as Node*).v.variable.type.size_offset();
 		}
 		return size;
 	}
 	if(this.type == DATA_TYPE_UNION) {
 		var size = 0;
-		for(var i = 0; i < this.fields.size; i = i + 1) {
+		for(var i = 0; i < this.fields.size; ++i) {
 			var memSize = (this.fields.at(i) as Node*).v.variable.type.size_offset();
 			size = memSize > size ? memSize : size;
 		}
@@ -116,7 +116,7 @@ function Token.print_position() {
 }
 
 function lookup_type(name: Token*): Type* {
-	for(var i = 0; i < tc_definedTypes.size; i = i + 1) {
+	for(var i = 0; i < tc_definedTypes.size; ++i) {
 		var type: Type* = tc_definedTypes.at(i);
 
 		if(type.name.equals(name)) {
@@ -131,16 +131,14 @@ function lookup_type(name: Token*): Type* {
 	return null;
 }
 
-//TODO: Copying structs - change signature to Type* : Type*
-function resolve_type(typePtr: Type**): Type* {
-	var type = *typePtr;
+function resolve_type(type: Type*): Type* {
 	if(type.type != DATA_TYPE_UNRESOLVED) return type;
 	var resolve = lookup_type(type.name);
 	var new = copy_type(resolve);
 	new.indirection = type.indirection;
 	new.isArray = type.isArray;
 	new.arrayLength = type.arrayLength;
-	*typePtr = new;
+	*type = *new;
 	return type;
 }
 
@@ -153,7 +151,7 @@ function Parser.lookup_variable(name: Token*): Node* {
 		block = block.v.block.parent;
 	}
 
-	for(var i = 0; i < this.currentFunction.v.funktion.arguments.size; i = i + 1) {
+	for(var i = 0; i < this.currentFunction.v.funktion.arguments.size; ++i) {
 		var arg: Node* = this.currentFunction.v.funktion.arguments.at(i);
 
 		if(arg.v.variable.name.equals(name)) {
@@ -164,7 +162,7 @@ function Parser.lookup_variable(name: Token*): Node* {
 	var constant = this.lookup_constant(name);
 	if(constant != null) return constant;
 
-	for(var i = 0; i < this.globalVars.size; i = i + 1) {
+	for(var i = 0; i < this.globalVars.size; ++i) {
 		var variable: Node* = this.globalVars.at(i);
 
 		if(variable.v.variable.name.equals(name)) {
@@ -172,7 +170,7 @@ function Parser.lookup_variable(name: Token*): Node* {
 		}
 	}
 
-	for(var i = 0; i < this.functions.size; i = i + 1) {
+	for(var i = 0; i < this.functions.size; ++i) {
 		var func: Node* = this.functions.at(i);
 		if(func.v.funktion.name.equals(name) && !func.v.funktion.isMethod) {
 			return func;
@@ -183,7 +181,7 @@ function Parser.lookup_variable(name: Token*): Node* {
 }
 
 function Parser.lookup_constant(name: Token*): Node* {
-	for(var i = 0; i < this.constants.size; i = i + 1) {
+	for(var i = 0; i < this.constants.size; ++i) {
 		var constant: Node* = this.constants.at(i);
 		if(constant.v.constant.name.equals(name)) {
 			return constant;
@@ -194,7 +192,7 @@ function Parser.lookup_constant(name: Token*): Node* {
 }
 
 function Parser.lookup_scope_variable(name: Token*, block: Node*): Node* {
-	for(var i = 0; i < block.v.block.variables.size; i = i + 1) {
+	for(var i = 0; i < block.v.block.variables.size; ++i) {
 		var variable: Node* = block.v.block.variables.at(i);
 
 		if(variable.v.variable.name.equals(name)) {
@@ -209,7 +207,7 @@ function Parser.lookup_same_scope_variable(name: Token*): Node* {
 }
 
 function Parser.lookup_global_variable(name: Token*): Node* {
-	for(var i = 0; i < this.globalVars.size; i = i + 1) {
+	for(var i = 0; i < this.globalVars.size; ++i) {
 		var variable: Node* = this.globalVars.at(i);
 
 		if(variable.v.variable.name.equals(name)) {
@@ -221,7 +219,7 @@ function Parser.lookup_global_variable(name: Token*): Node* {
 
 function Type.lookup_field(name: Token*): Node* {
 	
-	for(var i = 0; i < this.fields.size; i = i + 1) {
+	for(var i = 0; i < this.fields.size; ++i) {
 		var field: Node* = this.fields.at(i);
 
 		if(field.v.variable.name.equals(name)) {
@@ -237,9 +235,9 @@ function Type.lookup_field(name: Token*): Node* {
 }
 
 function Type.lookup_method(name: Token*): Node* {
-	resolve_type(&this);
+	resolve_type(this);
 
-	for(var i = 0; i < this.methods.size; i = i + 1) {
+	for(var i = 0; i < this.methods.size; ++i) {
 		var method: Node* = this.methods.at(i);
 
 		if(method.v.funktion.name.equals(name)) {
@@ -252,6 +250,31 @@ function Type.lookup_method(name: Token*): Node* {
 	exit(1);
 
 	return null;
+}
+
+function assignment_op_to_node_type(op: int): int {
+	if(op == TOKEN_PLUS_EQ) return OP_ADD;
+	if(op == TOKEN_MINUS_EQ) return OP_SUB;
+	if(op == TOKEN_STAR_EQ) return OP_MUL;
+	if(op == TOKEN_SLASH_EQ) return OP_DIV;
+	if(op == TOKEN_PERCENT_EQ) return OP_MOD;
+	if(op == TOKEN_AMP_EQ) return OP_BWAND;
+	if(op == TOKEN_BAR_EQ) return OP_BWOR;
+	if(op == TOKEN_XOR_EQ) return OP_XOR;
+	if(op == TOKEN_LSH_EQ) return OP_LSH;
+	if(op == TOKEN_RSH_EQ) return OP_RSH;
+
+	eputsln("Unreachable in assignment_op_to_node_type");
+	exit(1);
+	return 0;
+}
+
+function synthetic_binary_op(op: Token*, lhs: Node*, rhs: Node*): Node* {
+	var type = assignment_op_to_node_type(op.type);
+	var node = new_node(type, op);
+	node.v.binary.lhs = lhs;
+	node.v.binary.rhs = rhs;
+	return node;
 }
 
 function Parser.type_check_addrof(expr: Node*) {
@@ -273,6 +296,7 @@ function Parser.type_check_addrof(expr: Node*) {
 function Parser.type_check_deref(expr: Node*) {
 	this.type_check_expr(expr.v.unary);
 	var type: Type* = tc_typeStack.pop();
+	resolve_type(type);
 
 	if(type.indirection == 0) {
 		expr.print_position();
@@ -370,60 +394,6 @@ function Parser.type_check_access_var(expr: Node*) {
 	}
 }
 
-function Parser.type_check_assign_var(expr: Node*) {
-	var variable = this.lookup_variable(expr.v.variable.name);
-
-	if(variable == null) {
-		expr.print_position();
-		eputs("Unknown variable '"); eput_token_string(expr.v.variable.name); eputsln("' in current scope");
-		exit(1);
-	}
-	else if(variable.type == AST_DEFINE_CONST) {
-		expr.print_position();
-		eputsln("Cannot re-assign constant values");
-		exit(1);
-	}
-
-	this.type_check_expr(expr.v.variable.value);
-
-	var valueType: Type* = tc_typeStack.pop();
-	resolve_type(&valueType);
-	resolve_type(&variable.v.variable.type);
-
-	if(!valueType.assignable(variable.v.variable.type)) {
-		expr.print_position();
-		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(variable.v.variable.type));
-		eputsln("'");
-		exit(1);
-	}
-
-	if(valueType.is_structural()) {
-		expr.type = OP_COPY_STRUCT;
-		expr.v.variable.type = variable.v.variable.type;
-		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
-
-		tc_typeStack.push(expr.v.variable.type);
-	}
-	if(variable.type == AST_DEFINE_VAR) {
-		expr.v.variable.type = variable.v.variable.type;
-		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
-
-		tc_typeStack.push(expr.v.variable.type);
-	}
-	else if(variable.type == AST_DEFINE_GLOBAL_VAR) {
-		expr.v.variable.type = variable.v.variable.type;
-		expr.type = AST_ASSIGN_GLOBAL_VAR;
-
-		tc_typeStack.push(expr.v.variable.type);
-	}
-	else {
-		expr.print_position();
-		eputsln("Can only assign variables");
-		exit(1);
-	}
-
-}
-
 function Parser.type_check_call(expr: Node*) {
 	var funktion = this.lookup_variable(expr.v.funktion.name);
 
@@ -447,7 +417,7 @@ function Parser.type_check_call(expr: Node*) {
 		exit(1);
 	}
 
-	for(var i = 0; i < funktion.v.funktion.arguments.size; i = i + 1) {
+	for(var i = 0; i < funktion.v.funktion.arguments.size; ++i) {
 		var arg: Node* = expr.v.funktion.arguments.at(i);
 		this.type_check_expr(arg);
 
@@ -460,6 +430,7 @@ function Parser.type_check_call(expr: Node*) {
 			expr.print_position();
 			eputs("Function argument "); eputd(i + 1); eputs(" expected type '"); eputs(type_to_string(paramType)); eputs("' but got '");
 			eputs(type_to_string(argType)); eputsln("'");
+			exit(1);
 		}
 	}
 
@@ -470,7 +441,7 @@ function Parser.type_check_method_call(expr: Node*) {
 	this.type_check_expr(expr.v.funktion.parent);
 
 	var parentType: Type* = tc_typeStack.pop();
-	resolve_type(&parentType);
+	resolve_type(parentType);
 
 	var name = expr.v.funktion.name;
 	var funktion: Node*;
@@ -512,7 +483,7 @@ function Parser.type_check_method_call(expr: Node*) {
 		exit(1);
 	}
 
-	for(var i = 1; i < funktion.v.funktion.arguments.size; i = i + 1) {
+	for(var i = 1; i < funktion.v.funktion.arguments.size; ++i) {
 		var arg: Node* = expr.v.funktion.arguments.at(i - 1);
 		this.type_check_expr(arg);
 
@@ -582,81 +553,11 @@ function Parser.type_check_access_subscript(expr: Node*) {
 	tc_typeStack.push(itemType);
 }
 
-function Parser.type_check_assign_subscript(expr: Node*) {
-	this.type_check_expr(expr.v.ternary.lhs);
-	var lhs: Type* = tc_typeStack.pop();
-
-	if(lhs.indirection == 0) {
-		expr.print_position();
-		eputs("Cannot subscript value type '"); eputs(type_to_string(lhs)); eputsln("'");
-		exit(1);
-	}
-
-	this.type_check_expr(expr.v.ternary.mid);
-	var index: Type* = tc_typeStack.pop();
-
-	if(!index.assignable(INT_TYPE)) {
-		expr.print_position();
-		eputs("Cannot subscript with index of type '"); eputs(type_to_string(index)); eputsln("'");
-		exit(1);
-	}
-	
-	var itemType = copy_type(lhs);
-	itemType.indirection = itemType.indirection - 1;
-
-	expr.computedType = itemType;
-
-	this.type_check_expr(expr.v.ternary.rhs);
-	var rhs: Type* = tc_typeStack.pop();
-
-	if(!rhs.assignable(itemType)) {
-		expr.print_position();
-		eputs("Cannot assign value of type '"); eputs(type_to_string(rhs)); eputs("' to array of elements '"); eputs(type_to_string(itemType));
-		eputsln("'");
-		exit(1);
-	}
-
-	tc_typeStack.push(itemType);
-}
-
-function Parser.type_check_assign_deref(expr: Node*) {
-	this.type_check_expr(expr.v.binary.lhs);
-	var refType: Type* = tc_typeStack.pop();
-	resolve_type(&refType);
-
-	if(refType.indirection == 0) {
-		expr.print_position();
-		eputs("Cannot dereference non-pointer type '"); eputs(type_to_string(refType)); eputsln("'");
-		exit(1);
-	}
-
-	this.type_check_expr(expr.v.binary.rhs);
-	var valueType: Type* = tc_typeStack.pop();
-	resolve_type(&valueType);
-
-	var subType = copy_type(refType);
-	subType.indirection = subType.indirection - 1;
-
-	if(!valueType.assignable(subType)) {
-		expr.print_position();
-		eputs("Cannot assign value of type '"); eputs(type_to_string(valueType)); eputs("' to dereferenced type '"); eputs(type_to_string(subType));
-		eputsln("'");
-		exit(1);
-	}
-
-	if(valueType.is_structural()) {
-		expr.type = OP_COPY_STRUCT_DEREF;
-	}
-
-	expr.computedType = refType;
-	tc_typeStack.push(refType);
-}
-
 function Parser.type_check_access_member(expr: Node*) {
 	this.type_check_expr(expr.v.member.parent);
 
 	var parentType: Type* = tc_typeStack.pop();
-	resolve_type(&parentType);
+	resolve_type(parentType);
 
 	var name = expr.v.member.name;
 	var field: Node*;
@@ -680,51 +581,65 @@ function Parser.type_check_access_member(expr: Node*) {
 	tc_typeStack.push(field.v.variable.type);
 }
 
-function Parser.type_check_assign_member(expr: Node*) {
-	this.type_check_expr(expr.v.member.parent);
+function Parser.type_check_assign(expr: Node*) {
+	this.type_check_expr(expr.v.assignment.lhs);
 
-	var parentType: Type* = tc_typeStack.pop();
-	resolve_type(&parentType);
-
-	var name = expr.v.member.name;
-	var field: Node*;
-
-	if(parentType.is_structural_base() && parentType.indirection == 0) {
-		field = parentType.lookup_field(name);
-	}
-	else if(parentType.is_structural_base() && parentType.indirection == 1 && !parentType.isArray) {
-		var copy = copy_type(parentType);
-		copy.indirection = copy.indirection - 1;
-
-		field = copy.lookup_field(name);
-	}
-	else {
+	if(expr.v.assignment.lhs.type == AST_INT_LITERAL) {
 		expr.print_position();
-		eputs("Cannot access member on type '"); eputs(type_to_string(parentType)); eputsln("'");
+		eputsln("Cannot re-assign constant values");
 		exit(1);
 	}
 
-	expr.v.member.memberRef = field;
+	var lhs: Type* = tc_typeStack.pop();
+	resolve_type(lhs);
 
-	var fieldType = field.v.variable.type;
-	resolve_type(&field.v.variable.type);
+	if(expr.v.assignment.op.type != TOKEN_EQ) {
+		expr.v.assignment.rhs = synthetic_binary_op(
+			expr.v.assignment.op,
+			expr.v.assignment.lhs,
+			expr.v.assignment.rhs
+		);
+	}
 
-	this.type_check_expr(expr.v.member.value);
+	this.type_check_expr(expr.v.assignment.rhs);
 
-	var valueType: Type* = tc_typeStack.pop();
+	var rhs: Type* = tc_typeStack.pop();
+	resolve_type(rhs);
 
-	if(!valueType.assignable(fieldType)) {
+	if(!rhs.assignable(lhs)) {
 		expr.print_position();
-		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to member expecting '"); eputs(type_to_string(fieldType));
+		eputs("Cannot assign type '"); eputs(type_to_string(rhs)); eputs("' to type '"); eputs(type_to_string(lhs));
 		eputsln("'");
 		exit(1);
 	}
 
-	if(valueType.is_structural()) {
-		expr.type = OP_COPY_STRUCT_MEMBER;
+	expr.computedType = lhs;
+
+	tc_typeStack.push(lhs);
+}
+
+function Parser.type_check_inc_decrement(expr: Node*) {
+	if(expr.v.unary.lvalue == LVALUE_NONE) {
+		expr.print_position();
+		eputs("Invalid lvalue for '"); eputs(node_type_to_string(expr.type)); eputsln("' operation");
+		exit(1);
 	}
 
-	tc_typeStack.push(fieldType);
+	this.type_check_expr(expr.v.unary);
+
+	var type: Type* = tc_typeStack.pop();
+	resolve_type(type);
+
+	expr.computedType = type;
+
+	if(!type.assignable(INT_TYPE)) {
+		expr.print_position();
+		eputs("Cannot perform '"); eputs(node_type_to_string(expr.type)); eputs("' on type '"); eputs(type_to_string(type));
+		eputsln("'");
+		exit(1);
+	}
+
+	tc_typeStack.push(type);
 }
 
 function Parser.type_check_expr(expr: Node*) {
@@ -746,9 +661,6 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == AST_ACCESS_VAR || expr.type == AST_ACCESS_GLOBAL_VAR) {
 		this.type_check_access_var(expr);
 	}
-	else if(expr.type == AST_ASSIGN_VAR || expr.type == AST_ASSIGN_GLOBAL_VAR) {
-		this.type_check_assign_var(expr);
-	}
 	else if(expr.type == AST_CALL) {
 		this.type_check_call(expr);
 	}
@@ -764,24 +676,21 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == OP_ACCESS_SUBSCRIPT) {
 		this.type_check_access_subscript(expr);
 	}
-	else if(expr.type == OP_ASSIGN_SUBSCRIPT) {
-		this.type_check_assign_subscript(expr);
-	}
-	else if(expr.type == OP_ASSIGN_DEREF) {
-		this.type_check_assign_deref(expr);
-	}
 	else if(expr.type == AST_CAST) {
 		// NOTE: All casts are completely allowed at the moment. Whether or not this is good
 		//       or requires a warning in some cases is to be decided.
 		this.type_check_expr(expr.v.unary);
-		resolve_type(&expr.computedType);
+		resolve_type(expr.computedType);
 		tc_typeStack.push(expr.computedType);
 	}
 	else if(expr.type == OP_ACCESS_MEMBER) {
 		this.type_check_access_member(expr);
 	}
-	else if(expr.type == OP_ASSIGN_MEMBER) {
-		this.type_check_assign_member(expr);
+	else if(expr.type == OP_ASSIGN) {
+		this.type_check_assign(expr);
+	}
+	else if(expr.type == OP_PRE_INCREMENT || expr.type == OP_POST_INCREMENT || expr.type == OP_PRE_DECREMENT || expr.type == OP_POST_DECREMENT) {
+		this.type_check_inc_decrement(expr);
 	}
 	else {
 		eputsln("Unreachable - type_check_expr");
@@ -800,7 +709,7 @@ function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
 	var declItemType = copy_type(arrayType);
 	declItemType.indirection = declItemType.indirection - 1;
 
-	for(var i = 0; i < array.v.block.children.size; i = i + 1) {
+	for(var i = 0; i < array.v.block.children.size; ++i) {
 		this.type_check_expr(array.v.block.children.at(i));
 
 		var item: Type* = tc_typeStack.pop();
@@ -817,7 +726,7 @@ function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
 
 function Parser.type_check_define_var(stmt: Node*) {
 	var declType = stmt.v.variable.type;
-	resolve_type(&declType);
+	resolve_type(declType);
 
 	var name = stmt.v.variable.name;
 
@@ -841,7 +750,9 @@ function Parser.type_check_define_var(stmt: Node*) {
 		declType = stmt.v.variable.type;
 	}
 
-	stmt.v.variable.stackOffset = this.currentBlock.v.block.currentStackOffset = this.currentBlock.v.block.currentStackOffset + declType.size_offset();
+	resolve_type(stmt.v.variable.type);
+
+	stmt.v.variable.stackOffset = this.currentBlock.v.block.currentStackOffset += declType.size_offset();
 
 	if(stmt.v.variable.stackOffset > this.currentFunction.v.funktion.localVariableStackOffset) {
 		this.currentFunction.v.funktion.localVariableStackOffset = stmt.v.variable.stackOffset;
@@ -856,6 +767,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 		}
 
 		var valueType: Type* = tc_typeStack.pop();
+		resolve_type(valueType);
 
 		if(!valueType.assignable(declType)) {
 			stmt.print_position();
@@ -1000,7 +912,7 @@ function Parser.type_check_block(block: Node*) {
 	block.v.block.currentStackOffset = this.currentBlock.v.block.currentStackOffset;
 	this.currentBlock = block;
 
-	for(var i = 0; i < block.v.block.children.size; i = i + 1) {
+	for(var i = 0; i < block.v.block.children.size; ++i) {
 		if(block.v.block.hasReturned) {
 			(block.v.block.children.at(i) as Node*).print_position();
 			eputsln("Unreachable code (all paths return)");
@@ -1015,7 +927,7 @@ function Parser.type_check_block(block: Node*) {
 function Parser.type_check_function(funktion: Node*) {
 	var stackOffset = 0;
 
-	for(var i = 0; i < funktion.v.funktion.arguments.size; i = i + 1) {
+	for(var i = 0; i < funktion.v.funktion.arguments.size; ++i) {
 		var arg: Node* = funktion.v.funktion.arguments.at(i);
 
 		if(arg.v.variable.type.isArray) {
@@ -1030,7 +942,7 @@ function Parser.type_check_function(funktion: Node*) {
 		}
 
 		//FIXME Have the correct qualifiers and registers used in codegen.zpr for arguments
-		stackOffset = stackOffset + ceil_multiple(arg.v.variable.type.size(), 8);
+		stackOffset += ceil_multiple(arg.v.variable.type.size(), 8);
 
 		arg.v.variable.stackOffset = stackOffset;
 	}
@@ -1071,6 +983,7 @@ function Parser.type_check_function(funktion: Node*) {
 
 function Parser.type_check_global_var(stmt: Node*) {
 	var declType = stmt.v.variable.type;
+	resolve_type(declType);
 	var name = stmt.v.variable.name;
 
 	var redeclaration = this.lookup_global_variable(name);
@@ -1093,6 +1006,8 @@ function Parser.type_check_global_var(stmt: Node*) {
 		declType = stmt.v.variable.type;
 	}
 
+	resolve_type(stmt.v.variable.type);
+
 	if(stmt.v.variable.value != null) {
 		if(stmt.v.variable.value.type == AST_ARRAY_INIT) {
 			this.type_check_array_init(stmt.v.variable.value, stmt.v.variable.type);
@@ -1102,6 +1017,7 @@ function Parser.type_check_global_var(stmt: Node*) {
 		}
 
 		var valueType: Type* = tc_typeStack.pop();
+		resolve_type(valueType);
 
 		if(!valueType.assignable(declType)) {
 			stmt.print_position();
@@ -1118,7 +1034,7 @@ function add_offsets_to_union(unionType: Type*) {
 	if(unionType.built) return;
 	unionType.built = true;
 
-	for(var i = 0; i < unionType.fields.size; i = i + 1) {
+	for(var i = 0; i < unionType.fields.size; ++i) {
 		var field: Node* = unionType.fields.at(i);
 		var type = field.v.variable.type;
 
@@ -1130,8 +1046,8 @@ function add_offsets_to_union(unionType: Type*) {
 
 		field.v.variable.stackOffset = 0;
 
-		resolve_type(&type);
-		resolve_type(&field.v.variable.type);
+		resolve_type(type);
+		resolve_type(field.v.variable.type);
 
 		if(type.type == DATA_TYPE_STRUCT) {
 			add_offsets_to_struct(type);
@@ -1148,7 +1064,7 @@ function add_offsets_to_struct(structType: Type*) {
 
 	var offset = 0;
 
-	for(var i = 0; i < structType.fields.size; i = i + 1) {
+	for(var i = 0; i < structType.fields.size; ++i) {
 		var field: Node* = structType.fields.at(i);
 		var type = field.v.variable.type;
 
@@ -1158,11 +1074,11 @@ function add_offsets_to_struct(structType: Type*) {
 			exit(1);
 		}
 
-		resolve_type(&type);
-		resolve_type(&field.v.variable.type);
+		resolve_type(type);
+		resolve_type(field.v.variable.type);
 		
 		field.v.variable.stackOffset = offset;
-		offset = offset + field.v.variable.type.size_offset();
+		offset += field.v.variable.type.size_offset();
 
 		if(type.type == DATA_TYPE_STRUCT) {
 			add_offsets_to_struct(type);
@@ -1178,7 +1094,7 @@ function Parser.type_check(program: Node*) {
 
 	var mainTok = synthetic_token(TOKEN_IDENTIFIER, "main");
 
-	for(var i = 0; i < program.v.block.children.size; i = i + 1) {
+	for(var i = 0; i < program.v.block.children.size; ++i) {
 		var node: Node* = program.v.block.children.at(i);
 
 		if(node.type == AST_FUNCTION) {

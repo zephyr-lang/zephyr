@@ -57,16 +57,30 @@ function Node.add_child(child: Node*) {
 function allow_expr_stmt(expr: Node*): int {
 	return expr.type == AST_CALL ||
 	       expr.type == AST_CALL_METHOD ||
-	       expr.type == AST_ASSIGN_VAR ||
-		   expr.type == AST_ASSIGN_GLOBAL_VAR ||
-		   expr.type == OP_ASSIGN_SUBSCRIPT ||
-		   expr.type == OP_ASSIGN_DEREF ||
-		   expr.type == OP_ASSIGN_MEMBER;
+		   expr.type == OP_ASSIGN ||
+		   expr.type == OP_PRE_INCREMENT ||
+		   expr.type == OP_PRE_DECREMENT ||
+		   expr.type == OP_POST_INCREMENT ||
+		   expr.type == OP_POST_DECREMENT;
+}
+
+function is_assignment(type: int): int {
+	return type == TOKEN_EQ ||
+	       type == TOKEN_PLUS_EQ ||
+	       type == TOKEN_MINUS_EQ ||
+	       type == TOKEN_STAR_EQ ||
+	       type == TOKEN_SLASH_EQ ||
+	       type == TOKEN_PERCENT_EQ ||
+	       type == TOKEN_AMP_EQ ||
+	       type == TOKEN_BAR_EQ ||
+	       type == TOKEN_XOR_EQ ||
+		   type == TOKEN_LSH_EQ ||
+		   type == TOKEN_RSH_EQ;
 }
 
 //TODO: Remove duplicate code between parser and typechecker
 function Parser.lookup_type(name: Token*): Type* {
-	for(var i = 0; i < this.definedTypes.size; i = i + 1) {
+	for(var i = 0; i < this.definedTypes.size; ++i) {
 		var type: Type* = this.definedTypes.at(i);
 
 		if(type.name.equals(name)) {
@@ -153,7 +167,7 @@ function Parser.find_string(needle: Node*): Node* {
 	var length = needle.v.literal.az.string.length;
 	var chars = needle.v.literal.az.string.chars;
 
-	for(var i = 0; i < this.strings.size; i = i + 1) {
+	for(var i = 0; i < this.strings.size; ++i) {
 		var str: Node* = this.strings.at(i);
 
 		if(str.v.literal.az.string.length == length && streq(str.v.literal.az.string.chars, chars)) {
@@ -321,7 +335,7 @@ function Parser.parse_value(): Node* {
 function Parser.parse_member_access(): Node* {
 	var left = this.parse_value();
 
-	while(this.match(TOKEN_LEFT_SQBR) || this.match(TOKEN_DOT)) {
+	while(this.match(TOKEN_LEFT_SQBR) || this.match(TOKEN_DOT) || this.match(TOKEN_INCREMENT) || this.match(TOKEN_DECREMENT)) {
 		var op = this.previous;
 
 		if(op.type == TOKEN_LEFT_SQBR) {
@@ -334,6 +348,14 @@ function Parser.parse_member_access(): Node* {
 			subscript.v.binary.rhs = right;
 			subscript.lvalue = LVALUE_SUBSCRIPT;
 			left = subscript;
+		}
+		else if(op.type == TOKEN_INCREMENT || op.type == TOKEN_DECREMENT) {
+			var type = op.type == TOKEN_INCREMENT ? OP_POST_INCREMENT : OP_POST_DECREMENT;
+
+			var postfix = new_node(type, op);
+			postfix.v.unary = left;
+			left = postfix;
+			break;
 		}
 		else {
 			var memberName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
@@ -395,6 +417,20 @@ function Parser.parse_unary(): Node* {
 		deref.v.unary = expr;
 		deref.lvalue = LVALUE_DEREF;
 		return deref;
+	}
+	else if(this.match(TOKEN_INCREMENT)) {
+		var op = this.previous;
+		var expr = this.parse_unary();
+		var increment = new_node(OP_PRE_INCREMENT, op);
+		increment.v.unary = expr;
+		return increment;
+	}
+	else if(this.match(TOKEN_DECREMENT)) {
+		var op = this.previous;
+		var expr = this.parse_unary();
+		var decrement = new_node(OP_PRE_DECREMENT, op);
+		decrement.v.unary = expr;
+		return decrement;
 	}
 
 	return this.parse_member_access();
@@ -634,7 +670,9 @@ function Parser.parse_ternary_expression(): Node* {
 function Parser.parse_assignment_expression(): Node* {
 	var left = this.parse_ternary_expression();
 
-	while(this.match(TOKEN_EQ)) {
+	while(is_assignment(this.current.type)) {
+		this.advance();
+
 		if(left.lvalue == LVALUE_NONE) {
 			this.error("Invalid lvalue for assignment");
 			return null;
@@ -644,37 +682,11 @@ function Parser.parse_assignment_expression(): Node* {
 
 		var right = this.parse_assignment_expression();
 
-		if(left.lvalue == LVALUE_LOCAL) {
-			var name = left.v.variable.name;
-			var assign = new_node(AST_ASSIGN_VAR, name);
-			assign.v.variable.name = name;
-			assign.v.variable.value = right;
-			left = assign;
-		}
-		else if(left.lvalue == LVALUE_SUBSCRIPT) {
-			var subscript = new_node(OP_ASSIGN_SUBSCRIPT, op);
-			subscript.v.ternary.lhs = left.v.binary.lhs;
-			subscript.v.ternary.mid = left.v.binary.rhs;
-			subscript.v.ternary.rhs = right;
-			left = subscript;
-		}
-		else if(left.lvalue == LVALUE_DEREF) {
-			var assign = new_node(OP_ASSIGN_DEREF, op);
-			assign.v.binary.lhs = left.v.unary;
-			assign.v.binary.rhs = right;
-			left = assign;
-		}
-		else if(left.lvalue == LVALUE_MEMBER) {
-			var assign = new_node(OP_ASSIGN_MEMBER, op);
-			assign.v.member.name = left.v.member.name;
-			assign.v.member.parent = left.v.member.parent;
-			assign.v.member.value = right;
-			left = assign;
-		}
-		else {
-			eputsln("Unreachable - invalid lvalue in parse_assignment_exression");
-			return null;
-		}
+		var assign = new_node(OP_ASSIGN, left.position);
+		assign.v.assignment.lhs = left;
+		assign.v.assignment.rhs = right;
+		assign.v.assignment.op = op;
+		left = assign;
 	}
 
 	return left;
@@ -1152,7 +1164,7 @@ function Parser.parse_import() {
 	memcpy(spath, &path.start[1], path.length - 2);
 	spath[path.length - 2] = 0;
 
-	for(var i = 0; i < this.lexerStack.size; i = i + 1) {
+	for(var i = 0; i < this.lexerStack.size; ++i) {
 		var lexer: Lexer* = this.lexerStack.at(i);
 
 		if(streq(spath, lexer.filename)) {
@@ -1161,7 +1173,7 @@ function Parser.parse_import() {
 		}
 	}
 
-	for(var i = 0; i < this.openedFiles.size; i = i + 1) {
+	for(var i = 0; i < this.openedFiles.size; ++i) {
 		if(streq(spath, this.openedFiles.at(i))) {
 			// Do nothing: already opened
 			return;
@@ -1194,7 +1206,7 @@ function Parser.parse_program(): Node* {
 
 	var builtins = parser_builtin_functions();
 
-	for(var i = 0; i < builtins.size; i = i + 1) {
+	for(var i = 0; i < builtins.size; ++i) {
 		this.functions.push(builtins.at(i));
 	}
 

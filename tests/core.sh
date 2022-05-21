@@ -932,6 +932,51 @@ function main(): int {
 }
 "
 
+assert_stdout "12
+15" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+function main(): int {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+	var pp = &p;
+
+	var p1 = *pp;
+
+	printu(p1.x);
+	printu(p1.y);
+
+	return 0;
+}
+"
+
+assert_stdout "12
+15" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+var p: Point;
+
+function main(): int {
+	p.x = 12;
+	p.y = 15;
+	var pp = &p;
+	
+	var p1 = *pp;
+
+	printu(p1.x);
+	printu(p1.y);
+
+	return 0;
+}
+"
+
 echo " Done"
 
 echo -n "Constants: "
@@ -993,5 +1038,53 @@ function main(argc: int, argv: i8**): int {
 	return 0;
 }
 " hello world
+
+echo " Done"
+
+echo -n "Assignment: "
+
+assert_stdout "X
+50" "
+import \"std/io.zpr\";
+
+struct X {
+	y: int;
+}
+
+var x: X;
+
+function get_x(): X* {
+	putsln(\"X\");
+	return &x;
+}
+
+function main(): int {
+	x.y = 5;
+
+	get_x().y *= 10;
+
+	printu(x.y);
+
+	return 0;
+}
+"
+
+assert_stdout "0
+2
+5
+3" "
+function main(): int {
+	var x = 0;
+	printu(x++);
+	printu(++x);
+
+	var y = 5;
+
+	printu(y--);
+	printu(--y);
+
+	return 0;
+}
+"
 
 echo " Done"

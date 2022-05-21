@@ -167,7 +167,13 @@ function Lexer.less_than(): int {
 	var type = TOKEN_LESS;
 
 	if(this.match('=')) type = TOKEN_LEQ;
-	else if(this.match('<')) type = TOKEN_LSH;
+	else if(this.match('<')) {
+		type = TOKEN_LSH;
+
+		if(this.match('=')) {
+			type = TOKEN_LSH_EQ;
+		}
+	}
 	
 	return type;
 }
@@ -176,7 +182,49 @@ function Lexer.greater_than(): int {
 	var type = TOKEN_GREATER;
 
 	if(this.match('=')) type = TOKEN_GEQ;
-	else if(this.match('>')) type = TOKEN_RSH;
+	else if(this.match('>')) {
+		type = TOKEN_RSH;
+
+		if(this.match('=')) {
+			type = TOKEN_RSH_EQ;
+		}
+	}
+	
+	return type;
+}
+
+function Lexer.amp(): int {
+	var type = TOKEN_AMP;
+
+	if(this.match('=')) type = TOKEN_AMP_EQ;
+	else if(this.match('&')) type = TOKEN_AMP_AMP;
+	
+	return type;
+}
+
+function Lexer.bar(): int {
+	var type = TOKEN_BAR;
+
+	if(this.match('=')) type = TOKEN_BAR_EQ;
+	else if(this.match('|')) type = TOKEN_BAR_BAR;
+	
+	return type;
+}
+
+function Lexer.minus(): int {
+	var type = TOKEN_MINUS;
+
+	if(this.match('=')) type = TOKEN_MINUS_EQ;
+	else if(this.match('-')) type = TOKEN_DECREMENT;
+	
+	return type;
+}
+
+function Lexer.plus(): int {
+	var type = TOKEN_PLUS;
+
+	if(this.match('=')) type = TOKEN_PLUS_EQ;
+	else if(this.match('+')) type = TOKEN_INCREMENT;
 	
 	return type;
 }
@@ -208,15 +256,15 @@ function Lexer.next(): Token* {
 	if(c == '.') return this.make_token(TOKEN_DOT);
 	if(c == '?') return this.make_token(TOKEN_QUESTION);
 	if(c == '~') return this.make_token(TOKEN_TILDE);
-	if(c == '-') return this.make_token(TOKEN_MINUS);
+	if(c == '-') return this.make_token(this.minus());
 	if(c == '!') return this.make_token(this.match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);
-	if(c == '+') return this.make_token(TOKEN_PLUS);
-	if(c == '*') return this.make_token(TOKEN_STAR);
-	if(c == '/') return this.make_token(TOKEN_SLASH);
-	if(c == '%') return this.make_token(TOKEN_PERCENT);
-	if(c == '&') return this.make_token(this.match('&') ? TOKEN_AMP_AMP : TOKEN_AMP);
-	if(c == '|') return this.make_token(this.match('|') ? TOKEN_BAR_BAR : TOKEN_BAR);
-	if(c == '^') return this.make_token(TOKEN_XOR);
+	if(c == '+') return this.make_token(this.plus());
+	if(c == '*') return this.make_token(this.match('=') ? TOKEN_STAR_EQ : TOKEN_STAR);
+	if(c == '/') return this.make_token(this.match('=') ? TOKEN_SLASH_EQ : TOKEN_SLASH);
+	if(c == '%') return this.make_token(this.match('=') ? TOKEN_PERCENT_EQ : TOKEN_PERCENT);
+	if(c == '&') return this.make_token(this.amp());
+	if(c == '|') return this.make_token(this.bar());
+	if(c == '^') return this.make_token(this.match('=') ? TOKEN_XOR_EQ : TOKEN_XOR);
 	if(c == '<') return this.make_token(this.less_than());
 	if(c == '>') return this.make_token(this.greater_than());
 	if(c == '=') return this.make_token(this.match('=') ? TOKEN_EQEQ : TOKEN_EQ);
