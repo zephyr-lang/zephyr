@@ -1040,3 +1040,51 @@ function main(argc: int, argv: i8**): int {
 " hello world
 
 echo " Done"
+
+echo -n "Assignment: "
+
+assert_stdout "X
+50" "
+import \"std/io.zpr\";
+
+struct X {
+	y: int;
+}
+
+var x: X;
+
+function get_x(): X* {
+	putsln(\"X\");
+	return &x;
+}
+
+function main(): int {
+	x.y = 5;
+
+	get_x().y *= 10;
+
+	printu(x.y);
+
+	return 0;
+}
+"
+
+assert_stdout "0
+2
+5
+3" "
+function main(): int {
+	var x = 0;
+	printu(x++);
+	printu(++x);
+
+	var y = 5;
+
+	printu(y--);
+	printu(--y);
+
+	return 0;
+}
+"
+
+echo " Done"
