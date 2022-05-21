@@ -273,6 +273,7 @@ function Parser.type_check_addrof(expr: Node*) {
 function Parser.type_check_deref(expr: Node*) {
 	this.type_check_expr(expr.v.unary);
 	var type: Type* = tc_typeStack.pop();
+	resolve_type(&type);
 
 	if(type.indirection == 0) {
 		expr.print_position();
@@ -690,6 +691,8 @@ function Parser.type_check_define_var(stmt: Node*) {
 		declType = stmt.v.variable.type;
 	}
 
+	resolve_type(&stmt.v.variable.type);
+
 	stmt.v.variable.stackOffset = this.currentBlock.v.block.currentStackOffset = this.currentBlock.v.block.currentStackOffset + declType.size_offset();
 
 	if(stmt.v.variable.stackOffset > this.currentFunction.v.funktion.localVariableStackOffset) {
@@ -705,6 +708,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 		}
 
 		var valueType: Type* = tc_typeStack.pop();
+		resolve_type(&valueType);
 
 		if(!valueType.assignable(declType)) {
 			stmt.print_position();
@@ -920,6 +924,7 @@ function Parser.type_check_function(funktion: Node*) {
 
 function Parser.type_check_global_var(stmt: Node*) {
 	var declType = stmt.v.variable.type;
+	resolve_type(&declType);
 	var name = stmt.v.variable.name;
 
 	var redeclaration = this.lookup_global_variable(name);
@@ -942,6 +947,8 @@ function Parser.type_check_global_var(stmt: Node*) {
 		declType = stmt.v.variable.type;
 	}
 
+	resolve_type(&stmt.v.variable.type);
+
 	if(stmt.v.variable.value != null) {
 		if(stmt.v.variable.value.type == AST_ARRAY_INIT) {
 			this.type_check_array_init(stmt.v.variable.value, stmt.v.variable.type);
@@ -951,6 +958,7 @@ function Parser.type_check_global_var(stmt: Node*) {
 		}
 
 		var valueType: Type* = tc_typeStack.pop();
+		resolve_type(&valueType);
 
 		if(!valueType.assignable(declType)) {
 			stmt.print_position();

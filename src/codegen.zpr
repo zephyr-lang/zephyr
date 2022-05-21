@@ -15,9 +15,8 @@ function Type.qualifier(): i8* {
 	if(this.size() == 4) return "DWORD";
 	if(this.size() == 8) return "QWORD";
 
-	eputsln("Unreachable - invalid size of type");
-	exit(1);
-	return null;
+	// Structs are interpreted as pointers which are 8 bytes
+	return "QWORD";
 }
 
 function Type.rax_subregister(): i8* {
@@ -26,9 +25,8 @@ function Type.rax_subregister(): i8* {
 	if(this.size() == 4) return "eax";
 	if(this.size() == 8) return "rax";
 
-	eputsln("Unreachable - invalid size of type");
-	exit(1);
-	return null;
+	// Structs are interpreted as pointers which are 8 bytes
+	return "rax";
 }
 
 function Type.movzx(): i8* {
@@ -49,9 +47,8 @@ function Type.reserve(): i8* {
 	if(this.size() == 4) return "resd";
 	if(this.size() == 8) return "resq";
 
-	eputsln("Unreachable - invalid size of type");
-	exit(1);
-	return null;
+	// Structs are interpreted as pointers which are 8 bytes
+	return "resq";
 }
 
 function cmp_suffix(type: int): i8* {
@@ -96,9 +93,8 @@ function generate_addrof_rax(expr: Node*, out: File*) {
 
 function generate_deref_rax(expr: Node*, out: File*) {
 	if(expr.computedType.is_structural()) {
-		expr.print_position();
-		eputsln("Cannot copy structs (yet)");
-		exit(1);
+		generate_lvalue_rax(expr, out);
+		return;
 	}
 
 	generate_expr_rax(expr.v.unary, out);
@@ -567,8 +563,14 @@ function generate_define_var(stmt: Node*, out: File*) {
 
 		generate_expr_rax(stmt.v.variable.value, out);
 
-		out.puts("    mov "); out.puts(stmt.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.v.variable.stackOffset);
-		out.puts("], "); out.putsln(stmt.v.variable.type.rax_subregister());
+		if(stmt.v.variable.type.is_structural()) {
+			out.puts("lea rcx, [rbp-"); out.putd(stmt.v.variable.stackOffset); out.putsln("]");
+			generate_copy(stmt.v.variable.type.fields, 0, out);
+		}
+		else {
+			out.puts("    mov "); out.puts(stmt.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.v.variable.stackOffset);
+			out.puts("], "); out.putsln(stmt.v.variable.type.rax_subregister());
+		}
 	}
 }
 
@@ -706,8 +708,14 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 			generate_expr_rax(variable.v.variable.value, out);
 
-			out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_"); out.put_token_string(variable.v.variable.name);
-			out.puts("], "); out.putsln(type.rax_subregister());
+			if(type.is_structural()) {
+				out.puts("    lea rcx, [_g_"); out.put_token_string(variable.v.variable.name); out.putsln("]");
+				generate_copy(type.fields, 0, out);
+			}
+			else {
+				out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_"); out.put_token_string(variable.v.variable.name);
+				out.puts("], "); out.putsln(type.rax_subregister());
+			}
 		}
 	}
 

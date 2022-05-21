@@ -932,6 +932,51 @@ function main(): int {
 }
 "
 
+assert_stdout "12
+15" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+function main(): int {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+	var pp = &p;
+
+	var p1 = *pp;
+
+	printu(p1.x);
+	printu(p1.y);
+
+	return 0;
+}
+"
+
+assert_stdout "12
+15" "
+struct Point {
+	x: int;
+	y: int;
+}
+
+var p: Point;
+
+function main(): int {
+	p.x = 12;
+	p.y = 15;
+	var pp = &p;
+	
+	var p1 = *pp;
+
+	printu(p1.x);
+	printu(p1.y);
+
+	return 0;
+}
+"
+
 echo " Done"
 
 echo -n "Constants: "
