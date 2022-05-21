@@ -731,6 +731,9 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		else if(node.type == AST_DEFINE_CONST) {
 			// No code generated - expanded inline
 		}
+		else if(node.type == AST_ENUM) {
+			// No code generated
+		}
 		else if(node.type == AST_STRUCT) {
 			// No code generated
 		}

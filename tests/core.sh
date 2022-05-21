@@ -907,3 +907,27 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Enum: "
+
+assert_stdout "0
+1
+2
+3" "
+enum Animal {
+	DOG,
+	CAT,
+	ZEBRA,
+	BEAR
+}
+
+function main(): int {
+	printu(DOG);
+	printu(CAT);
+	printu(ZEBRA);
+	printu(BEAR);
+	return 0;
+}
+"
+
+echo " Done"

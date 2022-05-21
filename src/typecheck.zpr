@@ -1195,6 +1195,9 @@ function Parser.type_check(program: Node*) {
 		else if(node.type == AST_DEFINE_CONST) {
 			// Do nothing - parser verifies that this is an integer
 		}
+		else if(node.type == AST_ENUM) {
+			// Do nothing - parser verifies that all fields are integers
+		}
 		else if(node.type == AST_STRUCT) {
 			add_offsets_to_struct(node.computedType);
 		}
