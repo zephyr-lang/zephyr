@@ -24,9 +24,9 @@ $ git lfs pull
 ```
 $ make bootstrap
 
-$ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
-$ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
-$ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
+$ ./build/zephyr -o ./build/zephyr ./src/main.zpr
+$ ./build/zephyr -o ./build/zephyr ./src/main.zpr
+$ ./build/zephyr -o ./build/zephyr ./src/main.zpr
 $ ...
 ```
 
@@ -38,9 +38,9 @@ $ ld -o ./bootstrap/bootstrap_x86_64_linux ./bootstrap/bootstrap_x86_64_linux.o
 
 $ ./bootstrap/bootstrap_x86_64_linux -o ./build/zephyr ./src/main.zpr
 
-$ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
-$ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
-$ ./build/zephyr -o ./build/zephyr ./zpr/main.zpr
+$ ./build/zephyr -o ./build/zephyr ./src/main.zpr
+$ ./build/zephyr -o ./build/zephyr ./src/main.zpr
+$ ./build/zephyr -o ./build/zephyr ./src/main.zpr
 $ ...
 ```
 
