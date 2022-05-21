@@ -35,6 +35,8 @@ enum NodeType {
 	OP_COPY_STRUCT,
 	OP_COPY_STRUCT_MEMBER,
 	OP_COPY_STRUCT_DEREF,
+	OP_ASSIGN,
+
 	AST_INT_LITERAL,
 	AST_CHAR_LITERAL,
 	AST_STRING,
@@ -43,10 +45,8 @@ enum NodeType {
 	AST_DEFINE_CONST,
 	AST_DEFINE_VAR,
 	AST_ACCESS_VAR,
-	AST_ASSIGN_VAR,
 	AST_DEFINE_GLOBAL_VAR,
 	AST_ACCESS_GLOBAL_VAR,
-	AST_ASSIGN_GLOBAL_VAR,
 	AST_ARRAY_INIT,
 	AST_EXPR_STMT,
 	AST_IF,
@@ -193,6 +193,11 @@ struct Node {
 			value: Node*;
 			memberRef: Node*;
 		};
+
+		assignment: struct {
+			lhs: Node*;
+			rhs: Node*;
+		};
 	};
 }
 
@@ -276,10 +281,8 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_DEFINE_CONST) return "define const";
 	if(type == AST_DEFINE_VAR) return "define var";
 	if(type == AST_ACCESS_VAR) return "access var";
-	if(type == AST_ASSIGN_VAR) return "assign var";
 	if(type == AST_DEFINE_GLOBAL_VAR) return "define gvar";
 	if(type == AST_ACCESS_GLOBAL_VAR) return "access gvar";
-	if(type == AST_ASSIGN_GLOBAL_VAR) return "assign gvar";
 	if(type == AST_ARRAY_INIT) return "init array";
 	if(type == AST_EXPR_STMT) return "expr stmt";
 	if(type == AST_IF) return "if";
@@ -465,10 +468,6 @@ function print_ast_depth(node: Node*, depth: int) {
 	else if(node.type == AST_ACCESS_VAR || node.type == AST_ACCESS_GLOBAL_VAR) {
 		puts("(var "); put_token_string(node.v.variable.name); puts(")");
 	}
-	else if(node.type == AST_ASSIGN_VAR || node.type == AST_ASSIGN_GLOBAL_VAR) {
-		put_token_string(node.v.variable.name); putsln(" =");
-		print_ast_depth(node.v.variable.value, depth + 1);
-	}
 	else if(node.type == AST_INT_LITERAL) {
 		puts("(literal "); putd(node.v.literal.az.integer); puts(")");
 	}
@@ -571,6 +570,11 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == AST_BREAK) {
 		putsln("break");
+	}
+	else if(node.type == OP_ASSIGN) {
+		putsln("=");
+		print_ast_depth(node.v.assignment.lhs, depth);
+		print_ast_depth(node.v.assignment.rhs, depth + 1);
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

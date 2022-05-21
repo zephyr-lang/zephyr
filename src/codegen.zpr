@@ -316,13 +316,6 @@ function generate_access_var(expr: Node*, out: File*) {
 	out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
 }
 
-function generate_assign_var(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.variable.value, out);
-
-	out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.puts("], ");
-	out.putsln(expr.v.variable.type.rax_subregister());
-}
-
 function generate_access_global_var(expr: Node*, out: File*) {
 	if(expr.v.variable.type.isArray || expr.v.variable.type.is_structural()) {
 		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
@@ -331,17 +324,6 @@ function generate_access_global_var(expr: Node*, out: File*) {
 
 	out.puts("    "); out.puts(expr.v.variable.type.movzx()); out.puts(" "); out.puts(expr.v.variable.type.rax_subregister()); out.puts(", ");
 	out.puts(expr.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
-}
-
-function generate_assign_global_var(expr: Node*, out: File*) {
-	if(expr.v.variable.type.is_structural()) {
-		eputsln("Cannot copy structs (yet)");
-		exit(1);
-	}
-
-	generate_expr_rax(expr.v.variable.value, out);
-	out.puts("    mov "); out.puts(expr.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.v.variable.name);
-	out.puts("], "); out.putsln(expr.v.variable.type.rax_subregister());
 }
 
 function generate_access_subscript(expr: Node*, out: File*) {
@@ -449,6 +431,24 @@ function generate_copy_struct_deref(expr: Node*, out: File*) {
 	out.putsln("    mov rax, rdx");
 }
 
+function generate_lvalue_rax(expr: Node*, out: File*) {
+	if(expr.lvalue == LVALUE_LOCAL) {
+		out.puts("    lea rax, [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+	}
+	else if(expr.lvalue == LVALUE_GLOBAL) {
+		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
+	}
+}
+
+function generate_assign_rax(expr: Node*, out: File*) {
+	generate_lvalue_rax(expr.v.assignment.lhs, out);
+	out.putsln("    push rax");
+	generate_expr_rax(expr.v.assignment.rhs, out);
+	out.putsln("    pop rcx");
+
+	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
+}
+
 function generate_expr_rax(expr: Node*, out: File*) {
 	if(is_unary_op(expr.type)) {
 		generate_unary_rax(expr, out);
@@ -468,14 +468,8 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	else if(expr.type == AST_ACCESS_VAR) {
 		generate_access_var(expr, out);
 	}
-	else if(expr.type == AST_ASSIGN_VAR) {
-		generate_assign_var(expr, out);
-	}
 	else if(expr.type == AST_ACCESS_GLOBAL_VAR) {
 		generate_access_global_var(expr, out);
-	}
-	else if(expr.type == AST_ASSIGN_GLOBAL_VAR) {
-		generate_assign_global_var(expr, out);
 	}
 	else if(expr.type == AST_CALL) {
 		generate_call_rax(expr, out);
@@ -515,6 +509,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	}
 	else if(expr.type == OP_COPY_STRUCT_DEREF) {
 		generate_copy_struct_deref(expr, out);
+	}
+	else if(expr.type == OP_ASSIGN) {
+		generate_assign_rax(expr, out);
 	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();

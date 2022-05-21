@@ -57,11 +57,10 @@ function Node.add_child(child: Node*) {
 function allow_expr_stmt(expr: Node*): int {
 	return expr.type == AST_CALL ||
 	       expr.type == AST_CALL_METHOD ||
-	       expr.type == AST_ASSIGN_VAR ||
-		   expr.type == AST_ASSIGN_GLOBAL_VAR ||
 		   expr.type == OP_ASSIGN_SUBSCRIPT ||
 		   expr.type == OP_ASSIGN_DEREF ||
-		   expr.type == OP_ASSIGN_MEMBER;
+		   expr.type == OP_ASSIGN_MEMBER ||
+		   expr.type == OP_ASSIGN;
 }
 
 //TODO: Remove duplicate code between parser and typechecker
@@ -646,9 +645,9 @@ function Parser.parse_assignment_expression(): Node* {
 
 		if(left.lvalue == LVALUE_LOCAL) {
 			var name = left.v.variable.name;
-			var assign = new_node(AST_ASSIGN_VAR, name);
-			assign.v.variable.name = name;
-			assign.v.variable.value = right;
+			var assign = new_node(OP_ASSIGN, name);
+			assign.v.assignment.lhs = left;
+			assign.v.assignment.rhs = right;
 			left = assign;
 		}
 		else if(left.lvalue == LVALUE_SUBSCRIPT) {

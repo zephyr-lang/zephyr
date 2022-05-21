@@ -370,60 +370,6 @@ function Parser.type_check_access_var(expr: Node*) {
 	}
 }
 
-function Parser.type_check_assign_var(expr: Node*) {
-	var variable = this.lookup_variable(expr.v.variable.name);
-
-	if(variable == null) {
-		expr.print_position();
-		eputs("Unknown variable '"); eput_token_string(expr.v.variable.name); eputsln("' in current scope");
-		exit(1);
-	}
-	else if(variable.type == AST_DEFINE_CONST) {
-		expr.print_position();
-		eputsln("Cannot re-assign constant values");
-		exit(1);
-	}
-
-	this.type_check_expr(expr.v.variable.value);
-
-	var valueType: Type* = tc_typeStack.pop();
-	resolve_type(&valueType);
-	resolve_type(&variable.v.variable.type);
-
-	if(!valueType.assignable(variable.v.variable.type)) {
-		expr.print_position();
-		eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable of type '"); eputs(type_to_string(variable.v.variable.type));
-		eputsln("'");
-		exit(1);
-	}
-
-	if(valueType.is_structural()) {
-		expr.type = OP_COPY_STRUCT;
-		expr.v.variable.type = variable.v.variable.type;
-		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
-
-		tc_typeStack.push(expr.v.variable.type);
-	}
-	if(variable.type == AST_DEFINE_VAR) {
-		expr.v.variable.type = variable.v.variable.type;
-		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
-
-		tc_typeStack.push(expr.v.variable.type);
-	}
-	else if(variable.type == AST_DEFINE_GLOBAL_VAR) {
-		expr.v.variable.type = variable.v.variable.type;
-		expr.type = AST_ASSIGN_GLOBAL_VAR;
-
-		tc_typeStack.push(expr.v.variable.type);
-	}
-	else {
-		expr.print_position();
-		eputsln("Can only assign variables");
-		exit(1);
-	}
-
-}
-
 function Parser.type_check_call(expr: Node*) {
 	var funktion = this.lookup_variable(expr.v.funktion.name);
 
@@ -727,6 +673,35 @@ function Parser.type_check_assign_member(expr: Node*) {
 	tc_typeStack.push(fieldType);
 }
 
+function Parser.type_check_assign(expr: Node*) {
+	this.type_check_expr(expr.v.assignment.lhs);
+
+	if(expr.v.assignment.lhs.type == AST_INT_LITERAL) {
+		expr.print_position();
+		eputsln("Cannot re-assign constant values");
+		exit(1);
+	}
+
+	var lhs: Type* = tc_typeStack.pop();
+	resolve_type(&lhs);
+
+	this.type_check_expr(expr.v.assignment.rhs);
+
+	var rhs: Type* = tc_typeStack.pop();
+	resolve_type(&rhs);
+
+	if(!rhs.assignable(lhs)) {
+		expr.print_position();
+		eputs("Cannot assign type '"); eputs(type_to_string(rhs)); eputs("' to type '"); eputs(type_to_string(lhs));
+		eputsln("'");
+		exit(1);
+	}
+
+	expr.computedType = lhs;
+
+	tc_typeStack.push(lhs);
+}
+
 function Parser.type_check_expr(expr: Node*) {
 	if(is_unary_op(expr.type)) {
 		this.type_check_unary(expr);
@@ -745,9 +720,6 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == AST_ACCESS_VAR || expr.type == AST_ACCESS_GLOBAL_VAR) {
 		this.type_check_access_var(expr);
-	}
-	else if(expr.type == AST_ASSIGN_VAR || expr.type == AST_ASSIGN_GLOBAL_VAR) {
-		this.type_check_assign_var(expr);
 	}
 	else if(expr.type == AST_CALL) {
 		this.type_check_call(expr);
@@ -782,6 +754,9 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == OP_ASSIGN_MEMBER) {
 		this.type_check_assign_member(expr);
+	}
+	else if(expr.type == OP_ASSIGN) {
+		this.type_check_assign(expr);
 	}
 	else {
 		eputsln("Unreachable - type_check_expr");
