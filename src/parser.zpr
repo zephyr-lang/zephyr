@@ -329,7 +329,7 @@ function Parser.parse_value(): Node* {
 function Parser.parse_member_access(): Node* {
 	var left = this.parse_value();
 
-	while(this.match(TOKEN_LEFT_SQBR) || this.match(TOKEN_DOT)) {
+	while(this.match(TOKEN_LEFT_SQBR) || this.match(TOKEN_DOT) || this.match(TOKEN_INCREMENT) || this.match(TOKEN_DECREMENT)) {
 		var op = this.previous;
 
 		if(op.type == TOKEN_LEFT_SQBR) {
@@ -342,6 +342,14 @@ function Parser.parse_member_access(): Node* {
 			subscript.v.binary.rhs = right;
 			subscript.lvalue = LVALUE_SUBSCRIPT;
 			left = subscript;
+		}
+		else if(op.type == TOKEN_INCREMENT || op.type == TOKEN_DECREMENT) {
+			var type = op.type == TOKEN_INCREMENT ? OP_POST_INCREMENT : OP_POST_DECREMENT;
+
+			var postfix = new_node(type, op);
+			postfix.v.unary = left;
+			left = postfix;
+			break;
 		}
 		else {
 			var memberName = this.consume(TOKEN_IDENTIFIER, "Expected member name");
@@ -403,6 +411,20 @@ function Parser.parse_unary(): Node* {
 		deref.v.unary = expr;
 		deref.lvalue = LVALUE_DEREF;
 		return deref;
+	}
+	else if(this.match(TOKEN_INCREMENT)) {
+		var op = this.previous;
+		var expr = this.parse_unary();
+		var increment = new_node(OP_PRE_INCREMENT, op);
+		increment.v.unary = expr;
+		return increment;
+	}
+	else if(this.match(TOKEN_DECREMENT)) {
+		var op = this.previous;
+		var expr = this.parse_unary();
+		var decrement = new_node(OP_PRE_DECREMENT, op);
+		decrement.v.unary = expr;
+		return decrement;
 	}
 
 	return this.parse_member_access();

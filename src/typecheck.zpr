@@ -616,6 +616,30 @@ function Parser.type_check_assign(expr: Node*) {
 	tc_typeStack.push(lhs);
 }
 
+function Parser.type_check_inc_decrement(expr: Node*) {
+	if(expr.v.unary.lvalue == LVALUE_NONE) {
+		expr.print_position();
+		eputs("Invalid lvalue for '"); eputs(node_type_to_string(expr.type)); eputsln("' operation");
+		exit(1);
+	}
+
+	this.type_check_expr(expr.v.unary);
+
+	var type: Type* = tc_typeStack.pop();
+	resolve_type(type);
+
+	expr.computedType = type;
+
+	if(!type.assignable(INT_TYPE)) {
+		expr.print_position();
+		eputs("Cannot perform '"); eputs(node_type_to_string(expr.type)); eputs("' on type '"); eputs(type_to_string(type));
+		eputsln("'");
+		exit(1);
+	}
+
+	tc_typeStack.push(type);
+}
+
 function Parser.type_check_expr(expr: Node*) {
 	if(is_unary_op(expr.type)) {
 		this.type_check_unary(expr);
@@ -662,6 +686,9 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == OP_ASSIGN) {
 		this.type_check_assign(expr);
+	}
+	else if(expr.type == OP_PRE_INCREMENT || expr.type == OP_POST_INCREMENT || expr.type == OP_PRE_DECREMENT || expr.type == OP_POST_DECREMENT) {
+		this.type_check_inc_decrement(expr);
 	}
 	else {
 		eputsln("Unreachable - type_check_expr");

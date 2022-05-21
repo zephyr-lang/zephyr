@@ -199,6 +199,24 @@ function Lexer.bar(): int {
 	return type;
 }
 
+function Lexer.minus(): int {
+	var type = TOKEN_MINUS;
+
+	if(this.match('=')) type = TOKEN_MINUS_EQ;
+	else if(this.match('-')) type = TOKEN_DECREMENT;
+	
+	return type;
+}
+
+function Lexer.plus(): int {
+	var type = TOKEN_PLUS;
+
+	if(this.match('=')) type = TOKEN_PLUS_EQ;
+	else if(this.match('+')) type = TOKEN_INCREMENT;
+	
+	return type;
+}
+
 function Lexer.next(): Token* {
 	this.skip_whitespace();
 
@@ -226,9 +244,9 @@ function Lexer.next(): Token* {
 	if(c == '.') return this.make_token(TOKEN_DOT);
 	if(c == '?') return this.make_token(TOKEN_QUESTION);
 	if(c == '~') return this.make_token(TOKEN_TILDE);
-	if(c == '-') return this.make_token(this.match('=') ? TOKEN_MINUS_EQ : TOKEN_MINUS);
+	if(c == '-') return this.make_token(this.minus());
 	if(c == '!') return this.make_token(this.match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);
-	if(c == '+') return this.make_token(this.match('=') ? TOKEN_PLUS_EQ : TOKEN_PLUS);
+	if(c == '+') return this.make_token(this.plus());
 	if(c == '*') return this.make_token(this.match('=') ? TOKEN_STAR_EQ : TOKEN_STAR);
 	if(c == '/') return this.make_token(this.match('=') ? TOKEN_SLASH_EQ : TOKEN_SLASH);
 	if(c == '%') return this.make_token(this.match('=') ? TOKEN_PERCENT_EQ : TOKEN_PERCENT);

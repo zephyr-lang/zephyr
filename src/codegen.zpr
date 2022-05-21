@@ -403,6 +403,42 @@ function generate_assign_rax(expr: Node*, out: File*) {
 	}
 }
 
+function generate_pre_increment(expr: Node*, out: File*) {
+	generate_lvalue_rax(expr.v.unary, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    mov rax, [rax]");
+	out.putsln("    add rax, 1");
+	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
+}
+
+function generate_pre_decrement(expr: Node*, out: File*) {
+	generate_lvalue_rax(expr.v.unary, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    mov rax, [rax]");
+	out.putsln("    sub rax, 1");
+	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
+}
+
+function generate_post_increment(expr: Node*, out: File*) {
+	generate_lvalue_rax(expr.v.unary, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    mov rax, [rax]");
+	out.putsln("    mov rdx, rax");
+	out.putsln("    add rax, 1");
+	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
+	out.putsln("   mov rax, rdx");
+}
+
+function generate_post_decrement(expr: Node*, out: File*) {
+	generate_lvalue_rax(expr.v.unary, out);
+	out.putsln("    mov rcx, rax");
+	out.putsln("    mov rax, [rax]");
+	out.putsln("    mov rdx, rax");
+	out.putsln("    sub rax, 1");
+	out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
+	out.putsln("   mov rax, rdx");
+}
+
 function generate_expr_rax(expr: Node*, out: File*) {
 	if(is_unary_op(expr.type)) {
 		generate_unary_rax(expr, out);
@@ -451,6 +487,18 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	}
 	else if(expr.type == AST_RELATIVE) {
 		out.putsln("    mov rax, [rax]");
+	}
+	else if(expr.type == OP_PRE_INCREMENT) {
+		generate_pre_increment(expr, out);
+	}
+	else if(expr.type == OP_PRE_DECREMENT) {
+		generate_pre_decrement(expr, out);
+	}
+	else if(expr.type == OP_POST_INCREMENT) {
+		generate_post_increment(expr, out);
+	}
+	else if(expr.type == OP_POST_DECREMENT) {
+		generate_post_decrement(expr, out);
 	}
 	else {
 		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
