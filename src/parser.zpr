@@ -224,6 +224,14 @@ function Parser.parse_constant(): int {
 
 		return literal.start[1];
 	}
+	else if(this.match(TOKEN_IDENTIFIER)) {
+		var constant = this.lookup_constant(this.previous);
+		if(constant == null) {
+			this.error("Unknown compile-time constant");
+			return 0;
+		}
+		return constant.constant.value;
+	}
 	else {
 		this.error_current("Expected constant value");
 		return 0;
@@ -828,6 +836,55 @@ function Parser.parse_var_declaration(): Node* {
 	return variable;
 }
 
+function Parser.parse_when_statement(): Node* {
+	var vhenTok = this.previous;
+	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after when");
+
+	var match = this.parse_expression();
+
+	this.consume(TOKEN_RIGHT_PAREN, "Expected ')' after when match");
+
+	this.consume(TOKEN_LEFT_BRACE, "Expected '{' before when branches");
+
+	if(this.match(TOKEN_RIGHT_BRACE)) this.error("Expected at least one when branch");
+
+	var vhen = new_node(AST_WHEN, vhenTok);
+	vhen.vhen.match = match;
+	vhen.vhen.branches = new_vector();
+
+	while(!this.check(TOKEN_RIGHT_BRACE)) {
+		if(this.match(TOKEN_ELSE)) {
+			this.consume(TOKEN_ARROW, "Expected '->' after else");
+			vhen.vhen.default = this.parse_statement();
+			break;
+		}
+
+		var branch = new_node(AST_BRANCH, this.current);
+		branch.branch.values = new_vector();
+
+		var value = this.parse_constant();
+		branch.branch.values.push(value as any*);
+
+		while(this.match(TOKEN_COMMA)) {
+			var value = this.parse_constant();
+			branch.branch.values.push(value as any*);
+		}
+
+		var arrow = this.consume(TOKEN_ARROW, "Expected '->' after branch value");
+
+		branch.position = arrow;
+
+		var body = this.parse_statement();
+		branch.branch.body = body;
+
+		vhen.vhen.branches.push(branch);
+	}
+
+	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after when branches");
+
+	return vhen;
+}
+
 function Parser.parse_statement(): Node* {
 	if(this.match(TOKEN_BREAK)) {
 		var pos = this.previous;
@@ -852,6 +909,9 @@ function Parser.parse_statement(): Node* {
 	}
 	else if(this.match(TOKEN_VAR)) {
 		return this.parse_var_declaration();
+	}
+	else if(this.match(TOKEN_WHEN)) {
+		return this.parse_when_statement();
 	}
 	else if(this.match(TOKEN_WHILE)) {
 		return this.parse_while_statement();

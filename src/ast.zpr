@@ -51,6 +51,8 @@ enum NodeType {
 	AST_IF,
 	AST_WHILE,
 	AST_FOR,
+	AST_WHEN,
+	AST_BRANCH,
 	AST_CAST,
 	AST_STRUCT,
 	AST_UNION,
@@ -199,20 +201,33 @@ struct Node {
 			rhs: Node*;
 			op: Token*;
 		};
+
+		vhen: struct {
+			match: Node*;
+			branches: Vector*;
+			default: Node*;
+		};
+
+		branch: struct {
+			values: Vector*;
+			body: Node*;
+		};
 	};
 }
 
 function data_type_to_string(type: int): i8* {
-	if(type == DATA_TYPE_VOID) return "void";
-	if(type == DATA_TYPE_INT) return "int";
-	if(type == DATA_TYPE_I8) return "i8";
-	if(type == DATA_TYPE_I16) return "i16";
-	if(type == DATA_TYPE_I32) return "i32";
-	if(type == DATA_TYPE_I64) return "i64";
-	if(type == DATA_TYPE_ANY) return "any";
-	if(type == DATA_TYPE_UNRESOLVED || type == DATA_TYPE_STRUCT || type == DATA_TYPE_UNION) {
-		eputsln("Unreachable - data_type_to_string");
-		return null;
+	when(type) {
+		DATA_TYPE_VOID -> return "void";
+		DATA_TYPE_INT -> return "int";
+		DATA_TYPE_I8 -> return "i8";
+		DATA_TYPE_I16 -> return "i16";
+		DATA_TYPE_I32 -> return "i32";
+		DATA_TYPE_I64 -> return "i64";
+		DATA_TYPE_ANY -> return "any";
+		DATA_TYPE_UNRESOLVED, DATA_TYPE_STRUCT, DATA_TYPE_UNION -> {
+			eputsln("Unreachable - data_type_to_string");
+			return null;
+		}
 	}
 
 	return "<unknown type>";
@@ -290,6 +305,8 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_IF) return "if";
 	if(type == AST_WHILE) return "while";
 	if(type == AST_FOR) return "for";
+	if(type == AST_WHEN) return "when";
+	if(type == AST_BRANCH) return "branch";
 	if(type == AST_CAST) return "cast";
 	if(type == AST_STRUCT) return "struct";
 	if(type == AST_UNION) return "union";
@@ -570,6 +587,26 @@ function print_ast_depth(node: Node*, depth: int) {
 	else if(node.type == OP_POST_DECREMENT) {
 		putsln("post--");
 		print_ast_depth(node.unary, depth + 1);
+	}
+	else if(node.type == AST_WHEN) {
+		putsln("when");
+		print_ast_depth(node.vhen.match, depth + 1);
+		for(var i = 0; i < node.vhen.branches.size; i = i + 1) {
+			print_ast_depth(node.vhen.branches.at(i), depth + 1);
+		}
+		if(node.vhen.default != null) {
+			for(var i = 0; i < depth; ++i) puts("  ");
+			putsln("else");
+			print_ast_depth(node.vhen.default, depth + 1);
+		}
+	}
+	else if(node.type == AST_BRANCH) {
+		for(var i = 0; i < node.branch.values.size; ++i) {
+			putd(node.branch.values.at(i) as int);
+			if(i != node.branch.values.size - 1) putsln(", ");
+			else putln();
+		}
+		print_ast_depth(node.branch.body, depth + 1);
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

@@ -871,6 +871,38 @@ function Parser.type_check_for_statement(stmt: Node*) {
 	tc_checkingLoop = wasCheckingLoop;
 }
 
+function Parser.type_check_when_statement(stmt: Node*) {
+	this.type_check_expr(stmt.vhen.match);
+	var match: Type* = tc_typeStack.pop();
+	resolve_type(match);
+
+	if(!match.assignable(INT_TYPE)) {
+		stmt.vhen.match.print_position();
+		eputsln("Expected when match clause to be type 'int'");
+		exit(1);
+	}
+
+	var hasReturned = true;
+	for(var i = 0; i < stmt.vhen.branches.size; ++i) {
+		var branch: Node* = stmt.vhen.branches.at(i);
+
+		// branch.branch.values are guaranteed to be an integer as they are a constant
+
+		this.type_check_statement(branch.branch.body);
+		hasReturned = hasReturned && this.currentBlock.block.hasReturned;
+	}
+
+	if(stmt.vhen.default != null) {
+		this.type_check_statement(stmt.vhen.default);
+		hasReturned = hasReturned && this.currentBlock.block.hasReturned;
+	}
+	else {
+		hasReturned = false;
+	}
+
+	this.currentBlock.block.hasReturned = hasReturned;
+}
+
 function Parser.type_check_statement(stmt: Node*) {
 	if(stmt.type == AST_IF) {
 		this.type_check_if_statement(stmt);
@@ -880,6 +912,9 @@ function Parser.type_check_statement(stmt: Node*) {
 	}
 	else if(stmt.type == AST_FOR) {
 		this.type_check_for_statement(stmt);
+	}
+	else if(stmt.type == AST_WHEN) {
+		this.type_check_when_statement(stmt);
 	}
 	else if(stmt.type == AST_RETURN) {
 		var returnType: Type*;

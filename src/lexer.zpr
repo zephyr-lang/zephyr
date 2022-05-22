@@ -107,6 +107,7 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("union")) return TOKEN_UNION;
 	if(this.match_keyword("var")) return TOKEN_VAR;
 	if(this.match_keyword("void")) return TOKEN_VOID;
+	if(this.match_keyword("when")) return TOKEN_WHEN;
 	if(this.match_keyword("while")) return TOKEN_WHILE;
 	return TOKEN_IDENTIFIER;
 }
@@ -119,7 +120,7 @@ function Lexer.skip_whitespace() {
 			this.advance();
 		}
 		else if(c == 10) {
-			this.line = this.line + 1;
+			this.line++;
 			this.advance();
 		}
 		else if(c == '/') {
@@ -216,6 +217,7 @@ function Lexer.minus(): int {
 
 	if(this.match('=')) type = TOKEN_MINUS_EQ;
 	else if(this.match('-')) type = TOKEN_DECREMENT;
+	else if(this.match('>')) type = TOKEN_ARROW;
 	
 	return type;
 }
@@ -244,30 +246,32 @@ function Lexer.next(): Token* {
 	if(c == 39) return this.character();
 	if(c == '"') return this.string();
 
-	if(c == '(') return this.make_token(TOKEN_LEFT_PAREN);
-	if(c == ')') return this.make_token(TOKEN_RIGHT_PAREN);
-	if(c == '{') return this.make_token(TOKEN_LEFT_BRACE);
-	if(c == '}') return this.make_token(TOKEN_RIGHT_BRACE);
-	if(c == '[') return this.make_token(TOKEN_LEFT_SQBR);
-	if(c == ']') return this.make_token(TOKEN_RIGHT_SQBR);
-	if(c == ':') return this.make_token(TOKEN_COLON);
-	if(c == ';') return this.make_token(TOKEN_SEMICOLON);
-	if(c == ',') return this.make_token(TOKEN_COMMA);
-	if(c == '.') return this.make_token(TOKEN_DOT);
-	if(c == '?') return this.make_token(TOKEN_QUESTION);
-	if(c == '~') return this.make_token(TOKEN_TILDE);
-	if(c == '-') return this.make_token(this.minus());
-	if(c == '!') return this.make_token(this.match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);
-	if(c == '+') return this.make_token(this.plus());
-	if(c == '*') return this.make_token(this.match('=') ? TOKEN_STAR_EQ : TOKEN_STAR);
-	if(c == '/') return this.make_token(this.match('=') ? TOKEN_SLASH_EQ : TOKEN_SLASH);
-	if(c == '%') return this.make_token(this.match('=') ? TOKEN_PERCENT_EQ : TOKEN_PERCENT);
-	if(c == '&') return this.make_token(this.amp());
-	if(c == '|') return this.make_token(this.bar());
-	if(c == '^') return this.make_token(this.match('=') ? TOKEN_XOR_EQ : TOKEN_XOR);
-	if(c == '<') return this.make_token(this.less_than());
-	if(c == '>') return this.make_token(this.greater_than());
-	if(c == '=') return this.make_token(this.match('=') ? TOKEN_EQEQ : TOKEN_EQ);
+	when(c) {
+		'(' -> return this.make_token(TOKEN_LEFT_PAREN);
+		')' -> return this.make_token(TOKEN_RIGHT_PAREN);
+		'{' -> return this.make_token(TOKEN_LEFT_BRACE);
+		'}' -> return this.make_token(TOKEN_RIGHT_BRACE);
+		'[' -> return this.make_token(TOKEN_LEFT_SQBR);
+		']' -> return this.make_token(TOKEN_RIGHT_SQBR);
+		':' -> return this.make_token(TOKEN_COLON);
+		';' -> return this.make_token(TOKEN_SEMICOLON);
+		',' -> return this.make_token(TOKEN_COMMA);
+		'.' -> return this.make_token(TOKEN_DOT);
+		'?' -> return this.make_token(TOKEN_QUESTION);
+		'~' -> return this.make_token(TOKEN_TILDE);
+		'-' -> return this.make_token(this.minus());
+		'!' -> return this.make_token(this.match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);
+		'+' -> return this.make_token(this.plus());
+		'*' -> return this.make_token(this.match('=') ? TOKEN_STAR_EQ : TOKEN_STAR);
+		'/' -> return this.make_token(this.match('=') ? TOKEN_SLASH_EQ : TOKEN_SLASH);
+		'%' -> return this.make_token(this.match('=') ? TOKEN_PERCENT_EQ : TOKEN_PERCENT);
+		'&' -> return this.make_token(this.amp());
+		'|' -> return this.make_token(this.bar());
+		'^' -> return this.make_token(this.match('=') ? TOKEN_XOR_EQ : TOKEN_XOR);
+		'<' -> return this.make_token(this.less_than());
+		'>' -> return this.make_token(this.greater_than());
+		'=' -> return this.make_token(this.match('=') ? TOKEN_EQEQ : TOKEN_EQ);
+	}
 
 	return this.error_token("Unexpected character");
 }
