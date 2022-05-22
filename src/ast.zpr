@@ -216,16 +216,18 @@ struct Node {
 }
 
 function data_type_to_string(type: int): i8* {
-	if(type == DATA_TYPE_VOID) return "void";
-	if(type == DATA_TYPE_INT) return "int";
-	if(type == DATA_TYPE_I8) return "i8";
-	if(type == DATA_TYPE_I16) return "i16";
-	if(type == DATA_TYPE_I32) return "i32";
-	if(type == DATA_TYPE_I64) return "i64";
-	if(type == DATA_TYPE_ANY) return "any";
-	if(type == DATA_TYPE_UNRESOLVED || type == DATA_TYPE_STRUCT || type == DATA_TYPE_UNION) {
-		eputsln("Unreachable - data_type_to_string");
-		return null;
+	when(type) {
+		DATA_TYPE_VOID -> return "void";
+		DATA_TYPE_INT -> return "int";
+		DATA_TYPE_I8 -> return "i8";
+		DATA_TYPE_I16 -> return "i16";
+		DATA_TYPE_I32 -> return "i32";
+		DATA_TYPE_I64 -> return "i64";
+		DATA_TYPE_ANY -> return "any";
+		DATA_TYPE_UNRESOLVED, DATA_TYPE_STRUCT, DATA_TYPE_UNION -> {
+			eputsln("Unreachable - data_type_to_string");
+			return null;
+		}
 	}
 
 	return "<unknown type>";

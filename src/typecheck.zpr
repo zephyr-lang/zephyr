@@ -882,17 +882,25 @@ function Parser.type_check_when_statement(stmt: Node*) {
 		exit(1);
 	}
 
+	var hasReturned = true;
 	for(var i = 0; i < stmt.vhen.branches.size; ++i) {
 		var branch: Node* = stmt.vhen.branches.at(i);
 
 		// branch.branch.values are guaranteed to be an integer as they are a constant
 
 		this.type_check_statement(branch.branch.body);
+		hasReturned = hasReturned && this.currentBlock.block.hasReturned;
 	}
 
 	if(stmt.vhen.default != null) {
 		this.type_check_statement(stmt.vhen.default);
+		hasReturned = hasReturned && this.currentBlock.block.hasReturned;
 	}
+	else {
+		hasReturned = false;
+	}
+
+	this.currentBlock.block.hasReturned = hasReturned;
 }
 
 function Parser.type_check_statement(stmt: Node*) {

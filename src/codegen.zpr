@@ -10,20 +10,24 @@ var cg_continueLabel = 0;
 var cg_breakLabel = 0;
 
 function Type.qualifier(): i8* {
-	if(this.size() == 1) return "BYTE";
-	if(this.size() == 2) return "WORD";
-	if(this.size() == 4) return "DWORD";
-	if(this.size() == 8) return "QWORD";
+	when(this.size()) {
+		1 -> return "BYTE";
+		2 -> return "WORD";
+		4 -> return "DWORD";
+		8 -> return "QWORD";
+	}
 
 	// Structs are interpreted as pointers which are 8 bytes
 	return "QWORD";
 }
 
 function Type.rax_subregister(): i8* {
-	if(this.size() == 1) return "al";
-	if(this.size() == 2) return "ax";
-	if(this.size() == 4) return "eax";
-	if(this.size() == 8) return "rax";
+	when(this.size()) {
+		1 -> return "al";
+		2 -> return "ax";
+		4 -> return "eax";
+		8 -> return "rax";
+	}
 
 	// Structs are interpreted as pointers which are 8 bytes
 	return "rax";
@@ -42,22 +46,26 @@ function Type.movzx_rax_subregister(): i8* {
 }
 
 function Type.reserve(): i8* {
-	if(this.size() == 1) return "resb";
-	if(this.size() == 2) return "resw";
-	if(this.size() == 4) return "resd";
-	if(this.size() == 8) return "resq";
+	when(this.size()) {
+		1 -> return "resb";
+		2 -> return "resw";
+		4 -> return "resd";
+		8 -> return "resq";
+	}
 
 	// Structs are interpreted as pointers which are 8 bytes
 	return "resq";
 }
 
 function cmp_suffix(type: int): i8* {
-	if(type == OP_EQUAL) return "e";
-	if(type == OP_NOT_EQUAL) return "ne";
-	if(type == OP_LESS) return "l";
-	if(type == OP_LESS_EQ) return "le";
-	if(type == OP_GREATER) return "g";
-	if(type == OP_GREATER_EQ) return "ge";
+	when(type) {
+		OP_EQUAL -> return "e";
+		OP_NOT_EQUAL -> return "ne";
+		OP_LESS -> return "l";
+		OP_LESS_EQ -> return "le";
+		OP_GREATER -> return "g";
+		OP_GREATER_EQ -> return "ge";
+	}
 
 	eputs("Unsupported type in generate_unary_rax - "); eputs(node_type_to_string(type)); eputln();
 	exit(1);
@@ -65,29 +73,31 @@ function cmp_suffix(type: int): i8* {
 }
 
 function generate_addrof_rax(expr: Node*, out: File*) {
-	if(expr.unary.lvalue == LVALUE_LOCAL) {
-		out.puts("    lea rax, [rbp-"); out.putd(expr.unary.variable.stackOffset); out.putsln("]");
-	}
-	else if(expr.unary.lvalue == LVALUE_GLOBAL) {
-		out.puts("    lea rax, [_g_"); out.put_token_string(expr.unary.variable.name); out.putsln("]");
-	}
-	else if(expr.unary.lvalue == LVALUE_SUBSCRIPT) {
-		generate_expr_rax(expr.unary.binary.lhs, out);
-		out.putsln("    push rax");
-		generate_expr_rax(expr.unary.binary.rhs, out);
-		out.putsln("    mov rcx, rax");
-		out.putsln("    pop rax");
+	when(expr.unary.lvalue) {
+		LVALUE_LOCAL -> {
+			out.puts("    lea rax, [rbp-"); out.putd(expr.unary.variable.stackOffset); out.putsln("]");
+		}
+		LVALUE_GLOBAL -> {
+			out.puts("    lea rax, [_g_"); out.put_token_string(expr.unary.variable.name); out.putsln("]");
+		}
+		LVALUE_SUBSCRIPT -> {
+			generate_expr_rax(expr.unary.binary.lhs, out);
+			out.putsln("    push rax");
+			generate_expr_rax(expr.unary.binary.rhs, out);
+			out.putsln("    mov rcx, rax");
+			out.putsln("    pop rax");
 
-		out.puts("    lea rax, [rax+rcx*"); out.putd(expr.unary.computedType.size()); out.putsln("]");
-	}
-	else if(expr.unary.lvalue == LVALUE_MEMBER) {
-		generate_expr_rax(expr.unary.member.parent, out);
-		var field = expr.unary.member.memberRef;
-		out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
-	}
-	else {
-		eputs("Unsupported lvalue in generate_addrof_rax - "); eputd(expr.unary.lvalue); eputln();
-		exit(1);
+			out.puts("    lea rax, [rax+rcx*"); out.putd(expr.unary.computedType.size()); out.putsln("]");
+		}
+		LVALUE_MEMBER -> {
+			generate_expr_rax(expr.unary.member.parent, out);
+			var field = expr.unary.member.memberRef;
+			out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
+		}
+		else -> {
+			eputs("Unsupported lvalue in generate_addrof_rax - "); eputd(expr.unary.lvalue); eputln();
+			exit(1);
+		}
 	}
 }
 
@@ -104,29 +114,31 @@ function generate_deref_rax(expr: Node*, out: File*) {
 }
 
 function generate_unary_rax(expr: Node*, out: File*) {
-	if(expr.type == OP_BWNOT) {
-		generate_expr_rax(expr.unary, out);
-		out.putsln("    not rax");
-	}
-	else if(expr.type == OP_NEG) {
-		generate_expr_rax(expr.unary, out);
-		out.putsln("    neg rax");
-	}
-	else if(expr.type == OP_NOT) {
-		generate_expr_rax(expr.unary, out);
-		out.putsln("    test rax, rax");
-		out.putsln("    sete al");
-		out.putsln("    movzx rax, al");
-	}
-	else if(expr.type == OP_ADDROF) {
-		generate_addrof_rax(expr, out);
-	}
-	else if(expr.type == OP_DEREF) {
-		generate_deref_rax(expr, out);
-	}
-	else {
-		eputs("Unsupported type in generate_unary_rax - "); eputs(node_type_to_string(expr.type)); eputln();
-		exit(1);
+	when(expr.type) {
+		OP_BWNOT -> {
+			generate_expr_rax(expr.unary, out);
+			out.putsln("    not rax");
+		}
+		OP_NEG -> {
+			generate_expr_rax(expr.unary, out);
+			out.putsln("    neg rax");
+		}
+		OP_NOT -> {
+			generate_expr_rax(expr.unary, out);
+			out.putsln("    test rax, rax");
+			out.putsln("    sete al");
+			out.putsln("    movzx rax, al");
+		}
+		OP_ADDROF -> {
+			generate_addrof_rax(expr, out);
+		}
+		OP_DEREF -> {
+			generate_deref_rax(expr, out);
+		}
+		else -> {
+			eputs("Unsupported type in generate_unary_rax - "); eputs(node_type_to_string(expr.type)); eputln();
+			exit(1);
+		}
 	}
 }
 
@@ -172,47 +184,49 @@ function generate_binary_rax(expr: Node*, out: File*) {
 	out.putsln("    mov rcx, rax");
 	out.putsln("    pop rax");
 
-	if(expr.type == OP_ADD) {
-		out.putsln("    add rax, rcx");
-	}
-	else if(expr.type == OP_SUB) {
-		out.putsln("    sub rax, rcx");
-	}
-	else if(expr.type == OP_MUL) {
-		out.putsln("    imul rax, rcx");
-	}
-	else if(expr.type == OP_DIV) {
-		out.putsln("    cqo");
-		out.putsln("    idiv rcx");
-	}
-	else if(expr.type == OP_MOD) {
-		out.putsln("    cqo");
-		out.putsln("    idiv rcx");
-		out.putsln("    mov rax, rdx");
-	}
-	else if(expr.type == OP_BWAND) {
-		out.putsln("    and rax, rcx");
-	}
-	else if(expr.type == OP_BWOR) {
-		out.putsln("    or rax, rcx");
-	}
-	else if(expr.type == OP_XOR) {
-		out.putsln("    xor rax, rcx");
-	}
-	else if(expr.type == OP_LSH) {
-		out.putsln("    sal rax, cl");
-	}
-	else if(expr.type == OP_RSH) {
-		out.putsln("    sar rax, cl");
-	}
-	else if(expr.type == OP_EQUAL || expr.type == OP_NOT_EQUAL || expr.type == OP_LESS || expr.type == OP_LESS_EQ || expr.type == OP_GREATER || expr.type == OP_GREATER_EQ) {
-		out.putsln("    cmp rax, rcx");
-		out.puts("    set"); out.puts(cmp_suffix(expr.type)); out.putsln(" al");
-		out.putsln("    movzx rax, al");
-	}
-	else {
-		eputs("Unsupported type in generate_binary_rax - "); eputs(node_type_to_string(expr.type)); eputln();
-		exit(1);
+	when(expr.type) {
+		OP_ADD -> {
+			out.putsln("    add rax, rcx");
+		}
+		OP_SUB -> {
+			out.putsln("    sub rax, rcx");
+		}
+		OP_MUL -> {
+			out.putsln("    imul rax, rcx");
+		}
+		OP_DIV -> {
+			out.putsln("    cqo");
+			out.putsln("    idiv rcx");
+		}
+		OP_MOD -> {
+			out.putsln("    cqo");
+			out.putsln("    idiv rcx");
+			out.putsln("    mov rax, rdx");
+		}
+		OP_BWAND -> {
+			out.putsln("    and rax, rcx");
+		}
+		OP_BWOR -> {
+			out.putsln("    or rax, rcx");
+		}
+		OP_XOR -> {
+			out.putsln("    xor rax, rcx");
+		}
+		OP_LSH -> {
+			out.putsln("    sal rax, cl");
+		}
+		OP_RSH -> {
+			out.putsln("    sar rax, cl");
+		}
+		OP_EQUAL, OP_NOT_EQUAL, OP_LESS, OP_LESS_EQ, OP_GREATER, OP_GREATER_EQ -> {
+			out.putsln("    cmp rax, rcx");
+			out.puts("    set"); out.puts(cmp_suffix(expr.type)); out.putsln(" al");
+			out.putsln("    movzx rax, al");
+		}
+		else -> {
+			eputs("Unsupported type in generate_binary_rax - "); eputs(node_type_to_string(expr.type)); eputln();
+			exit(1);
+		}
 	}
 }
 
@@ -355,34 +369,36 @@ function generate_copy(fields: Vector*, parentOffset: int, out: File*) {
 }
 
 function generate_lvalue_rax(expr: Node*, out: File*) {
-	if(expr.lvalue == LVALUE_LOCAL) {
-		out.puts("    lea rax, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
-	}
-	else if(expr.lvalue == LVALUE_GLOBAL) {
-		out.puts("    lea rax, [_g_"); out.put_token_string(expr.variable.name); out.putsln("]");
-	}
-	else if(expr.lvalue == LVALUE_SUBSCRIPT) {
-		generate_expr_rax(expr.binary.lhs, out);
-		out.putsln("    push rax");
-		generate_expr_rax(expr.binary.rhs, out);
-		out.putsln("    mov rcx, rax");
-		out.putsln("    pop rax");
+	when(expr.lvalue) {
+		LVALUE_LOCAL -> {
+			out.puts("    lea rax, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
+		}
+		LVALUE_GLOBAL -> {
+			out.puts("    lea rax, [_g_"); out.put_token_string(expr.variable.name); out.putsln("]");
+		}
+		LVALUE_SUBSCRIPT -> {
+			generate_expr_rax(expr.binary.lhs, out);
+			out.putsln("    push rax");
+			generate_expr_rax(expr.binary.rhs, out);
+			out.putsln("    mov rcx, rax");
+			out.putsln("    pop rax");
 
-		out.puts("    lea rax, [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
-	}
-	else if(expr.lvalue == LVALUE_DEREF) {
-		generate_expr_rax(expr.unary, out);
-	}
-	else if(expr.lvalue == LVALUE_MEMBER) {
-		generate_expr_rax(expr.member.parent, out);
-		var field = expr.member.memberRef;
-		
-		out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
-	}
-	else {
-		eputsln("Unreachable - unknown lvalue in generate_lvalue_rax");
-		eputd(expr.lvalue); eputln();
-		exit(1);
+			out.puts("    lea rax, [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+		}
+		LVALUE_DEREF -> {
+			generate_expr_rax(expr.unary, out);
+		}
+		LVALUE_MEMBER -> {
+			generate_expr_rax(expr.member.parent, out);
+			var field = expr.member.memberRef;
+			
+			out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
+		}
+		else -> {
+			eputsln("Unreachable - unknown lvalue in generate_lvalue_rax");
+			eputd(expr.lvalue); eputln();
+			exit(1);
+		}
 	}
 }
 
@@ -442,67 +458,71 @@ function generate_post_decrement(expr: Node*, out: File*) {
 function generate_expr_rax(expr: Node*, out: File*) {
 	if(is_unary_op(expr.type)) {
 		generate_unary_rax(expr, out);
+		return;
 	}
 	else if(is_binary_op(expr.type)) {
 		generate_binary_rax(expr, out);
+		return;
 	}
-	else if(expr.type == AST_INT_LITERAL) {
-		out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
-	}
-	else if(expr.type == AST_CHAR_LITERAL) {
-		out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
-	}
-	else if(expr.type == AST_STRING) {
-		out.puts("    lea rax, [_s"); out.putd(expr.literal.az.string.id); out.putsln("]");
-	}
-	else if(expr.type == AST_ACCESS_VAR) {
-		generate_access_var(expr, out);
-	}
-	else if(expr.type == AST_ACCESS_GLOBAL_VAR) {
-		generate_access_global_var(expr, out);
-	}
-	else if(expr.type == AST_CALL) {
-		generate_call_rax(expr, out);
-	}
-	else if(expr.type == AST_CALL_METHOD) {
-		generate_call_method_rax(expr, out);
-	}
-	else if(expr.type == OP_TERNARY) {
-		generate_ternary_rax(expr, out);
-	}
-	else if(expr.type == OP_SIZEOF) {
-		out.puts("    mov rax, "); out.putd(expr.computedType.size_offset()); out.putln();
-	}
-	else if(expr.type == OP_ACCESS_SUBSCRIPT) {
-		generate_access_subscript(expr, out);
-	}
-	else if(expr.type == AST_CAST) {
-		generate_expr_rax(expr.unary, out);
-	}
-	else if(expr.type == OP_ACCESS_MEMBER) {
-		generate_access_member(expr, out);
-	}
-	else if(expr.type == OP_ASSIGN) {
-		generate_assign_rax(expr, out);
-	}
-	else if(expr.type == AST_RELATIVE) {
-		out.putsln("    mov rax, [rax]");
-	}
-	else if(expr.type == OP_PRE_INCREMENT) {
-		generate_pre_increment(expr, out);
-	}
-	else if(expr.type == OP_PRE_DECREMENT) {
-		generate_pre_decrement(expr, out);
-	}
-	else if(expr.type == OP_POST_INCREMENT) {
-		generate_post_increment(expr, out);
-	}
-	else if(expr.type == OP_POST_DECREMENT) {
-		generate_post_decrement(expr, out);
-	}
-	else {
-		eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
-		exit(1);
+	when(expr.type) {
+		AST_INT_LITERAL -> {
+			out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
+		}
+		AST_CHAR_LITERAL -> {
+			out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
+		}
+		AST_STRING -> {
+			out.puts("    lea rax, [_s"); out.putd(expr.literal.az.string.id); out.putsln("]");
+		}
+		AST_ACCESS_VAR -> {
+			generate_access_var(expr, out);
+		}
+		AST_ACCESS_GLOBAL_VAR -> {
+			generate_access_global_var(expr, out);
+		}
+		AST_CALL -> {
+			generate_call_rax(expr, out);
+		}
+		AST_CALL_METHOD -> {
+			generate_call_method_rax(expr, out);
+		}
+		OP_TERNARY -> {
+			generate_ternary_rax(expr, out);
+		}
+		OP_SIZEOF -> {
+			out.puts("    mov rax, "); out.putd(expr.computedType.size_offset()); out.putln();
+		}
+		OP_ACCESS_SUBSCRIPT -> {
+			generate_access_subscript(expr, out);
+		}
+		AST_CAST -> {
+			generate_expr_rax(expr.unary, out);
+		}
+		OP_ACCESS_MEMBER -> {
+			generate_access_member(expr, out);
+		}
+		OP_ASSIGN -> {
+			generate_assign_rax(expr, out);
+		}
+		AST_RELATIVE -> {
+			out.putsln("    mov rax, [rax]");
+		}
+		OP_PRE_INCREMENT -> {
+			generate_pre_increment(expr, out);
+		}
+		OP_PRE_DECREMENT -> {
+			generate_pre_decrement(expr, out);
+		}
+		OP_POST_INCREMENT -> {
+			generate_post_increment(expr, out);
+		}
+		OP_POST_DECREMENT -> {
+			generate_post_decrement(expr, out);
+		}
+		else -> {
+			eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
+			exit(1);
+		}
 	}
 }
 
@@ -670,42 +690,44 @@ function generate_define_var(stmt: Node*, out: File*) {
 }
 
 function generate_statement(stmt: Node*, out: File*) {
-	if(stmt.type == AST_IF) {
-		generate_if_statement(stmt, out);
-	}
-	else if(stmt.type == AST_WHILE) {
-		generate_while_statement(stmt, out);
-	}
-	else if(stmt.type == AST_FOR) {
-		generate_for_statement(stmt, out);
-	}
-	else if(stmt.type == AST_WHEN) {
-		generate_when_statement(stmt, out);
-	}
-	else if(stmt.type == AST_RETURN) {
-		if(stmt.unary != null)
+	when(stmt.type) {
+		AST_IF -> {
+			generate_if_statement(stmt, out);
+		}
+		AST_WHILE -> {
+			generate_while_statement(stmt, out);
+		}
+		AST_FOR -> {
+			generate_for_statement(stmt, out);
+		}
+		AST_WHEN -> {
+			generate_when_statement(stmt, out);
+		}
+		AST_RETURN -> {
+			if(stmt.unary != null)
+				generate_expr_rax(stmt.unary, out);
+			out.putsln("    leave");
+			out.putsln("    ret");
+		}
+		AST_DEFINE_VAR -> {
+			generate_define_var(stmt, out);
+		}
+		AST_EXPR_STMT -> {
 			generate_expr_rax(stmt.unary, out);
-		out.putsln("    leave");
-		out.putsln("    ret");
-	}
-	else if(stmt.type == AST_DEFINE_VAR) {
-		generate_define_var(stmt, out);
-	}
-	else if(stmt.type == AST_EXPR_STMT) {
-		generate_expr_rax(stmt.unary, out);
-	}
-	else if(stmt.type == AST_BLOCK) {
-		generate_block(stmt, out);
-	}
-	else if(stmt.type == AST_CONTINUE) {
-		out.puts("    jmp .l"); out.putd(cg_continueLabel); out.putln();
-	}
-	else if(stmt.type == AST_BREAK) {
-		out.puts("    jmp .l"); out.putd(cg_breakLabel); out.putln();
-	}
-	else {
-		eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();
-		exit(1);
+		}
+		AST_BLOCK -> {
+			generate_block(stmt, out);
+		}
+		AST_CONTINUE -> {
+			out.puts("    jmp .l"); out.putd(cg_continueLabel); out.putln();
+		}
+		AST_BREAK -> {
+			out.puts("    jmp .l"); out.putd(cg_breakLabel); out.putln();
+		}
+		else -> {
+			eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();
+			exit(1);
+		}
 	}
 }
 
@@ -755,28 +777,24 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 	for(var i = 0; i < ast.block.children.size; ++i) {
 		var node: Node* = ast.block.children.at(i);
-		if(node.type == AST_FUNCTION) {
-			if(node.funktion.used)
-				generate_function(node, out);
-		}
-		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
-			// Handled below
-		}
-		else if(node.type == AST_DEFINE_CONST) {
-			// No code generated - expanded inline
-		}
-		else if(node.type == AST_ENUM) {
-			// No code generated
-		}
-		else if(node.type == AST_STRUCT) {
-			// No code generated
-		}
-		else if(node.type == AST_UNION) {
-			// No code generated
-		}
-		else {
-			eputs("Unsupported type in generate_program - "); eputs(node_type_to_string(node.type)); eputln();
-			exit(1);
+		when(node.type) {
+			AST_FUNCTION -> {
+				if(node.funktion.used)
+					generate_function(node, out);
+			}
+			AST_DEFINE_GLOBAL_VAR -> {
+				// Handled below
+			}
+			AST_DEFINE_CONST -> {
+				// No code generated - expanded inline
+			}
+			AST_ENUM, AST_STRUCT, AST_UNION -> {
+				// No code generated
+			}
+			else -> {
+				eputs("Unsupported type in generate_program - "); eputs(node_type_to_string(node.type)); eputln();
+				exit(1);
+			}
 		}
 	}
 
