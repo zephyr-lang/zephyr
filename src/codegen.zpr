@@ -65,28 +65,28 @@ function cmp_suffix(type: int): i8* {
 }
 
 function generate_addrof_rax(expr: Node*, out: File*) {
-	if(expr.v.unary.lvalue == LVALUE_LOCAL) {
-		out.puts("    lea rax, [rbp-"); out.putd(expr.v.unary.v.variable.stackOffset); out.putsln("]");
+	if(expr.unary.lvalue == LVALUE_LOCAL) {
+		out.puts("    lea rax, [rbp-"); out.putd(expr.unary.variable.stackOffset); out.putsln("]");
 	}
-	else if(expr.v.unary.lvalue == LVALUE_GLOBAL) {
-		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.unary.v.variable.name); out.putsln("]");
+	else if(expr.unary.lvalue == LVALUE_GLOBAL) {
+		out.puts("    lea rax, [_g_"); out.put_token_string(expr.unary.variable.name); out.putsln("]");
 	}
-	else if(expr.v.unary.lvalue == LVALUE_SUBSCRIPT) {
-		generate_expr_rax(expr.v.unary.v.binary.lhs, out);
+	else if(expr.unary.lvalue == LVALUE_SUBSCRIPT) {
+		generate_expr_rax(expr.unary.binary.lhs, out);
 		out.putsln("    push rax");
-		generate_expr_rax(expr.v.unary.v.binary.rhs, out);
+		generate_expr_rax(expr.unary.binary.rhs, out);
 		out.putsln("    mov rcx, rax");
 		out.putsln("    pop rax");
 
-		out.puts("    lea rax, [rax+rcx*"); out.putd(expr.v.unary.computedType.size()); out.putsln("]");
+		out.puts("    lea rax, [rax+rcx*"); out.putd(expr.unary.computedType.size()); out.putsln("]");
 	}
-	else if(expr.v.unary.lvalue == LVALUE_MEMBER) {
-		generate_expr_rax(expr.v.unary.v.member.parent, out);
-		var field = expr.v.unary.v.member.memberRef;
-		out.puts("    lea rax, [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	else if(expr.unary.lvalue == LVALUE_MEMBER) {
+		generate_expr_rax(expr.unary.member.parent, out);
+		var field = expr.unary.member.memberRef;
+		out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
 	}
 	else {
-		eputs("Unsupported lvalue in generate_addrof_rax - "); eputd(expr.v.unary.lvalue); eputln();
+		eputs("Unsupported lvalue in generate_addrof_rax - "); eputd(expr.unary.lvalue); eputln();
 		exit(1);
 	}
 }
@@ -97,7 +97,7 @@ function generate_deref_rax(expr: Node*, out: File*) {
 		return;
 	}
 
-	generate_expr_rax(expr.v.unary, out);
+	generate_expr_rax(expr.unary, out);
 
 	out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister()); out.puts(", ");
 	out.puts(expr.computedType.qualifier()); out.putsln(" [rax]");
@@ -105,15 +105,15 @@ function generate_deref_rax(expr: Node*, out: File*) {
 
 function generate_unary_rax(expr: Node*, out: File*) {
 	if(expr.type == OP_BWNOT) {
-		generate_expr_rax(expr.v.unary, out);
+		generate_expr_rax(expr.unary, out);
 		out.putsln("    not rax");
 	}
 	else if(expr.type == OP_NEG) {
-		generate_expr_rax(expr.v.unary, out);
+		generate_expr_rax(expr.unary, out);
 		out.putsln("    neg rax");
 	}
 	else if(expr.type == OP_NOT) {
-		generate_expr_rax(expr.v.unary, out);
+		generate_expr_rax(expr.unary, out);
 		out.putsln("    test rax, rax");
 		out.putsln("    sete al");
 		out.putsln("    movzx rax, al");
@@ -132,12 +132,12 @@ function generate_unary_rax(expr: Node*, out: File*) {
 
 function generate_logical_or_rax(expr: Node*, out: File*) {
 	var label = cg_lableCount = cg_lableCount + 1;
-	generate_expr_rax(expr.v.binary.lhs, out);
+	generate_expr_rax(expr.binary.lhs, out);
 	out.putsln("    mov rcx, rax");
 	out.putsln("    mov rax, 1");
 	out.putsln("    test rcx, rcx");
 	out.puts("    jne .l"); out.putd(label); out.putln();
-	generate_expr_rax(expr.v.binary.rhs, out);
+	generate_expr_rax(expr.binary.rhs, out);
 	out.putsln("    test rax, rax");
 	out.putsln("    setne al");
 	out.putsln("    movzx rax, al");
@@ -146,10 +146,10 @@ function generate_logical_or_rax(expr: Node*, out: File*) {
 
 function generate_logical_and_rax(expr: Node*, out: File*) {
 	var label = cg_lableCount = cg_lableCount + 1;
-	generate_expr_rax(expr.v.binary.lhs, out);
+	generate_expr_rax(expr.binary.lhs, out);
 	out.putsln("    test rax, rax");
 	out.puts("    je .l"); out.putd(label); out.putln();
-	generate_expr_rax(expr.v.binary.rhs, out);
+	generate_expr_rax(expr.binary.rhs, out);
 	out.putsln("    test rax, rax");
 	out.putsln("    setne al");
 	out.putsln("    movzx rax, al");
@@ -166,9 +166,9 @@ function generate_binary_rax(expr: Node*, out: File*) {
 		return;
 	}
 
-	generate_expr_rax(expr.v.binary.lhs, out);
+	generate_expr_rax(expr.binary.lhs, out);
 	out.putsln("    push rax");
-	generate_expr_rax(expr.v.binary.rhs, out);
+	generate_expr_rax(expr.binary.rhs, out);
 	out.putsln("    mov rcx, rax");
 	out.putsln("    pop rax");
 
@@ -223,21 +223,21 @@ function generate_call_rax(expr: Node*, out: File*) {
 
 	var localRegUse = 0;
 
-	for(var i = 0; i < min(expr.v.funktion.arguments.size, 6); ++i) {
-		generate_expr_rax(expr.v.funktion.arguments.at(i), out);
+	for(var i = 0; i < min(expr.funktion.arguments.size, 6); ++i) {
+		generate_expr_rax(expr.funktion.arguments.at(i), out);
 		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i]); out.putsln(", rax");
 		cg_registersInUse = cg_registersInUse + 1;
 		localRegUse = localRegUse + 1;
 	}
 
-	for(var i = 0; i < expr.v.funktion.arguments.size - 6; ++i) {
-		generate_expr_rax(expr.v.funktion.arguments.at(i + 6), out);
+	for(var i = 0; i < expr.funktion.arguments.size - 6; ++i) {
+		generate_expr_rax(expr.funktion.arguments.at(i + 6), out);
 		out.putsln("    push rax");
 	}
 
 	cg_registersInUse = cg_registersInUse - localRegUse;
 
-	out.puts("    call _f_"); out.put_token_string(expr.v.funktion.name); out.putln();
+	out.puts("    call _f_"); out.put_token_string(expr.funktion.name); out.putln();
 
 	for(var i = 0; i < cg_registersInUse; ++i) {
 		out.puts("    pop "); out.putsln(cg_ARG_REGISTERS[cg_registersInUse - i - 1]);
@@ -252,24 +252,24 @@ function generate_call_method_rax(expr: Node*, out: File*) {
 	var localRegUse = 1;
 	cg_registersInUse = cg_registersInUse + 1;
 	
-	generate_expr_rax(expr.v.funktion.parent, out);
+	generate_expr_rax(expr.funktion.parent, out);
 	out.putsln("    mov rdi, rax");
 
-	for(var i = 0; i < min(expr.v.funktion.arguments.size, 5); ++i) {
-		generate_expr_rax(expr.v.funktion.arguments.at(i), out);
+	for(var i = 0; i < min(expr.funktion.arguments.size, 5); ++i) {
+		generate_expr_rax(expr.funktion.arguments.at(i), out);
 		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i + 1]); out.putsln(", rax");
 		cg_registersInUse = cg_registersInUse + 1;
 		localRegUse = localRegUse + 1;
 	}
 
-	for(var i = 0; i < expr.v.funktion.arguments.size - 5; ++i) {
-		generate_expr_rax(expr.v.funktion.arguments.at(i + 5), out);
+	for(var i = 0; i < expr.funktion.arguments.size - 5; ++i) {
+		generate_expr_rax(expr.funktion.arguments.at(i + 5), out);
 		out.putsln("    push rax");
 	}
 
 	cg_registersInUse = cg_registersInUse - localRegUse;
 
-	out.puts("    call _m_"); out.put_token_string(expr.v.funktion.parentType.name); out.puts("_"); out.put_token_string(expr.v.funktion.name);
+	out.puts("    call _m_"); out.put_token_string(expr.funktion.parentType.name); out.puts("_"); out.put_token_string(expr.funktion.name);
 	out.putln();
 
 	for(var i = 0; i < cg_registersInUse; ++i) {
@@ -278,45 +278,45 @@ function generate_call_method_rax(expr: Node*, out: File*) {
 }
 
 function generate_ternary_rax(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.conditional.condition, out);
+	generate_expr_rax(expr.conditional.condition, out);
 	out.putsln("    test rax, rax");
 	var falseLabel = cg_lableCount = cg_lableCount + 1;
 	var endLabel = cg_lableCount = cg_lableCount + 1;
 
 	out.puts("    je .l"); out.putd(falseLabel); out.putln();
-	generate_expr_rax(expr.v.conditional.doTrue, out);
+	generate_expr_rax(expr.conditional.doTrue, out);
 	out.puts("    jmp .l"); out.putd(endLabel); out.putln();
 
 	out.puts(".l"); out.putd(falseLabel); out.putsln(":");
-	generate_expr_rax(expr.v.conditional.doFalse, out);
+	generate_expr_rax(expr.conditional.doFalse, out);
 
 	out.puts(".l"); out.putd(endLabel); out.putsln(":");
 }
 
 function generate_access_var(expr: Node*, out: File*) {
-	if(expr.v.variable.type.isArray || expr.v.variable.type.is_structural()) {
-		out.puts("    lea rax, [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+	if(expr.variable.type.isArray || expr.variable.type.is_structural()) {
+		out.puts("    lea rax, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
 		return;
 	}
 
-	out.puts("    "); out.puts(expr.v.variable.type.movzx()); out.puts(" "); out.puts(expr.v.variable.type.movzx_rax_subregister()); out.puts(", ");
-	out.puts(expr.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+	out.puts("    "); out.puts(expr.variable.type.movzx()); out.puts(" "); out.puts(expr.variable.type.movzx_rax_subregister()); out.puts(", ");
+	out.puts(expr.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
 }
 
 function generate_access_global_var(expr: Node*, out: File*) {
-	if(expr.v.variable.type.isArray || expr.v.variable.type.is_structural()) {
-		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
+	if(expr.variable.type.isArray || expr.variable.type.is_structural()) {
+		out.puts("    lea rax, [_g_"); out.put_token_string(expr.variable.name); out.putsln("]");
 		return;
 	}
 
-	out.puts("    "); out.puts(expr.v.variable.type.movzx()); out.puts(" "); out.puts(expr.v.variable.type.rax_subregister()); out.puts(", ");
-	out.puts(expr.v.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
+	out.puts("    "); out.puts(expr.variable.type.movzx()); out.puts(" "); out.puts(expr.variable.type.rax_subregister()); out.puts(", ");
+	out.puts(expr.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.variable.name); out.putsln("]");
 }
 
 function generate_access_subscript(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.binary.lhs, out);
+	generate_expr_rax(expr.binary.lhs, out);
 	out.putsln("    push rax");
-	generate_expr_rax(expr.v.binary.rhs, out);
+	generate_expr_rax(expr.binary.rhs, out);
 	out.putsln("    mov rcx, rax");
 	out.putsln("    pop rax");
 
@@ -325,15 +325,15 @@ function generate_access_subscript(expr: Node*, out: File*) {
 }
 
 function generate_access_member(expr: Node*, out: File*) {
-	generate_expr_rax(expr.v.member.parent, out);
-	var field = expr.v.member.memberRef;
+	generate_expr_rax(expr.member.parent, out);
+	var field = expr.member.memberRef;
 	
-	if(field.v.variable.type.is_structural()) {
-		out.puts("    lea rax, [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+	if(field.variable.type.is_structural()) {
+		out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
 	}
 	else {
-		out.puts("    "); out.puts(field.v.variable.type.movzx()); out.puts(" "); out.puts(field.v.variable.type.movzx_rax_subregister());
-		out.puts(", "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+		out.puts("    "); out.puts(field.variable.type.movzx()); out.puts(" "); out.puts(field.variable.type.movzx_rax_subregister());
+		out.puts(", "); out.puts(field.variable.type.qualifier()); out.puts(" [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
 	}
 }
 
@@ -341,43 +341,43 @@ function generate_copy(fields: Vector*, parentOffset: int, out: File*) {
 	for(var i = 0; i < fields.size; ++i) {
 		var field: Node* = fields.at(i);
 
-		if(field.v.variable.type.is_structural()) {
-			generate_copy(field.v.variable.type.fields, field.v.variable.stackOffset, out);
+		if(field.variable.type.is_structural()) {
+			generate_copy(field.variable.type.fields, field.variable.stackOffset, out);
 			continue;
 		}
 
-		out.puts("    mov rdx, "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rax+"); 
-		out.putd(field.v.variable.stackOffset + parentOffset); out.putsln("]");
+		out.puts("    mov rdx, "); out.puts(field.variable.type.qualifier()); out.puts(" [rax+"); 
+		out.putd(field.variable.stackOffset + parentOffset); out.putsln("]");
 
-		out.puts("    mov "); out.puts(field.v.variable.type.qualifier()); out.puts(" [rcx+"); 
-		out.putd(field.v.variable.stackOffset + parentOffset); out.putsln("], rdx");
+		out.puts("    mov "); out.puts(field.variable.type.qualifier()); out.puts(" [rcx+"); 
+		out.putd(field.variable.stackOffset + parentOffset); out.putsln("], rdx");
 	}
 }
 
 function generate_lvalue_rax(expr: Node*, out: File*) {
 	if(expr.lvalue == LVALUE_LOCAL) {
-		out.puts("    lea rax, [rbp-"); out.putd(expr.v.variable.stackOffset); out.putsln("]");
+		out.puts("    lea rax, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
 	}
 	else if(expr.lvalue == LVALUE_GLOBAL) {
-		out.puts("    lea rax, [_g_"); out.put_token_string(expr.v.variable.name); out.putsln("]");
+		out.puts("    lea rax, [_g_"); out.put_token_string(expr.variable.name); out.putsln("]");
 	}
 	else if(expr.lvalue == LVALUE_SUBSCRIPT) {
-		generate_expr_rax(expr.v.binary.lhs, out);
+		generate_expr_rax(expr.binary.lhs, out);
 		out.putsln("    push rax");
-		generate_expr_rax(expr.v.binary.rhs, out);
+		generate_expr_rax(expr.binary.rhs, out);
 		out.putsln("    mov rcx, rax");
 		out.putsln("    pop rax");
 
 		out.puts("    lea rax, [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
 	}
 	else if(expr.lvalue == LVALUE_DEREF) {
-		generate_expr_rax(expr.v.unary, out);
+		generate_expr_rax(expr.unary, out);
 	}
 	else if(expr.lvalue == LVALUE_MEMBER) {
-		generate_expr_rax(expr.v.member.parent, out);
-		var field = expr.v.member.memberRef;
+		generate_expr_rax(expr.member.parent, out);
+		var field = expr.member.memberRef;
 		
-		out.puts("    lea rax, [rax+"); out.putd(field.v.variable.stackOffset); out.putsln("]");
+		out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
 	}
 	else {
 		eputsln("Unreachable - unknown lvalue in generate_lvalue_rax");
@@ -387,12 +387,12 @@ function generate_lvalue_rax(expr: Node*, out: File*) {
 }
 
 function generate_assign_rax(expr: Node*, out: File*) {
-	generate_lvalue_rax(expr.v.assignment.lhs, out);
+	generate_lvalue_rax(expr.assignment.lhs, out);
 	out.putsln("    push rax");
-	if(expr.v.assignment.op.type != TOKEN_EQ) {
-		expr.v.assignment.rhs.v.binary.lhs.type = AST_RELATIVE;
+	if(expr.assignment.op.type != TOKEN_EQ) {
+		expr.assignment.rhs.binary.lhs.type = AST_RELATIVE;
 	}
-	generate_expr_rax(expr.v.assignment.rhs, out);
+	generate_expr_rax(expr.assignment.rhs, out);
 	out.putsln("    pop rcx");
 
 	if(expr.computedType.is_structural()) {
@@ -404,7 +404,7 @@ function generate_assign_rax(expr: Node*, out: File*) {
 }
 
 function generate_pre_increment(expr: Node*, out: File*) {
-	generate_lvalue_rax(expr.v.unary, out);
+	generate_lvalue_rax(expr.unary, out);
 	out.putsln("    mov rcx, rax");
 	out.putsln("    mov rax, [rax]");
 	out.putsln("    add rax, 1");
@@ -412,7 +412,7 @@ function generate_pre_increment(expr: Node*, out: File*) {
 }
 
 function generate_pre_decrement(expr: Node*, out: File*) {
-	generate_lvalue_rax(expr.v.unary, out);
+	generate_lvalue_rax(expr.unary, out);
 	out.putsln("    mov rcx, rax");
 	out.putsln("    mov rax, [rax]");
 	out.putsln("    sub rax, 1");
@@ -420,7 +420,7 @@ function generate_pre_decrement(expr: Node*, out: File*) {
 }
 
 function generate_post_increment(expr: Node*, out: File*) {
-	generate_lvalue_rax(expr.v.unary, out);
+	generate_lvalue_rax(expr.unary, out);
 	out.putsln("    mov rcx, rax");
 	out.putsln("    mov rax, [rax]");
 	out.putsln("    mov rdx, rax");
@@ -430,7 +430,7 @@ function generate_post_increment(expr: Node*, out: File*) {
 }
 
 function generate_post_decrement(expr: Node*, out: File*) {
-	generate_lvalue_rax(expr.v.unary, out);
+	generate_lvalue_rax(expr.unary, out);
 	out.putsln("    mov rcx, rax");
 	out.putsln("    mov rax, [rax]");
 	out.putsln("    mov rdx, rax");
@@ -447,13 +447,13 @@ function generate_expr_rax(expr: Node*, out: File*) {
 		generate_binary_rax(expr, out);
 	}
 	else if(expr.type == AST_INT_LITERAL) {
-		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
+		out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
 	}
 	else if(expr.type == AST_CHAR_LITERAL) {
-		out.puts("    mov rax, "); out.putd(expr.v.literal.az.integer); out.putln();
+		out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
 	}
 	else if(expr.type == AST_STRING) {
-		out.puts("    lea rax, [_s"); out.putd(expr.v.literal.az.string.id); out.putsln("]");
+		out.puts("    lea rax, [_s"); out.putd(expr.literal.az.string.id); out.putsln("]");
 	}
 	else if(expr.type == AST_ACCESS_VAR) {
 		generate_access_var(expr, out);
@@ -477,7 +477,7 @@ function generate_expr_rax(expr: Node*, out: File*) {
 		generate_access_subscript(expr, out);
 	}
 	else if(expr.type == AST_CAST) {
-		generate_expr_rax(expr.v.unary, out);
+		generate_expr_rax(expr.unary, out);
 	}
 	else if(expr.type == OP_ACCESS_MEMBER) {
 		generate_access_member(expr, out);
@@ -507,23 +507,23 @@ function generate_expr_rax(expr: Node*, out: File*) {
 }
 
 function generate_if_statement(ifStmt: Node*, out: File*) {
-	generate_expr_rax(ifStmt.v.conditional.condition, out);
+	generate_expr_rax(ifStmt.conditional.condition, out);
 	out.putsln("    test rax, rax");
 	var falseLabel = cg_lableCount = cg_lableCount + 1;
 	var endLabel = cg_lableCount = cg_lableCount + 1;
 
 	out.puts("    je .l"); out.putd(falseLabel); out.putln();
 
-	generate_statement(ifStmt.v.conditional.doTrue, out);
+	generate_statement(ifStmt.conditional.doTrue, out);
 
-	if(ifStmt.v.conditional.doFalse != null) {
+	if(ifStmt.conditional.doFalse != null) {
 		out.puts("    jmp .l"); out.putd(endLabel); out.putln();
 	}
 
 	out.puts(".l"); out.putd(falseLabel); out.putsln(":");
 
-	if(ifStmt.v.conditional.doFalse != null) {
-		generate_statement(ifStmt.v.conditional.doFalse, out);
+	if(ifStmt.conditional.doFalse != null) {
+		generate_statement(ifStmt.conditional.doFalse, out);
 		out.puts(".l"); out.putd(endLabel); out.putsln(":");
 	}
 }
@@ -541,10 +541,10 @@ function generate_while_statement(whileStmt: Node*, out: File*) {
 	out.puts("    jmp .l"); out.putd(condLabel); out.putln();
 	out.puts(".l"); out.putd(bodyLabel); out.putsln(":");
 
-	generate_statement(whileStmt.v.conditional.doTrue, out);
+	generate_statement(whileStmt.conditional.doTrue, out);
 
 	out.puts(".l"); out.putd(condLabel); out.putsln(":");
-	generate_expr_rax(whileStmt.v.conditional.condition, out);
+	generate_expr_rax(whileStmt.conditional.condition, out);
 	out.putsln("    test rax, rax");
 	out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
 
@@ -554,10 +554,10 @@ function generate_while_statement(whileStmt: Node*, out: File*) {
 }
 
 function generate_for_statement(forStmt: Node*, out: File*) {
-	if(forStmt.v.loop.initial != null)
-		generate_statement(forStmt.v.loop.initial, out);
+	if(forStmt.loop.initial != null)
+		generate_statement(forStmt.loop.initial, out);
 
-	var hasCondition = forStmt.v.loop.condition != null;
+	var hasCondition = forStmt.loop.condition != null;
 	var condLabel = cg_lableCount = cg_lableCount + 1;
 	var bodyLabel = cg_lableCount = cg_lableCount + 1;
 	var endLabel = cg_lableCount = cg_lableCount + 1;
@@ -568,7 +568,7 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 	cg_continueLabel = condLabel;
 	cg_breakLabel = endLabel;
 
-	if(forStmt.v.loop.iteration != null) {
+	if(forStmt.loop.iteration != null) {
 		iterationLabel = cg_lableCount = cg_lableCount + 1;
 		cg_continueLabel = iterationLabel;
 	}
@@ -579,16 +579,16 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 	
 	out.puts(".l"); out.putd(bodyLabel); out.putsln(":");
 
-	generate_statement(forStmt.v.loop.body, out);
+	generate_statement(forStmt.loop.body, out);
 
-	if(forStmt.v.loop.iteration != null) {
+	if(forStmt.loop.iteration != null) {
 		out.puts(".l"); out.putd(iterationLabel); out.putsln(":");
-		generate_expr_rax(forStmt.v.loop.iteration, out);
+		generate_expr_rax(forStmt.loop.iteration, out);
 	}
 
 	if(hasCondition) {
 		out.puts(".l"); out.putd(condLabel); out.putsln(":");
-		generate_expr_rax(forStmt.v.loop.condition, out);
+		generate_expr_rax(forStmt.loop.condition, out);
 		out.putsln("    test rax, rax");
 		out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
 	}
@@ -602,28 +602,28 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 }
 
 function generate_define_var(stmt: Node*, out: File*) {
-	if(stmt.v.variable.value != null) {
-		if(stmt.v.variable.value.type == AST_ARRAY_INIT) {
-			var array = stmt.v.variable.value;
-			var itemType = copy_type(stmt.v.variable.type);
+	if(stmt.variable.value != null) {
+		if(stmt.variable.value.type == AST_ARRAY_INIT) {
+			var array = stmt.variable.value;
+			var itemType = copy_type(stmt.variable.type);
 			itemType.indirection = itemType.indirection - 1;
-			for(var i = 0; i < array.v.block.children.size; ++i) {
-				generate_expr_rax(array.v.block.children.at(i), out);
-				out.puts("    mov "); out.puts(itemType.qualifier()); out.puts(" [rbp-"); out.putd(stmt.v.variable.stackOffset - (i * itemType.size()));
+			for(var i = 0; i < array.block.children.size; ++i) {
+				generate_expr_rax(array.block.children.at(i), out);
+				out.puts("    mov "); out.puts(itemType.qualifier()); out.puts(" [rbp-"); out.putd(stmt.variable.stackOffset - (i * itemType.size()));
 				out.puts("], "); out.putsln(itemType.rax_subregister());
 			}
 			return;
 		}
 
-		generate_expr_rax(stmt.v.variable.value, out);
+		generate_expr_rax(stmt.variable.value, out);
 
-		if(stmt.v.variable.type.is_structural()) {
-			out.puts("lea rcx, [rbp-"); out.putd(stmt.v.variable.stackOffset); out.putsln("]");
-			generate_copy(stmt.v.variable.type.fields, 0, out);
+		if(stmt.variable.type.is_structural()) {
+			out.puts("lea rcx, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
+			generate_copy(stmt.variable.type.fields, 0, out);
 		}
 		else {
-			out.puts("    mov "); out.puts(stmt.v.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.v.variable.stackOffset);
-			out.puts("], "); out.putsln(stmt.v.variable.type.rax_subregister());
+			out.puts("    mov "); out.puts(stmt.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.variable.stackOffset);
+			out.puts("], "); out.putsln(stmt.variable.type.rax_subregister());
 		}
 	}
 }
@@ -639,8 +639,8 @@ function generate_statement(stmt: Node*, out: File*) {
 		generate_for_statement(stmt, out);
 	}
 	else if(stmt.type == AST_RETURN) {
-		if(stmt.v.unary != null)
-			generate_expr_rax(stmt.v.unary, out);
+		if(stmt.unary != null)
+			generate_expr_rax(stmt.unary, out);
 		out.putsln("    leave");
 		out.putsln("    ret");
 	}
@@ -648,7 +648,7 @@ function generate_statement(stmt: Node*, out: File*) {
 		generate_define_var(stmt, out);
 	}
 	else if(stmt.type == AST_EXPR_STMT) {
-		generate_expr_rax(stmt.v.unary, out);
+		generate_expr_rax(stmt.unary, out);
 	}
 	else if(stmt.type == AST_BLOCK) {
 		generate_block(stmt, out);
@@ -666,42 +666,42 @@ function generate_statement(stmt: Node*, out: File*) {
 }
 
 function generate_block(block: Node*, out: File*) {
-	for(var i = 0; i < block.v.block.children.size; ++i) {
-		generate_statement(block.v.block.children.at(i), out);
+	for(var i = 0; i < block.block.children.size; ++i) {
+		generate_statement(block.block.children.at(i), out);
 	}
 }
 
 function generate_function(funktion: Node*, out: File*) {
-	if(!funktion.v.funktion.isMethod) {
-		out.puts("global _f_"); out.put_token_string(funktion.v.funktion.name); out.putln();
-		out.puts("_f_"); out.put_token_string(funktion.v.funktion.name); out.putsln(":");
+	if(!funktion.funktion.isMethod) {
+		out.puts("global _f_"); out.put_token_string(funktion.funktion.name); out.putln();
+		out.puts("_f_"); out.put_token_string(funktion.funktion.name); out.putsln(":");
 	}
 	else {
-		out.puts("global _m_"); out.put_token_string(funktion.v.funktion.parentType.name); 
-		out.puts("_"); out.put_token_string(funktion.v.funktion.name); out.putln();
+		out.puts("global _m_"); out.put_token_string(funktion.funktion.parentType.name); 
+		out.puts("_"); out.put_token_string(funktion.funktion.name); out.putln();
 
-		out.puts("_m_"); out.put_token_string(funktion.v.funktion.parentType.name);
-		out.puts("_"); out.put_token_string(funktion.v.funktion.name); out.putsln(":");
+		out.puts("_m_"); out.put_token_string(funktion.funktion.parentType.name);
+		out.puts("_"); out.put_token_string(funktion.funktion.name); out.putsln(":");
 	}
 
 	out.putsln("    push rbp");
 	out.putsln("    mov rbp, rsp");
 
-	var stackDepth = ceil_multiple(funktion.v.funktion.localVariableStackOffset, 16);
+	var stackDepth = ceil_multiple(funktion.funktion.localVariableStackOffset, 16);
 	if(stackDepth != 0) {
 		out.puts("    sub rsp, "); out.putd(stackDepth); out.putln();
 	}
 
-	for(var i = 0; i < min(funktion.v.funktion.arguments.size, 6); ++i) {
-		out.puts("    mov QWORD [rbp-"); out.putd((funktion.v.funktion.arguments.at(i) as Node*).v.variable.stackOffset); out.puts("], "); out.putsln(cg_ARG_REGISTERS[i]);
+	for(var i = 0; i < min(funktion.funktion.arguments.size, 6); ++i) {
+		out.puts("    mov QWORD [rbp-"); out.putd((funktion.funktion.arguments.at(i) as Node*).variable.stackOffset); out.puts("], "); out.putsln(cg_ARG_REGISTERS[i]);
 	}
 
-	for(var i = 0; i < funktion.v.funktion.arguments.size - 6; ++i) {
-		out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.v.funktion.arguments.size - 6 - i))); out.putsln("]");
-		out.puts("    mov QWORD [rbp-"); out.putd((funktion.v.funktion.arguments.at(i + 6) as Node*).v.variable.stackOffset); out.putsln("], rax");
+	for(var i = 0; i < funktion.funktion.arguments.size - 6; ++i) {
+		out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.funktion.arguments.size - 6 - i))); out.putsln("]");
+		out.puts("    mov QWORD [rbp-"); out.putd((funktion.funktion.arguments.at(i + 6) as Node*).variable.stackOffset); out.putsln("], rax");
 	}
 
-	generate_block(funktion.v.funktion.body, out);
+	generate_block(funktion.funktion.body, out);
 }
 
 function Parser.generate_program(ast: Node*, out: File*) {
@@ -709,10 +709,10 @@ function Parser.generate_program(ast: Node*, out: File*) {
 	
 	generate_builtin_functions(out);
 
-	for(var i = 0; i < ast.v.block.children.size; ++i) {
-		var node: Node* = ast.v.block.children.at(i);
+	for(var i = 0; i < ast.block.children.size; ++i) {
+		var node: Node* = ast.block.children.at(i);
 		if(node.type == AST_FUNCTION) {
-			if(node.v.funktion.used)
+			if(node.funktion.used)
 				generate_function(node, out);
 		}
 		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
@@ -743,31 +743,31 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 	for(var i = 0; i < this.globalVars.size; ++i) {
 		var variable: Node* = this.globalVars.at(i);
-		var type = variable.v.variable.type;
+		var type = variable.variable.type;
 
-		if(variable.v.variable.value != null) {
-			if(variable.v.variable.value.type == AST_ARRAY_INIT) {
-				var array = variable.v.variable.value;
+		if(variable.variable.value != null) {
+			if(variable.variable.value.type == AST_ARRAY_INIT) {
+				var array = variable.variable.value;
 				var itemType = copy_type(type);
 				itemType.indirection = type.indirection - 1;
 
-				for(var i = 0; i < array.v.block.children.size; ++i) {
-					generate_expr_rax(array.v.block.children.at(i), out);
+				for(var i = 0; i < array.block.children.size; ++i) {
+					generate_expr_rax(array.block.children.at(i), out);
 					out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_");
-					out.put_token_string(variable.v.variable.name); out.puts("+"); out.putd(i * itemType.size());
+					out.put_token_string(variable.variable.name); out.puts("+"); out.putd(i * itemType.size());
 					out.puts("], "); out.putsln(type.rax_subregister());
 				}
 				continue;
 			}
 
-			generate_expr_rax(variable.v.variable.value, out);
+			generate_expr_rax(variable.variable.value, out);
 
 			if(type.is_structural()) {
-				out.puts("    lea rcx, [_g_"); out.put_token_string(variable.v.variable.name); out.putsln("]");
+				out.puts("    lea rcx, [_g_"); out.put_token_string(variable.variable.name); out.putsln("]");
 				generate_copy(type.fields, 0, out);
 			}
 			else {
-				out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_"); out.put_token_string(variable.v.variable.name);
+				out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_"); out.put_token_string(variable.variable.name);
 				out.puts("], "); out.putsln(type.rax_subregister());
 			}
 		}
@@ -787,9 +787,9 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		for(var i = 0; i < this.globalVars.size; ++i) {
 			var variable: Node* = this.globalVars.at(i);
 
-			out.puts("_g_"); out.put_token_string(variable.v.variable.name); out.puts(": ");
+			out.puts("_g_"); out.put_token_string(variable.variable.name); out.puts(": ");
 			
-			var type = variable.v.variable.type;
+			var type = variable.variable.type;
 
 			if(type.isArray) {
 				var subType = copy_type(type);
@@ -797,7 +797,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 				out.puts(subType.reserve()); out.puts(" "); out.putd(type.arrayLength); out.putln();
 			}
 			else {
-				out.puts(variable.v.variable.type.reserve()); out.putsln(" 1");
+				out.puts(variable.variable.type.reserve()); out.putsln(" 1");
 			}
 		}
 	}
@@ -808,7 +808,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		for(var i = 0; i < this.strings.size; ++i) {
 			var str: Node* = this.strings.at(i);
 
-			out.puts("_s"); out.putd(str.v.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.v.literal.az.string.chars);
+			out.puts("_s"); out.putd(str.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.literal.az.string.chars);
 			out.putc('"'); out.putsln(", 0");
 		}
 	}

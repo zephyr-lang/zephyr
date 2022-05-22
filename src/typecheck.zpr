@@ -88,9 +88,9 @@ function Type.size(): int {
 			// In the case of an anon union,
 			// the largest field should account for all fields
 			// and the individual fields should not be sized onto the struct
-			if(field.v.variable.unionField) {
+			if(field.variable.unionField) {
 				inUnion = true;
-				var memSize = field.v.variable.type.size_offset();
+				var memSize = field.variable.type.size_offset();
 				unionSize = memSize > unionSize ? memSize : unionSize;
 			}
 			else {
@@ -98,7 +98,7 @@ function Type.size(): int {
 					inUnion = false;
 					size += unionSize;
 				}
-				size += field.v.variable.type.size_offset();
+				size += field.variable.type.size_offset();
 			}
 		}
 
@@ -111,7 +111,7 @@ function Type.size(): int {
 	if(this.type == DATA_TYPE_UNION) {
 		var size = 0;
 		for(var i = 0; i < this.fields.size; ++i) {
-			var memSize = (this.fields.at(i) as Node*).v.variable.type.size_offset();
+			var memSize = (this.fields.at(i) as Node*).variable.type.size_offset();
 			size = memSize > size ? memSize : size;
 		}
 		return size;
@@ -171,13 +171,13 @@ function Parser.lookup_variable(name: Token*): Node* {
 	while(block != null) {
 		var variable = this.lookup_scope_variable(name, block);
 		if(variable != null) return variable;
-		block = block.v.block.parent;
+		block = block.block.parent;
 	}
 
-	for(var i = 0; i < this.currentFunction.v.funktion.arguments.size; ++i) {
-		var arg: Node* = this.currentFunction.v.funktion.arguments.at(i);
+	for(var i = 0; i < this.currentFunction.funktion.arguments.size; ++i) {
+		var arg: Node* = this.currentFunction.funktion.arguments.at(i);
 
-		if(arg.v.variable.name.equals(name)) {
+		if(arg.variable.name.equals(name)) {
 			return arg;
 		}
 	}
@@ -188,14 +188,14 @@ function Parser.lookup_variable(name: Token*): Node* {
 	for(var i = 0; i < this.globalVars.size; ++i) {
 		var variable: Node* = this.globalVars.at(i);
 
-		if(variable.v.variable.name.equals(name)) {
+		if(variable.variable.name.equals(name)) {
 			return variable;
 		}
 	}
 
 	for(var i = 0; i < this.functions.size; ++i) {
 		var func: Node* = this.functions.at(i);
-		if(func.v.funktion.name.equals(name) && !func.v.funktion.isMethod) {
+		if(func.funktion.name.equals(name) && !func.funktion.isMethod) {
 			return func;
 		}
 	}
@@ -206,7 +206,7 @@ function Parser.lookup_variable(name: Token*): Node* {
 function Parser.lookup_constant(name: Token*): Node* {
 	for(var i = 0; i < this.constants.size; ++i) {
 		var constant: Node* = this.constants.at(i);
-		if(constant.v.constant.name.equals(name)) {
+		if(constant.constant.name.equals(name)) {
 			return constant;
 		}
 	}
@@ -215,10 +215,10 @@ function Parser.lookup_constant(name: Token*): Node* {
 }
 
 function Parser.lookup_scope_variable(name: Token*, block: Node*): Node* {
-	for(var i = 0; i < block.v.block.variables.size; ++i) {
-		var variable: Node* = block.v.block.variables.at(i);
+	for(var i = 0; i < block.block.variables.size; ++i) {
+		var variable: Node* = block.block.variables.at(i);
 
-		if(variable.v.variable.name.equals(name)) {
+		if(variable.variable.name.equals(name)) {
 			return variable;
 		}
 	}
@@ -233,7 +233,7 @@ function Parser.lookup_global_variable(name: Token*): Node* {
 	for(var i = 0; i < this.globalVars.size; ++i) {
 		var variable: Node* = this.globalVars.at(i);
 
-		if(variable.v.variable.name.equals(name)) {
+		if(variable.variable.name.equals(name)) {
 			return variable;
 		}
 	}
@@ -245,7 +245,7 @@ function Type.lookup_field(name: Token*): Node* {
 	for(var i = 0; i < this.fields.size; ++i) {
 		var field: Node* = this.fields.at(i);
 
-		if(field.v.variable.name.equals(name)) {
+		if(field.variable.name.equals(name)) {
 			return field;
 		}
 	}
@@ -263,7 +263,7 @@ function Type.lookup_method(name: Token*): Node* {
 	for(var i = 0; i < this.methods.size; ++i) {
 		var method: Node* = this.methods.at(i);
 
-		if(method.v.funktion.name.equals(name)) {
+		if(method.funktion.name.equals(name)) {
 			return method;
 		}
 	}
@@ -295,19 +295,19 @@ function assignment_op_to_node_type(op: int): int {
 function synthetic_binary_op(op: Token*, lhs: Node*, rhs: Node*): Node* {
 	var type = assignment_op_to_node_type(op.type);
 	var node = new_node(type, op);
-	node.v.binary.lhs = lhs;
-	node.v.binary.rhs = rhs;
+	node.binary.lhs = lhs;
+	node.binary.rhs = rhs;
 	return node;
 }
 
 function Parser.type_check_addrof(expr: Node*) {
-	if(!expr.v.unary.lvalue) {
+	if(!expr.unary.lvalue) {
 		expr.print_position();
 		eputsln("Expected lvalue as operand for unary '&'");
 		exit(1);
 	}
 
-	this.type_check_expr(expr.v.unary);
+	this.type_check_expr(expr.unary);
 	var type: Type* = tc_typeStack.pop();
 
 	var addrType = copy_type(type);
@@ -317,7 +317,7 @@ function Parser.type_check_addrof(expr: Node*) {
 }
 
 function Parser.type_check_deref(expr: Node*) {
-	this.type_check_expr(expr.v.unary);
+	this.type_check_expr(expr.unary);
 	var type: Type* = tc_typeStack.pop();
 	resolve_type(type);
 
@@ -344,7 +344,7 @@ function Parser.type_check_unary(expr: Node*) {
 		return;
 	}
 
-	this.type_check_expr(expr.v.unary);
+	this.type_check_expr(expr.unary);
 
 	var type: Type* = tc_typeStack.top();
 
@@ -356,10 +356,10 @@ function Parser.type_check_unary(expr: Node*) {
 }
 
 function Parser.type_check_binary(expr: Node*) {
-	this.type_check_expr(expr.v.binary.lhs);
+	this.type_check_expr(expr.binary.lhs);
 	var left: Type* = tc_typeStack.pop();
 
-	this.type_check_expr(expr.v.binary.rhs);
+	this.type_check_expr(expr.binary.rhs);
 	var right: Type* = tc_typeStack.pop();
 
 	if((expr.type == OP_EQUAL || expr.type == OP_NOT_EQUAL) && left.indirection > 0 && right.indirection > 0 && left.assignable(right)) {
@@ -378,35 +378,35 @@ function Parser.type_check_binary(expr: Node*) {
 }
 
 function Parser.type_check_access_var(expr: Node*) {
-	var variable = this.lookup_variable(expr.v.variable.name);
+	var variable = this.lookup_variable(expr.variable.name);
 
 	if(variable == null) {
 		expr.print_position();
-		eputs("Unknown variable '"); eput_token_string(expr.v.variable.name); eputsln("' in current scope");
+		eputs("Unknown variable '"); eput_token_string(expr.variable.name); eputsln("' in current scope");
 		exit(1);
 	}
 
 	if(variable.type == AST_DEFINE_VAR) {
-		expr.v.variable.type = variable.v.variable.type;
-		expr.v.variable.stackOffset = variable.v.variable.stackOffset;
+		expr.variable.type = variable.variable.type;
+		expr.variable.stackOffset = variable.variable.stackOffset;
 
-		var decay = copy_type(expr.v.variable.type);
+		var decay = copy_type(expr.variable.type);
 
 		tc_typeStack.push(decay);
 	}
 	else if(variable.type == AST_DEFINE_GLOBAL_VAR) {
-		expr.v.variable.type = variable.v.variable.type;
+		expr.variable.type = variable.variable.type;
 		expr.type = AST_ACCESS_GLOBAL_VAR;
 		expr.lvalue = LVALUE_GLOBAL;
 
-		tc_typeStack.push(expr.v.variable.type);
+		tc_typeStack.push(expr.variable.type);
 	}
 	else if(variable.type == AST_DEFINE_CONST) {
-		var value = variable.v.constant.value;
+		var value = variable.constant.value;
 
 		expr.type = AST_INT_LITERAL;
-		expr.v.literal.type = INT_TYPE;
-		expr.v.literal.az.integer = value;
+		expr.literal.type = INT_TYPE;
+		expr.literal.az.integer = value;
 
 		tc_typeStack.push(INT_TYPE);
 	}
@@ -418,11 +418,11 @@ function Parser.type_check_access_var(expr: Node*) {
 }
 
 function Parser.type_check_call(expr: Node*) {
-	var funktion = this.lookup_variable(expr.v.funktion.name);
+	var funktion = this.lookup_variable(expr.funktion.name);
 
 	if(funktion == null) {
 		expr.print_position();
-		eputs("Unknown variable '"); eput_token_string(expr.v.variable.name); eputsln("' in current scope");
+		eputs("Unknown variable '"); eput_token_string(expr.variable.name); eputsln("' in current scope");
 		exit(1);
 	}
 
@@ -432,22 +432,22 @@ function Parser.type_check_call(expr: Node*) {
 		exit(1);
 	}
 
-	funktion.v.funktion.used = true;
+	funktion.funktion.used = true;
 
-	if(funktion.v.funktion.arguments.size != expr.v.funktion.arguments.size) {
+	if(funktion.funktion.arguments.size != expr.funktion.arguments.size) {
 		expr.print_position();
-		eputs("Call expected "); eputd(funktion.v.funktion.arguments.size); eputs(" arguments but got "); eputd(expr.v.funktion.arguments.size); eputln();
+		eputs("Call expected "); eputd(funktion.funktion.arguments.size); eputs(" arguments but got "); eputd(expr.funktion.arguments.size); eputln();
 		exit(1);
 	}
 
-	for(var i = 0; i < funktion.v.funktion.arguments.size; ++i) {
-		var arg: Node* = expr.v.funktion.arguments.at(i);
+	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
+		var arg: Node* = expr.funktion.arguments.at(i);
 		this.type_check_expr(arg);
 
 		var argType: Type* = tc_typeStack.pop();
 		
-		var param: Node* = funktion.v.funktion.arguments.at(i);
-		var paramType = param.v.variable.type;
+		var param: Node* = funktion.funktion.arguments.at(i);
+		var paramType = param.variable.type;
 
 		if(!argType.assignable(paramType)) {
 			expr.print_position();
@@ -457,16 +457,16 @@ function Parser.type_check_call(expr: Node*) {
 		}
 	}
 
-	tc_typeStack.push(funktion.v.funktion.returnType);
+	tc_typeStack.push(funktion.funktion.returnType);
 }
 
 function Parser.type_check_method_call(expr: Node*) {
-	this.type_check_expr(expr.v.funktion.parent);
+	this.type_check_expr(expr.funktion.parent);
 
 	var parentType: Type* = tc_typeStack.pop();
 	resolve_type(parentType);
 
-	var name = expr.v.funktion.name;
+	var name = expr.funktion.name;
 	var funktion: Node*;
 
 	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
@@ -484,9 +484,9 @@ function Parser.type_check_method_call(expr: Node*) {
 		exit(1);
 	}
 
-	funktion.v.funktion.used = true;
+	funktion.funktion.used = true;
 
-	expr.v.funktion.parentType = parentType;
+	expr.funktion.parentType = parentType;
 
 	if(funktion == null) {
 		expr.print_position();
@@ -500,18 +500,18 @@ function Parser.type_check_method_call(expr: Node*) {
 		exit(1);
 	}
 
-	if(funktion.v.funktion.arguments.size - 1 != expr.v.funktion.arguments.size) {
+	if(funktion.funktion.arguments.size - 1 != expr.funktion.arguments.size) {
 		expr.print_position();
-		eputs("Call expected "); eputd(funktion.v.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(expr.v.funktion.arguments.size); eputln();
+		eputs("Call expected "); eputd(funktion.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(expr.funktion.arguments.size); eputln();
 		exit(1);
 	}
 
-	for(var i = 1; i < funktion.v.funktion.arguments.size; ++i) {
-		var arg: Node* = expr.v.funktion.arguments.at(i - 1);
+	for(var i = 1; i < funktion.funktion.arguments.size; ++i) {
+		var arg: Node* = expr.funktion.arguments.at(i - 1);
 		this.type_check_expr(arg);
 
 		var argType: Type* = tc_typeStack.pop();
-		var paramType = (funktion.v.funktion.arguments.at(i) as Node*).v.variable.type;
+		var paramType = (funktion.funktion.arguments.at(i) as Node*).variable.type;
 
 		if(!argType.assignable(paramType)) {
 			expr.print_position();
@@ -521,11 +521,11 @@ function Parser.type_check_method_call(expr: Node*) {
 		}
 	}
 
-	tc_typeStack.push(funktion.v.funktion.returnType);
+	tc_typeStack.push(funktion.funktion.returnType);
 }
 
 function Parser.type_check_ternary_expr(expr: Node*) {
-	this.type_check_expr(expr.v.conditional.condition);
+	this.type_check_expr(expr.conditional.condition);
 	var condition: Type* = tc_typeStack.pop();
 
 	if(!condition.assignable(INT_TYPE)) {
@@ -534,10 +534,10 @@ function Parser.type_check_ternary_expr(expr: Node*) {
 		exit(1);
 	}
 
-	this.type_check_expr(expr.v.conditional.doTrue);
+	this.type_check_expr(expr.conditional.doTrue);
 	var doTrue: Type* = tc_typeStack.pop();
 
-	this.type_check_expr(expr.v.conditional.doFalse);
+	this.type_check_expr(expr.conditional.doFalse);
 	var doFalse: Type* = tc_typeStack.pop();
 
 	if(!doTrue.assignable(doFalse)) {
@@ -550,7 +550,7 @@ function Parser.type_check_ternary_expr(expr: Node*) {
 }
 
 function Parser.type_check_access_subscript(expr: Node*) {
-	this.type_check_expr(expr.v.binary.lhs);
+	this.type_check_expr(expr.binary.lhs);
 	var lhs: Type* = tc_typeStack.pop();
 
 	if(lhs.indirection == 0) {
@@ -559,7 +559,7 @@ function Parser.type_check_access_subscript(expr: Node*) {
 		exit(1);
 	}
 
-	this.type_check_expr(expr.v.binary.rhs);
+	this.type_check_expr(expr.binary.rhs);
 	var rhs: Type* = tc_typeStack.pop();
 
 	if(!rhs.assignable(INT_TYPE)) {
@@ -577,12 +577,12 @@ function Parser.type_check_access_subscript(expr: Node*) {
 }
 
 function Parser.type_check_access_member(expr: Node*) {
-	this.type_check_expr(expr.v.member.parent);
+	this.type_check_expr(expr.member.parent);
 
 	var parentType: Type* = tc_typeStack.pop();
 	resolve_type(parentType);
 
-	var name = expr.v.member.name;
+	var name = expr.member.name;
 	var field: Node*;
 
 	if(parentType.is_structural_base() && parentType.indirection == 0) {
@@ -599,15 +599,15 @@ function Parser.type_check_access_member(expr: Node*) {
 		exit(1);
 	}
 
-	expr.v.member.memberRef = field;
+	expr.member.memberRef = field;
 
-	tc_typeStack.push(field.v.variable.type);
+	tc_typeStack.push(field.variable.type);
 }
 
 function Parser.type_check_assign(expr: Node*) {
-	this.type_check_expr(expr.v.assignment.lhs);
+	this.type_check_expr(expr.assignment.lhs);
 
-	if(expr.v.assignment.lhs.type == AST_INT_LITERAL) {
+	if(expr.assignment.lhs.type == AST_INT_LITERAL) {
 		expr.print_position();
 		eputsln("Cannot re-assign constant values");
 		exit(1);
@@ -616,15 +616,15 @@ function Parser.type_check_assign(expr: Node*) {
 	var lhs: Type* = tc_typeStack.pop();
 	resolve_type(lhs);
 
-	if(expr.v.assignment.op.type != TOKEN_EQ) {
-		expr.v.assignment.rhs = synthetic_binary_op(
-			expr.v.assignment.op,
-			expr.v.assignment.lhs,
-			expr.v.assignment.rhs
+	if(expr.assignment.op.type != TOKEN_EQ) {
+		expr.assignment.rhs = synthetic_binary_op(
+			expr.assignment.op,
+			expr.assignment.lhs,
+			expr.assignment.rhs
 		);
 	}
 
-	this.type_check_expr(expr.v.assignment.rhs);
+	this.type_check_expr(expr.assignment.rhs);
 
 	var rhs: Type* = tc_typeStack.pop();
 	resolve_type(rhs);
@@ -642,13 +642,13 @@ function Parser.type_check_assign(expr: Node*) {
 }
 
 function Parser.type_check_inc_decrement(expr: Node*) {
-	if(expr.v.unary.lvalue == LVALUE_NONE) {
+	if(expr.unary.lvalue == LVALUE_NONE) {
 		expr.print_position();
 		eputs("Invalid lvalue for '"); eputs(node_type_to_string(expr.type)); eputsln("' operation");
 		exit(1);
 	}
 
-	this.type_check_expr(expr.v.unary);
+	this.type_check_expr(expr.unary);
 
 	var type: Type* = tc_typeStack.pop();
 	resolve_type(type);
@@ -702,7 +702,7 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == AST_CAST) {
 		// NOTE: All casts are completely allowed at the moment. Whether or not this is good
 		//       or requires a warning in some cases is to be decided.
-		this.type_check_expr(expr.v.unary);
+		this.type_check_expr(expr.unary);
 		resolve_type(expr.computedType);
 		tc_typeStack.push(expr.computedType);
 	}
@@ -722,9 +722,9 @@ function Parser.type_check_expr(expr: Node*) {
 }
 
 function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
-	if(arrayType.arrayLength < array.v.block.children.size) {
+	if(arrayType.arrayLength < array.block.children.size) {
 		array.print_position();
-		eputs("Cannot initialize array of length '"); eputd(arrayType.arrayLength); eputs("' with '"); eputd(array.v.block.children.size);
+		eputs("Cannot initialize array of length '"); eputd(arrayType.arrayLength); eputs("' with '"); eputd(array.block.children.size);
 		eputsln("' items");
 		exit(1);
 	}
@@ -732,13 +732,13 @@ function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
 	var declItemType = copy_type(arrayType);
 	declItemType.indirection = declItemType.indirection - 1;
 
-	for(var i = 0; i < array.v.block.children.size; ++i) {
-		this.type_check_expr(array.v.block.children.at(i));
+	for(var i = 0; i < array.block.children.size; ++i) {
+		this.type_check_expr(array.block.children.at(i));
 
 		var item: Type* = tc_typeStack.pop();
 
 		if(!item.assignable(declItemType)) {
-			(array.v.block.children.at(i) as Node*).print_position();
+			(array.block.children.at(i) as Node*).print_position();
 			eputs("Cannot initialize array of type '"); eputs(type_to_string(declItemType)); eputs("' with item of type '");
 			eputs(type_to_string(item)); eputsln("'");
 			exit(1);
@@ -748,10 +748,10 @@ function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
 }
 
 function Parser.type_check_define_var(stmt: Node*) {
-	var declType = stmt.v.variable.type;
+	var declType = stmt.variable.type;
 	resolve_type(declType);
 
-	var name = stmt.v.variable.name;
+	var name = stmt.variable.name;
 
 	var redeclaration = this.lookup_same_scope_variable(name);
 
@@ -761,32 +761,32 @@ function Parser.type_check_define_var(stmt: Node*) {
 		exit(1);
 	}
 
-	if(declType.type == DATA_TYPE_VOID && stmt.v.variable.value == null) {
+	if(declType.type == DATA_TYPE_VOID && stmt.variable.value == null) {
 		stmt.print_position();
 		eputsln("Cannot infer type to variable without initial value");
 		exit(1);
 	}
 
 	if(declType.type == DATA_TYPE_VOID) {
-		this.type_check_expr(stmt.v.variable.value);
-		stmt.v.variable.type = tc_typeStack.pop();
-		declType = stmt.v.variable.type;
+		this.type_check_expr(stmt.variable.value);
+		stmt.variable.type = tc_typeStack.pop();
+		declType = stmt.variable.type;
 	}
 
-	resolve_type(stmt.v.variable.type);
+	resolve_type(stmt.variable.type);
 
-	stmt.v.variable.stackOffset = this.currentBlock.v.block.currentStackOffset += declType.size_offset();
+	stmt.variable.stackOffset = this.currentBlock.block.currentStackOffset += declType.size_offset();
 
-	if(stmt.v.variable.stackOffset > this.currentFunction.v.funktion.localVariableStackOffset) {
-		this.currentFunction.v.funktion.localVariableStackOffset = stmt.v.variable.stackOffset;
+	if(stmt.variable.stackOffset > this.currentFunction.funktion.localVariableStackOffset) {
+		this.currentFunction.funktion.localVariableStackOffset = stmt.variable.stackOffset;
 	}
 
-	if(stmt.v.variable.value != null) {
-		if(stmt.v.variable.value.type == AST_ARRAY_INIT) {
-			this.type_check_array_init(stmt.v.variable.value, stmt.v.variable.type);
+	if(stmt.variable.value != null) {
+		if(stmt.variable.value.type == AST_ARRAY_INIT) {
+			this.type_check_array_init(stmt.variable.value, stmt.variable.type);
 		}
 		else {
-			this.type_check_expr(stmt.v.variable.value);
+			this.type_check_expr(stmt.variable.value);
 		}
 
 		var valueType: Type* = tc_typeStack.pop();
@@ -800,11 +800,11 @@ function Parser.type_check_define_var(stmt: Node*) {
 		}
 	}
 
-	this.currentBlock.v.block.variables.push(stmt);
+	this.currentBlock.block.variables.push(stmt);
 }
 
 function Parser.type_check_if_statement(stmt: Node*) {
-	this.type_check_expr(stmt.v.conditional.condition);
+	this.type_check_expr(stmt.conditional.condition);
 
 	var conditionType: Type* = tc_typeStack.pop();
 
@@ -814,24 +814,24 @@ function Parser.type_check_if_statement(stmt: Node*) {
 		exit(1);
 	}
 
-	this.type_check_statement(stmt.v.conditional.doTrue);
+	this.type_check_statement(stmt.conditional.doTrue);
 
-	var trueHasReturned = this.currentBlock.v.block.hasReturned;
+	var trueHasReturned = this.currentBlock.block.hasReturned;
 	var falseHasReturned = false;
 
-	if(stmt.v.conditional.doFalse != null) {
-		this.type_check_statement(stmt.v.conditional.doFalse);
-		falseHasReturned = this.currentBlock.v.block.hasReturned;
+	if(stmt.conditional.doFalse != null) {
+		this.type_check_statement(stmt.conditional.doFalse);
+		falseHasReturned = this.currentBlock.block.hasReturned;
 	}
 
-	this.currentBlock.v.block.hasReturned = trueHasReturned && falseHasReturned;
+	this.currentBlock.block.hasReturned = trueHasReturned && falseHasReturned;
 }
 
 function Parser.type_check_while_statement(stmt: Node*) {
 	var wasCheckingLoop = tc_checkingLoop;
 	tc_checkingLoop = true;
 
-	this.type_check_expr(stmt.v.conditional.condition);
+	this.type_check_expr(stmt.conditional.condition);
 
 	var conditionType: Type* = tc_typeStack.pop();
 
@@ -841,7 +841,7 @@ function Parser.type_check_while_statement(stmt: Node*) {
 		exit(1);
 	}
 
-	this.type_check_statement(stmt.v.conditional.doTrue);
+	this.type_check_statement(stmt.conditional.doTrue);
 
 	tc_checkingLoop = wasCheckingLoop;
 }
@@ -850,9 +850,9 @@ function Parser.type_check_for_statement(stmt: Node*) {
 	var wasCheckingLoop = tc_checkingLoop;
 	tc_checkingLoop = true;
 
-	if(stmt.v.loop.initial != null) this.type_check_statement(stmt.v.loop.initial);
-	if(stmt.v.loop.condition != null) {
-		this.type_check_expr(stmt.v.loop.condition);
+	if(stmt.loop.initial != null) this.type_check_statement(stmt.loop.initial);
+	if(stmt.loop.condition != null) {
+		this.type_check_expr(stmt.loop.condition);
 		var conditionType: Type* = tc_typeStack.pop();
 
 		if(!conditionType.assignable(INT_TYPE)) {
@@ -861,12 +861,12 @@ function Parser.type_check_for_statement(stmt: Node*) {
 			exit(1);
 		}
 	}
-	if(stmt.v.loop.iteration != null) {
-		this.type_check_expr(stmt.v.loop.iteration);
+	if(stmt.loop.iteration != null) {
+		this.type_check_expr(stmt.loop.iteration);
 		tc_typeStack.pop();
 	}
 
-	this.type_check_statement(stmt.v.loop.body);
+	this.type_check_statement(stmt.loop.body);
 
 	tc_checkingLoop = wasCheckingLoop;
 }
@@ -883,32 +883,32 @@ function Parser.type_check_statement(stmt: Node*) {
 	}
 	else if(stmt.type == AST_RETURN) {
 		var returnType: Type*;
-		if(stmt.v.unary != null) {
-			this.type_check_expr(stmt.v.unary);
+		if(stmt.unary != null) {
+			this.type_check_expr(stmt.unary);
 			returnType = tc_typeStack.pop();
 		}
 		else {
 			returnType = VOID_TYPE;
 		}
 
-		var expectedType = this.currentFunction.v.funktion.returnType;
+		var expectedType = this.currentFunction.funktion.returnType;
 		if(!returnType.assignable(expectedType)) {
 			stmt.print_position();
 			eputs("Cannot return type '"); eputs(type_to_string(returnType)); eputs("' from function expecting '"); eputs(type_to_string(expectedType));
 			eputsln("'");
 			exit(1);
 		}
-		this.currentBlock.v.block.hasReturned = true;
+		this.currentBlock.block.hasReturned = true;
 	}
 	else if(stmt.type == AST_DEFINE_VAR) {
 		this.type_check_define_var(stmt);
 	}
 	else if(stmt.type == AST_EXPR_STMT) {
-		this.type_check_expr(stmt.v.unary);
+		this.type_check_expr(stmt.unary);
 	}
 	else if(stmt.type == AST_BLOCK) {
 		this.type_check_block(stmt);
-		this.currentBlock.v.block.hasReturned = stmt.v.block.hasReturned;
+		this.currentBlock.block.hasReturned = stmt.block.hasReturned;
 	}
 	else if(stmt.type == AST_CONTINUE) {
 		if(!tc_checkingLoop) {
@@ -931,73 +931,73 @@ function Parser.type_check_statement(stmt: Node*) {
 }
 
 function Parser.type_check_block(block: Node*) {
-	block.v.block.variables = new_vector();
-	block.v.block.currentStackOffset = this.currentBlock.v.block.currentStackOffset;
+	block.block.variables = new_vector();
+	block.block.currentStackOffset = this.currentBlock.block.currentStackOffset;
 	this.currentBlock = block;
 
-	for(var i = 0; i < block.v.block.children.size; ++i) {
-		if(block.v.block.hasReturned) {
-			(block.v.block.children.at(i) as Node*).print_position();
+	for(var i = 0; i < block.block.children.size; ++i) {
+		if(block.block.hasReturned) {
+			(block.block.children.at(i) as Node*).print_position();
 			eputsln("Unreachable code (all paths return)");
 			exit(1);
 		}
-		this.type_check_statement(block.v.block.children.at(i));
+		this.type_check_statement(block.block.children.at(i));
 	}
 
-	this.currentBlock = block.v.block.parent;
+	this.currentBlock = block.block.parent;
 }
 
 function Parser.type_check_function(funktion: Node*) {
 	var stackOffset = 0;
 
-	for(var i = 0; i < funktion.v.funktion.arguments.size; ++i) {
-		var arg: Node* = funktion.v.funktion.arguments.at(i);
+	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
+		var arg: Node* = funktion.funktion.arguments.at(i);
 
-		if(arg.v.variable.type.isArray) {
+		if(arg.variable.type.isArray) {
 			arg.print_position();
 			eputsln("Arrays cannot be used as function arguments - consider using a pointer instead");
 			exit(1);
 		}
-		else if(arg.v.variable.type.is_structural()) {
+		else if(arg.variable.type.is_structural()) {
 			arg.print_position();
 			eputsln("Structs cannot be used as function arguments - consider using a pointer instead");
 			exit(1);
 		}
 
 		//FIXME Have the correct qualifiers and registers used in codegen.zpr for arguments
-		stackOffset += ceil_multiple(arg.v.variable.type.size(), 8);
+		stackOffset += ceil_multiple(arg.variable.type.size(), 8);
 
-		arg.v.variable.stackOffset = stackOffset;
+		arg.variable.stackOffset = stackOffset;
 	}
 
-	if(funktion.v.funktion.returnType.isArray) {
+	if(funktion.funktion.returnType.isArray) {
 		funktion.print_position();
 		eputsln("Arrays cannot be used as function return types - consider using a pointer instead");
 		exit(1);
 	}
-	else if(funktion.v.funktion.returnType.is_structural()) {
+	else if(funktion.funktion.returnType.is_structural()) {
 		funktion.print_position();
 		eputsln("Structs cannot be used as function return types - consider using a pointer instead");
 		exit(1);
 	}
 
-	funktion.v.funktion.body.v.block.currentStackOffset = stackOffset;
-	funktion.v.funktion.localVariableStackOffset = stackOffset;
+	funktion.funktion.body.block.currentStackOffset = stackOffset;
+	funktion.funktion.localVariableStackOffset = stackOffset;
 
 	this.currentFunction = funktion;
 
-	this.currentBlock = funktion.v.funktion.body;
-	this.type_check_block(funktion.v.funktion.body);
+	this.currentBlock = funktion.funktion.body;
+	this.type_check_block(funktion.funktion.body);
 
-	if(!funktion.v.funktion.body.v.block.hasReturned) {
-		if(funktion.v.funktion.returnType.is_void()) {
+	if(!funktion.funktion.body.block.hasReturned) {
+		if(funktion.funktion.returnType.is_void()) {
 			var tok = synthetic_token(TOKEN_RETURN, "return");
 			var implReturn = new_node(AST_RETURN, tok);
-			funktion.v.funktion.body.add_child(implReturn);
+			funktion.funktion.body.add_child(implReturn);
 		}
 		else {
 			funktion.print_position();
-			eputs("A non-void returning function must return a value (returning '"); eputs(type_to_string(funktion.v.funktion.returnType));
+			eputs("A non-void returning function must return a value (returning '"); eputs(type_to_string(funktion.funktion.returnType));
 			eputsln("')");
 			exit(1);
 		}
@@ -1005,9 +1005,9 @@ function Parser.type_check_function(funktion: Node*) {
 }
 
 function Parser.type_check_global_var(stmt: Node*) {
-	var declType = stmt.v.variable.type;
+	var declType = stmt.variable.type;
 	resolve_type(declType);
-	var name = stmt.v.variable.name;
+	var name = stmt.variable.name;
 
 	var redeclaration = this.lookup_global_variable(name);
 
@@ -1017,26 +1017,26 @@ function Parser.type_check_global_var(stmt: Node*) {
 		exit(1);
 	}
 
-	if(declType.type == DATA_TYPE_VOID && stmt.v.variable.value == null) {
+	if(declType.type == DATA_TYPE_VOID && stmt.variable.value == null) {
 		stmt.print_position();
 		eputsln("Cannot infer type to variable without initial value");
 		exit(1);
 	}
 
 	if(declType.type == DATA_TYPE_VOID) {
-		this.type_check_expr(stmt.v.variable.value);
-		stmt.v.variable.type = tc_typeStack.pop();
-		declType = stmt.v.variable.type;
+		this.type_check_expr(stmt.variable.value);
+		stmt.variable.type = tc_typeStack.pop();
+		declType = stmt.variable.type;
 	}
 
-	resolve_type(stmt.v.variable.type);
+	resolve_type(stmt.variable.type);
 
-	if(stmt.v.variable.value != null) {
-		if(stmt.v.variable.value.type == AST_ARRAY_INIT) {
-			this.type_check_array_init(stmt.v.variable.value, stmt.v.variable.type);
+	if(stmt.variable.value != null) {
+		if(stmt.variable.value.type == AST_ARRAY_INIT) {
+			this.type_check_array_init(stmt.variable.value, stmt.variable.type);
 		}
 		else {
-			this.type_check_expr(stmt.v.variable.value);
+			this.type_check_expr(stmt.variable.value);
 		}
 
 		var valueType: Type* = tc_typeStack.pop();
@@ -1059,7 +1059,7 @@ function add_offsets_to_union(unionType: Type*) {
 
 	for(var i = 0; i < unionType.fields.size; ++i) {
 		var field: Node* = unionType.fields.at(i);
-		var type = field.v.variable.type;
+		var type = field.variable.type;
 
 		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_UNION) && type.name.equals(unionType.name) && type.indirection == 0) {
 			field.print_position();
@@ -1067,10 +1067,10 @@ function add_offsets_to_union(unionType: Type*) {
 			exit(1);
 		}
 
-		field.v.variable.stackOffset = 0;
+		field.variable.stackOffset = 0;
 
 		resolve_type(type);
-		resolve_type(field.v.variable.type);
+		resolve_type(field.variable.type);
 
 		if(type.type == DATA_TYPE_STRUCT) {
 			add_offsets_to_struct(type);
@@ -1089,7 +1089,7 @@ function add_offsets_to_struct(structType: Type*) {
 
 	for(var i = 0; i < structType.fields.size; ++i) {
 		var field: Node* = structType.fields.at(i);
-		var type = field.v.variable.type;
+		var type = field.variable.type;
 
 		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_STRUCT) && type.name.equals(structType.name) && type.indirection == 0) {
 			field.print_position();
@@ -1098,12 +1098,12 @@ function add_offsets_to_struct(structType: Type*) {
 		}
 
 		resolve_type(type);
-		resolve_type(field.v.variable.type);
+		resolve_type(field.variable.type);
 		
-		field.v.variable.stackOffset = offset;
+		field.variable.stackOffset = offset;
 
-		if(!field.v.variable.unionField)
-			offset += field.v.variable.type.size_offset();
+		if(!field.variable.unionField)
+			offset += field.variable.type.size_offset();
 
 		if(type.type == DATA_TYPE_STRUCT) {
 			add_offsets_to_struct(type);
@@ -1119,15 +1119,15 @@ function Parser.type_check(program: Node*) {
 
 	var mainTok = synthetic_token(TOKEN_IDENTIFIER, "main");
 
-	for(var i = 0; i < program.v.block.children.size; ++i) {
-		var node: Node* = program.v.block.children.at(i);
+	for(var i = 0; i < program.block.children.size; ++i) {
+		var node: Node* = program.block.children.at(i);
 
 		if(node.type == AST_FUNCTION) {
-			if(!node.v.funktion.hasImplicitBody)
+			if(!node.funktion.hasImplicitBody)
 				this.type_check_function(node);
 
-			if(node.v.funktion.name.equals(mainTok)) {
-				node.v.funktion.used = true;
+			if(node.funktion.name.equals(mainTok)) {
+				node.funktion.used = true;
 			}
 		}
 		else if(node.type == AST_DEFINE_GLOBAL_VAR) {

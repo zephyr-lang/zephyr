@@ -106,7 +106,7 @@ struct Node {
 	lvalue: int;
 	computedType: Type*;
 
-	v: union {
+	union {
 		unary: Node*;
 
 		binary: struct {
@@ -343,113 +343,113 @@ function print_ast_depth(node: Node*, depth: int) {
 
 	if(is_unary_op(node.type)) {
 		putsln(node_type_to_string(node.type));
-		print_ast_depth(node.v.unary, depth + 1);
+		print_ast_depth(node.unary, depth + 1);
 	}
 	else if(is_binary_op(node.type)) {
 		putsln(node_type_to_string(node.type));
-		print_ast_depth(node.v.binary.lhs, depth + 1);
+		print_ast_depth(node.binary.lhs, depth + 1);
 		putln();
-		print_ast_depth(node.v.binary.rhs, depth + 1);
+		print_ast_depth(node.binary.rhs, depth + 1);
 	}
 	else if(node.type == AST_PROGRAM) {
-		for(var i = 0; i < node.v.block.children.size; ++i)
-			print_ast_depth(node.v.block.children.at(i), depth);
+		for(var i = 0; i < node.block.children.size; ++i)
+			print_ast_depth(node.block.children.at(i), depth);
 	}
 	else if(node.type == AST_BLOCK) {
 		putsln("{");
-		for(var i = 0; i < node.v.block.children.size; ++i)
-			print_ast_depth(node.v.block.children.at(i), depth + 1);
+		for(var i = 0; i < node.block.children.size; ++i)
+			print_ast_depth(node.block.children.at(i), depth + 1);
 		for(var i = 0; i < depth; ++i) puts("  ");
 		putsln("}");
 	}
 	else if(node.type == AST_FUNCTION) {
-		puts("function "); put_token_string(node.v.funktion.name); puts(": "); putsln(type_to_string(node.v.funktion.returnType));
-		for(var i = 0; i < node.v.funktion.arguments.size; ++i) {
-			var arg: Node* = node.v.funktion.arguments.at(i);
-			puts("("); put_token_string(arg.v.variable.name); puts(": "); puts(type_to_string(arg.v.variable.type)); puts(") ");
+		puts("function "); put_token_string(node.funktion.name); puts(": "); putsln(type_to_string(node.funktion.returnType));
+		for(var i = 0; i < node.funktion.arguments.size; ++i) {
+			var arg: Node* = node.funktion.arguments.at(i);
+			puts("("); put_token_string(arg.variable.name); puts(": "); puts(type_to_string(arg.variable.type)); puts(") ");
 		}
-		if(node.v.funktion.arguments.size > 0) putln();
-		if(!node.v.funktion.hasImplicitBody)
-			print_ast_depth(node.v.funktion.body, depth);
+		if(node.funktion.arguments.size > 0) putln();
+		if(!node.funktion.hasImplicitBody)
+			print_ast_depth(node.funktion.body, depth);
 	}
 	else if(node.type == AST_CALL) {
-		puts("call "); put_token_string(node.v.funktion.name); putln();
-		for(var i = 0; i < node.v.funktion.arguments.size; ++i) {
-			var arg: Node* = node.v.funktion.arguments.at(i);
+		puts("call "); put_token_string(node.funktion.name); putln();
+		for(var i = 0; i < node.funktion.arguments.size; ++i) {
+			var arg: Node* = node.funktion.arguments.at(i);
 			print_ast_depth(arg, depth + 1);
-			if(i != node.v.funktion.arguments.size -1 ) putln();
+			if(i != node.funktion.arguments.size -1 ) putln();
 		}
 	}
 	else if(node.type == AST_CALL_METHOD) {
-		puts("call "); put_token_string(node.v.funktion.name); putln();
-		for(var i = 0; i < node.v.funktion.arguments.size; ++i) {
-			var arg: Node* = node.v.funktion.arguments.at(i);
+		puts("call "); put_token_string(node.funktion.name); putln();
+		for(var i = 0; i < node.funktion.arguments.size; ++i) {
+			var arg: Node* = node.funktion.arguments.at(i);
 			print_ast_depth(arg, depth + 1);
-			if(i != node.v.funktion.arguments.size -1 ) putln();
+			if(i != node.funktion.arguments.size -1 ) putln();
 		}
 
 		for(var i = 0; i < depth; ++i) puts("  ");
 		putsln("of");
-		print_ast_depth(node.v.funktion.parent, depth + 1);
+		print_ast_depth(node.funktion.parent, depth + 1);
 	}
 	else if(node.type == AST_EXPR_STMT) {
 		putsln("pop");
-		print_ast_depth(node.v.unary, depth + 1);
+		print_ast_depth(node.unary, depth + 1);
 		putln();
 	}
 	else if(node.type == AST_IF) {
 		putsln("if");
-		print_ast_depth(node.v.conditional.condition, depth + 1);
+		print_ast_depth(node.conditional.condition, depth + 1);
 		putln();
-		print_ast_depth(node.v.conditional.doTrue, depth + 1);
+		print_ast_depth(node.conditional.doTrue, depth + 1);
 		putln();
 
-		if(node.v.conditional.doFalse != null) {
+		if(node.conditional.doFalse != null) {
 			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("else");
-			print_ast_depth(node.v.conditional.doFalse, depth + 1);
+			print_ast_depth(node.conditional.doFalse, depth + 1);
 			putln();
 		}
 	}
 	else if(node.type == AST_WHILE) {
 		putsln("while");
-		print_ast_depth(node.v.conditional.condition, depth + 1);
+		print_ast_depth(node.conditional.condition, depth + 1);
 		putln();
-		print_ast_depth(node.v.conditional.doTrue, depth + 1);
+		print_ast_depth(node.conditional.doTrue, depth + 1);
 		putln();
 	}
 	else if(node.type == AST_FOR) {
 		putsln("for");
-		if(node.v.loop.initial != null)
-			print_ast_depth(node.v.loop.initial, depth + 1);
+		if(node.loop.initial != null)
+			print_ast_depth(node.loop.initial, depth + 1);
 		else {
 			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("(no initializer)");
 		}
 
-		if(node.v.loop.condition != null) {
-			print_ast_depth(node.v.loop.condition, depth + 1);
+		if(node.loop.condition != null) {
+			print_ast_depth(node.loop.condition, depth + 1);
 			putln();
 		} else {
 			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("(no condition)");
 		}
 
-		if(node.v.loop.iteration != null) {
-			print_ast_depth(node.v.loop.iteration, depth + 1);
+		if(node.loop.iteration != null) {
+			print_ast_depth(node.loop.iteration, depth + 1);
 			putln();
 		} else {
 			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("(no iteration)");
 		}
 
-		print_ast_depth(node.v.loop.body, depth + 1);
+		print_ast_depth(node.loop.body, depth + 1);
 		putln();
 	}
 	else if(node.type == AST_RETURN) {
 		putsln("return");
-		if(node.v.unary != null) {
-			print_ast_depth(node.v.unary, depth + 1);
+		if(node.unary != null) {
+			print_ast_depth(node.unary, depth + 1);
 		}
 		else {
 			for(var i = 0; i < depth + 1; ++i) puts("  ");
@@ -458,51 +458,51 @@ function print_ast_depth(node: Node*, depth: int) {
 		putln();
 	}
 	else if(node.type == AST_DEFINE_CONST) {
-		puts("const "); put_token_string(node.v.constant.name); puts(" = "); putd(node.v.constant.value); putln();
+		puts("const "); put_token_string(node.constant.name); puts(" = "); putd(node.constant.value); putln();
 	}
 	else if(node.type == AST_DEFINE_VAR || node.type == AST_DEFINE_GLOBAL_VAR) {
-		puts("var "); put_token_string(node.v.variable.name); puts(": "); putsln(type_to_string(node.v.variable.type));
-		if(node.v.variable.value != null) {
-			print_ast_depth(node.v.variable.value, depth + 1);
+		puts("var "); put_token_string(node.variable.name); puts(": "); putsln(type_to_string(node.variable.type));
+		if(node.variable.value != null) {
+			print_ast_depth(node.variable.value, depth + 1);
 			putln();
 		}
 	}
 	else if(node.type == AST_ACCESS_VAR || node.type == AST_ACCESS_GLOBAL_VAR) {
-		puts("(var "); put_token_string(node.v.variable.name); puts(")");
+		puts("(var "); put_token_string(node.variable.name); puts(")");
 	}
 	else if(node.type == AST_INT_LITERAL) {
-		puts("(literal "); putd(node.v.literal.az.integer); puts(")");
+		puts("(literal "); putd(node.literal.az.integer); puts(")");
 	}
 	else if(node.type == AST_CHAR_LITERAL) {
-		puts("(literal "); putc(node.v.literal.az.integer); puts(")");
+		puts("(literal "); putc(node.literal.az.integer); puts(")");
 	}
 	else if(node.type == AST_STRING) {
-		puts("(literal "); puts(node.v.literal.az.string.chars); puts(")");
+		puts("(literal "); puts(node.literal.az.string.chars); puts(")");
 	}
 	else if(node.type == OP_TERNARY) {
 		putsln("?");
-		print_ast_depth(node.v.conditional.condition, depth + 1);
+		print_ast_depth(node.conditional.condition, depth + 1);
 		putln();
-		print_ast_depth(node.v.conditional.doTrue, depth + 1);
+		print_ast_depth(node.conditional.doTrue, depth + 1);
 		putsln(":");
-		print_ast_depth(node.v.conditional.doFalse, depth + 1);
+		print_ast_depth(node.conditional.doFalse, depth + 1);
 	}
 	else if(node.type == OP_SIZEOF) {
 		puts("sizeof("); puts(type_to_string(node.computedType)); puts(")");
 	}
 	else if(node.type == OP_ACCESS_SUBSCRIPT) {
 		putsln("subscript [");
-		print_ast_depth(node.v.binary.lhs, depth + 1);
+		print_ast_depth(node.binary.lhs, depth + 1);
 		putln();
-		print_ast_depth(node.v.binary.rhs, depth + 1);
+		print_ast_depth(node.binary.rhs, depth + 1);
 		putln();
 		for(var i = 0; i < depth; ++i) puts("  ");
 		puts("]");
 	}
 	else if(node.type == AST_ARRAY_INIT) {
 		putsln("[");
-		for(var i = 0; i < node.v.block.children.size; ++i) {
-			print_ast_depth(node.v.block.children.at(i), depth + 1);
+		for(var i = 0; i < node.block.children.size; ++i) {
+			print_ast_depth(node.block.children.at(i), depth + 1);
 			putln();
 		}
 		for(var i = 0; i < depth; ++i) puts("  ");
@@ -510,39 +510,39 @@ function print_ast_depth(node: Node*, depth: int) {
 	}
 	else if(node.type == OP_DEREF) {
 		putsln("*");
-		print_ast_depth(node.v.unary, depth + 1);
+		print_ast_depth(node.unary, depth + 1);
 	}
 	else if(node.type == AST_CAST) {
 		putsln("cast");
-		print_ast_depth(node.v.unary, depth + 1);
+		print_ast_depth(node.unary, depth + 1);
 		putln();
 		for(var i = 0; i < depth; ++i) puts("  ");
 		puts("as "); puts(type_to_string(node.computedType));
 	}
 	else if(node.type == AST_STRUCT) {
-		puts("struct "); put_token_string(node.v.variable.name); putln();
+		puts("struct "); put_token_string(node.variable.name); putln();
 		for(var i = 0; i < node.computedType.fields.size; ++i) {
 			print_ast_depth(node.computedType.fields.at(i), depth + 1);
 		}
 	}
 	else if(node.type == AST_UNION) {
-		puts("union "); put_token_string(node.v.variable.name); putln();
+		puts("union "); put_token_string(node.variable.name); putln();
 		for(var i = 0; i < node.computedType.fields.size; ++i) {
 			print_ast_depth(node.computedType.fields.at(i), depth + 1);
 		}
 	}
 	else if(node.type == AST_ENUM) {
 		putsln("enum");
-		for(var i = 0; i < node.v.block.children.size; ++i) {
-			print_ast_depth(node.v.block.children.at(i), depth + 1);
+		for(var i = 0; i < node.block.children.size; ++i) {
+			print_ast_depth(node.block.children.at(i), depth + 1);
 		}
 	}
 	else if(node.type == AST_MEMBER) {
-		put_token_string(node.v.variable.name); puts(": "); putsln(type_to_string(node.v.variable.type));
+		put_token_string(node.variable.name); puts(": "); putsln(type_to_string(node.variable.type));
 	}
 	else if(node.type == OP_ACCESS_MEMBER) {
-		puts("."); put_token_string(node.v.member.name); putln();
-		print_ast_depth(node.v.member.parent, depth + 1);
+		puts("."); put_token_string(node.member.name); putln();
+		print_ast_depth(node.member.parent, depth + 1);
 	}
 	else if(node.type == AST_CONTINUE) {
 		putsln("continue");
@@ -551,25 +551,25 @@ function print_ast_depth(node: Node*, depth: int) {
 		putsln("break");
 	}
 	else if(node.type == OP_ASSIGN) {
-		putsln(token_type_to_string(node.v.assignment.op.type));
-		print_ast_depth(node.v.assignment.lhs, depth);
-		print_ast_depth(node.v.assignment.rhs, depth + 1);
+		putsln(token_type_to_string(node.assignment.op.type));
+		print_ast_depth(node.assignment.lhs, depth);
+		print_ast_depth(node.assignment.rhs, depth + 1);
 	}
 	else if(node.type == OP_PRE_INCREMENT) {
 		putsln("pre++");
-		print_ast_depth(node.v.unary, depth + 1);
+		print_ast_depth(node.unary, depth + 1);
 	}
 	else if(node.type == OP_PRE_DECREMENT) {
 		putsln("pre--");
-		print_ast_depth(node.v.unary, depth + 1);
+		print_ast_depth(node.unary, depth + 1);
 	}
 	else if(node.type == OP_POST_INCREMENT) {
 		putsln("post++");
-		print_ast_depth(node.v.unary, depth + 1);
+		print_ast_depth(node.unary, depth + 1);
 	}
 	else if(node.type == OP_POST_DECREMENT) {
 		putsln("post--");
-		print_ast_depth(node.v.unary, depth + 1);
+		print_ast_depth(node.unary, depth + 1);
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

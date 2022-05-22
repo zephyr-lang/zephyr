@@ -4,19 +4,19 @@ import "src/ast.zpr";
 function add_implicit_printu_function(): Node* {
 	var name = synthetic_token(TOKEN_IDENTIFIER, "printu");
 	var funktion = new_node(AST_FUNCTION, name);
-	funktion.v.funktion.name = name;
+	funktion.funktion.name = name;
 
-	funktion.v.funktion.arguments = new_vector();
+	funktion.funktion.arguments = new_vector();
 
 	var valTok = synthetic_token(TOKEN_IDENTIFIER, "value");
 	var val = new_node(AST_DEFINE_VAR, valTok);
-	val.v.variable.name = valTok;
-	val.v.variable.type = INT_TYPE;
-	funktion.v.funktion.arguments.push(val);
+	val.variable.name = valTok;
+	val.variable.type = INT_TYPE;
+	funktion.funktion.arguments.push(val);
 
-	funktion.v.funktion.returnType = VOID_TYPE;
+	funktion.funktion.returnType = VOID_TYPE;
 
-	funktion.v.funktion.hasImplicitBody = true;
+	funktion.funktion.hasImplicitBody = true;
 
 	return funktion;
 }
@@ -24,28 +24,28 @@ function add_implicit_printu_function(): Node* {
 function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
 	var name = synthetic_token(TOKEN_IDENTIFIER, sysName);
 	var funktion = new_node(AST_FUNCTION, name);
-	funktion.v.funktion.name = name;
-	funktion.v.funktion.arguments = new_vector();
+	funktion.funktion.name = name;
+	funktion.funktion.arguments = new_vector();
 
 	var nrTok = synthetic_token(TOKEN_IDENTIFIER, "nr");
 	var nr = new_node(AST_DEFINE_VAR, nrTok);
-	nr.v.variable.name = nrTok;
-	nr.v.variable.type = INT_TYPE;
+	nr.variable.name = nrTok;
+	nr.variable.type = INT_TYPE;
 	
-	funktion.v.funktion.arguments.push(nr);
+	funktion.funktion.arguments.push(nr);
 
 	for(var i = 0; i < argCount; ++i) {
 		var argTok = synthetic_token(TOKEN_IDENTIFIER, "arg");
 		var arg = new_node(AST_DEFINE_VAR, argTok);
-		arg.v.variable.name = argTok;
-		arg.v.variable.type = ANY_TYPE;
+		arg.variable.name = argTok;
+		arg.variable.type = ANY_TYPE;
 
-		funktion.v.funktion.arguments.push(arg);
+		funktion.funktion.arguments.push(arg);
 	}
 
-	funktion.v.funktion.returnType = INT_TYPE;
+	funktion.funktion.returnType = INT_TYPE;
 
-	funktion.v.funktion.hasImplicitBody = true;
+	funktion.funktion.hasImplicitBody = true;
 
 	return funktion;
 }
