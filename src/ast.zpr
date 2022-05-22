@@ -179,6 +179,7 @@ struct Node {
 			value: Node*;
 
 			stackOffset: int;
+			unionField: int;
 		};
 
 		constant: struct {

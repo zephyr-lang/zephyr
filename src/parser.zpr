@@ -1050,6 +1050,19 @@ function Parser.parse_struct_definition(member: int): Node* {
 	while(run || !this.check(TOKEN_RIGHT_BRACE)) {
 		run = false;
 
+		if(this.match(TOKEN_UNION)) {
+			var vnion = this.parse_union_definition(true);
+			for(var i = 0; i < vnion.computedType.fields.size; i = i + 1) {
+				var member: Node* = vnion.computedType.fields.at(i);
+				member.v.variable.unionField = true;
+				structType.fields.push(member);
+			}
+
+			this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
+
+			continue;
+		}
+
 		this.parse_member_definition(structType);
 	}
 

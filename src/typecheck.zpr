@@ -80,9 +80,32 @@ function Type.size(): int {
 	if(this.type == DATA_TYPE_ANY) return 8;
 	if(this.type == DATA_TYPE_STRUCT) {
 		var size = 0;
+		var unionSize = 0;
+		var inUnion = false;
 		for(var i = 0; i < this.fields.size; ++i) {
-			size = size + (this.fields.at(i) as Node*).v.variable.type.size_offset();
+			var field: Node* = this.fields.at(i);
+
+			// In the case of an anon union,
+			// the largest field should account for all fields
+			// and the individual fields should not be sized onto the struct
+			if(field.v.variable.unionField) {
+				inUnion = true;
+				var memSize = field.v.variable.type.size_offset();
+				unionSize = memSize > unionSize ? memSize : unionSize;
+			}
+			else {
+				if(inUnion) {
+					inUnion = false;
+					size += unionSize;
+				}
+				size += field.v.variable.type.size_offset();
+			}
 		}
+
+		if(inUnion) {
+			size += unionSize;
+		}
+
 		return size;
 	}
 	if(this.type == DATA_TYPE_UNION) {
@@ -1078,7 +1101,9 @@ function add_offsets_to_struct(structType: Type*) {
 		resolve_type(field.v.variable.type);
 		
 		field.v.variable.stackOffset = offset;
-		offset += field.v.variable.type.size_offset();
+
+		if(!field.v.variable.unionField)
+			offset += field.v.variable.type.size_offset();
 
 		if(type.type == DATA_TYPE_STRUCT) {
 			add_offsets_to_struct(type);
