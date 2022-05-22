@@ -117,7 +117,7 @@ function str_trim_to_char(str: i8*, char: i8, head: i8**): i8* {
 	return str;
 }
 
-function streq(a: i8*, b: i8*): int {
+function streq(a: i8*, b: i8*): bool {
 	if(strlen(a) != strlen(b)) return false;
 	for(var i = 0; a[i]; ++i) {
 		if(a[i] != b[i]) return false;

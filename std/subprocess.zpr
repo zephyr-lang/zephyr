@@ -14,7 +14,7 @@ function execve(filename: i8*, argv: i8**, envp: i8**): int {
 	return syscall3(SYS_execve, filename, argv, envp);
 }
 
-function WIFEXITED(status: int): int {
+function WIFEXITED(status: int): bool {
 	return (status & 127) == 0;
 }
 

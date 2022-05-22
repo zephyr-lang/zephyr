@@ -1226,6 +1226,13 @@ function Parser.parse_enum_declaration(): Node* {
 
 	this.consume(TOKEN_RIGHT_BRACE, "Expected '}' after enum body");
 
+	var alius = new_type();
+	alius.type = DATA_TYPE_ALIAS;
+	alius.name = name;
+	alius.aliased = INT_TYPE;
+
+	this.definedTypes.push(alius);
+
 	return envm;
 }
 

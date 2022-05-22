@@ -87,14 +87,14 @@ enum TokenType {
 }
 
 struct Token {
-	type: int;
+	type: TokenType;
 	start: i8*;
 	length: int;
 	line: int;
 	filename: i8*;
 }
 
-function token_type_to_string(type: int): i8* {
+function token_type_to_string(type: TokenType): i8* {
 	when(type) {
 		TOKEN_LEFT_PAREN -> return "left-paren";
 		TOKEN_RIGHT_PAREN -> return "right-paren";
@@ -202,11 +202,11 @@ function print_token(token: Token*) {
 	puts("'");
 }
 
-function Token.equals(b: Token*): int {
+function Token.equals(b: Token*): bool {
 	return this.length == b.length && memeq(this.start, b.start, this.length);
 }
 
-function synthetic_token(type: int, value: i8*): Token* {
+function synthetic_token(type: TokenType, value: i8*): Token* {
 	var token: Token* = malloc(sizeof(Token));
 	token.line = 0;
 	token.type = type;

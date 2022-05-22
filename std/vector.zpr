@@ -20,7 +20,7 @@ function new_vector(): Vector* {
 	return new_vector_sized(8);
 }
 
-function Vector.empty(): int {
+function Vector.empty(): bool {
 	return this.size == 0;
 }
 

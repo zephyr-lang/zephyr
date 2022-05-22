@@ -1,5 +1,6 @@
 import "std/linux.zpr";
 
+alias bool int;
 const true = 1;
 const false = 0;
 
@@ -59,7 +60,7 @@ function memcpy(dst: any*, src: any*, size: int) {
 	}
 }
 
-function memeq(a: any*, b: any*, size: int): int {
+function memeq(a: any*, b: any*, size: int): bool {
 	var abytes: i8* = a as i8*;
 	var bbytes: i8* = b as i8*;
 	for(var i = 0; i < size; ++i) {

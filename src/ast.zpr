@@ -82,9 +82,9 @@ enum DataType {
 }
 
 struct Type {
-	type: int; // DataType
+	type: DataType;
 	indirection: int;
-	isArray: int;
+	isArray: bool;
 	arrayLength: int;
 
 	name: Token*;
@@ -92,7 +92,7 @@ struct Type {
 	methods: Vector*;
 	aliased: Type*;
 
-	built: int;
+	built: bool;
 }
 
 enum LValue {
@@ -105,9 +105,9 @@ enum LValue {
 }
 
 struct Node {
-	type: int; // NodeType
+	type: NodeType;
 	position: Token*;
-	lvalue: int;
+	lvalue: LValue;
 	computedType: Type*;
 
 	union {
@@ -217,7 +217,7 @@ struct Node {
 	};
 }
 
-function data_type_to_string(type: int): i8* {
+function data_type_to_string(type: DataType): i8* {
 	when(type) {
 		DATA_TYPE_VOID -> return "void";
 		DATA_TYPE_INT -> return "int";
@@ -242,7 +242,7 @@ function struct_name_string(strukt: Type*): i8* {
 	return str;
 }
 
-function __type_to_string(type: Type*, quoted: int): i8* {
+function __type_to_string(type: Type*, quoted: bool): i8* {
 	var baseType: i8*;
 
 	if(type.type == DATA_TYPE_STRUCT || type.type == DATA_TYPE_UNION || type.type == DATA_TYPE_UNRESOLVED) {
@@ -295,7 +295,7 @@ function uq_type_to_string(type: Type*): i8* {
 	return __type_to_string(type, false);
 }
 
-function node_type_to_string(type: int): i8* {
+function node_type_to_string(type: NodeType): i8* {
 	when(type) {
 		OP_BWNOT -> return "~";
 		OP_NEG -> return "-";
@@ -360,7 +360,7 @@ function node_type_to_string(type: int): i8* {
 	return "<unknown node type>";
 }
 
-function is_unary_op(type: int): int {
+function is_unary_op(type: NodeType): bool {
 	return (
 		type == OP_BWNOT ||
 		type == OP_NEG ||
@@ -370,7 +370,7 @@ function is_unary_op(type: int): int {
 	);
 }
 
-function is_binary_op(type: int): int {
+function is_binary_op(type: NodeType): bool {
 	return (
 		type == OP_ADD ||
 		type == OP_SUB ||

@@ -7,7 +7,7 @@ var tc_definedTypes = new_vector();
 
 var tc_checkingLoop = false;
 
-function Type.is_integral(): int {
+function Type.is_integral(): bool {
 	return this.indirection == 0 && (
 		this.type == DATA_TYPE_INT ||
 		this.type == DATA_TYPE_I8 ||
@@ -17,21 +17,21 @@ function Type.is_integral(): int {
 	);
 }
 
-function Type.is_void(): int {
+function Type.is_void(): bool {
 	return this.indirection == 0 && this.type == DATA_TYPE_VOID;
 }
 
-function Type.is_structural(): int {
+function Type.is_structural(): bool {
 	resolve_type(this);
 	return this.is_structural_base() && this.indirection == 0;
 }
 
-function Type.is_structural_base(): int {
+function Type.is_structural_base(): bool {
 	resolve_type(this);
 	return this.type == DATA_TYPE_STRUCT || this.type == DATA_TYPE_UNION;
 }
 
-function Type.assignable(b: Type*): int {
+function Type.assignable(b: Type*): bool {
 	resolve_type(this);
 	resolve_type(b);
 
