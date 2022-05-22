@@ -224,6 +224,14 @@ function Parser.parse_constant(): int {
 
 		return literal.start[1];
 	}
+	else if(this.match(TOKEN_IDENTIFIER)) {
+		var constant = this.lookup_constant(this.previous);
+		if(constant == null) {
+			this.error("Unknown compile-time constant");
+			return 0;
+		}
+		return constant.constant.value;
+	}
 	else {
 		this.error_current("Expected constant value");
 		return 0;
