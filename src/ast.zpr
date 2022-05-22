@@ -51,6 +51,8 @@ enum NodeType {
 	AST_IF,
 	AST_WHILE,
 	AST_FOR,
+	AST_WHEN,
+	AST_BRANCH,
 	AST_CAST,
 	AST_STRUCT,
 	AST_UNION,
@@ -199,6 +201,17 @@ struct Node {
 			rhs: Node*;
 			op: Token*;
 		};
+
+		vhen: struct {
+			match: Node*;
+			branches: Vector*;
+			default: Node*;
+		};
+
+		branch: struct {
+			value: int;
+			body: Node*;
+		};
 	};
 }
 
@@ -290,6 +303,8 @@ function node_type_to_string(type: int): i8* {
 	if(type == AST_IF) return "if";
 	if(type == AST_WHILE) return "while";
 	if(type == AST_FOR) return "for";
+	if(type == AST_WHEN) return "when";
+	if(type == AST_BRANCH) return "branch";
 	if(type == AST_CAST) return "cast";
 	if(type == AST_STRUCT) return "struct";
 	if(type == AST_UNION) return "union";
@@ -570,6 +585,22 @@ function print_ast_depth(node: Node*, depth: int) {
 	else if(node.type == OP_POST_DECREMENT) {
 		putsln("post--");
 		print_ast_depth(node.unary, depth + 1);
+	}
+	else if(node.type == AST_WHEN) {
+		putsln("when");
+		print_ast_depth(node.vhen.match, depth + 1);
+		for(var i = 0; i < node.vhen.branches.size; i = i + 1) {
+			print_ast_depth(node.vhen.branches.at(i), depth + 1);
+		}
+		if(node.vhen.default != null) {
+			for(var i = 0; i < depth; ++i) puts("  ");
+			putsln("else");
+			print_ast_depth(node.vhen.default, depth + 1);
+		}
+	}
+	else if(node.type == AST_BRANCH) {
+		putd(node.branch.value); putln();
+		print_ast_depth(node.branch.body, depth + 1);
 	}
 	else {
 		eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

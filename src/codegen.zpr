@@ -601,6 +601,44 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 	cg_continueLabel = prevContinueLabel;
 }
 
+function generate_when_statement(stmt: Node*, out: File*) {
+	generate_expr_rax(stmt.vhen.match, out);
+
+	var label = ++cg_lableCount;
+	var defaultLabel: int;
+	cg_lableCount += stmt.vhen.branches.size;
+	defaultLabel = ++cg_lableCount;
+	var endLabel = defaultLabel;
+	if(stmt.vhen.default != null) endLabel = ++cg_lableCount;
+
+	for(var i = 0; i < stmt.vhen.branches.size; ++i) {
+		var case: Node* = stmt.vhen.branches.at(i);
+
+		out.puts("    cmp rax, "); out.putd(case.branch.value); out.putln();
+		out.puts("    je .l"); out.putd(label + i); out.putln();
+	}
+
+	out.puts("    jmp .l"); out.putd(defaultLabel); out.putln();
+
+	for(var i = 0; i < stmt.vhen.branches.size; ++i) {
+		var case: Node* = stmt.vhen.branches.at(i);
+
+		out.puts(".l"); out.putd(label + i); out.putsln(":");
+
+		generate_statement(case.branch.body, out);
+
+		out.puts("    jmp .l"); out.putd(endLabel); out.putln();
+	}
+
+	if(stmt.vhen.default != null) {
+		out.puts(".l"); out.putd(defaultLabel); out.putsln(":");
+
+		generate_statement(stmt.vhen.default, out);
+	}
+
+	out.puts(".l"); out.putd(endLabel); out.putsln(":");
+}
+
 function generate_define_var(stmt: Node*, out: File*) {
 	if(stmt.variable.value != null) {
 		if(stmt.variable.value.type == AST_ARRAY_INIT) {
@@ -637,6 +675,9 @@ function generate_statement(stmt: Node*, out: File*) {
 	}
 	else if(stmt.type == AST_FOR) {
 		generate_for_statement(stmt, out);
+	}
+	else if(stmt.type == AST_WHEN) {
+		generate_when_statement(stmt, out);
 	}
 	else if(stmt.type == AST_RETURN) {
 		if(stmt.unary != null)
