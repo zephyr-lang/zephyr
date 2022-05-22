@@ -157,6 +157,17 @@ function lookup_type(name: Token*): Type* {
 function resolve_type(type: Type*): Type* {
 	if(type.type != DATA_TYPE_UNRESOLVED) return type;
 	var resolve = lookup_type(type.name);
+
+	if(resolve.type == DATA_TYPE_ALIAS) {
+		var new = copy_type(resolve.aliased);
+		new.indirection = type.indirection;
+		new.isArray = type.isArray;
+		new.arrayLength = type.arrayLength;
+		new.aliased = resolve;
+		*type = *new;
+		return type;
+	}
+
 	var new = copy_type(resolve);
 	new.indirection = type.indirection;
 	new.isArray = type.isArray;
@@ -251,7 +262,7 @@ function Type.lookup_field(name: Token*): Node* {
 	}
 
 	name.print_position();
-	eputs("Type '"); eputs(type_to_string(this)); eputs("' has no member '"); eput_token_string(name); eputsln("'");
+	eputs("Type "); eputs(type_to_string(this)); eputs(" has no member "); eput_token_string(name); eputln();
 	exit(1);
 
 	return null;
@@ -269,7 +280,7 @@ function Type.lookup_method(name: Token*): Node* {
 	}
 
 	name.print_position();
-	eputs("Type '"); eputs(type_to_string(this)); eputs("' has no method '"); eput_token_string(name); eputsln("'");
+	eputs("Type "); eputs(type_to_string(this)); eputs(" has no method '"); eput_token_string(name); eputsln("'");
 	exit(1);
 
 	return null;
@@ -323,7 +334,7 @@ function Parser.type_check_deref(expr: Node*) {
 
 	if(type.indirection == 0) {
 		expr.print_position();
-		eputs("Cannot dereference non-pointer type '"); eputs(type_to_string(type)); eputsln("'");
+		eputs("Cannot dereference non-pointer type "); eputs(type_to_string(type)); eputln();
 		exit(1);
 	}
 
@@ -350,7 +361,7 @@ function Parser.type_check_unary(expr: Node*) {
 
 	if(!type.assignable(INT_TYPE)) {
 		expr.print_position();
-		eputs("Cannot perform operation '"); eputs(node_type_to_string(expr.type)); eputs("' on type '"); eputs(type_to_string(type)); eputsln("'");
+		eputs("Cannot perform operation '"); eputs(node_type_to_string(expr.type)); eputs("' on type "); eputs(type_to_string(type)); eputln();
 		exit(1);
 	}
 }
@@ -369,8 +380,8 @@ function Parser.type_check_binary(expr: Node*) {
 
 	if(!left.assignable(INT_TYPE) || !right.assignable(INT_TYPE)) {
 		expr.print_position();
-		eputs("Cannot perform operation '"); eputs(node_type_to_string(expr.type)); eputs("' on types '"); eputs(type_to_string(left));
-		eputs("' and '"); eputs(type_to_string(right)); eputsln("'");
+		eputs("Cannot perform operation '"); eputs(node_type_to_string(expr.type)); eputs("' on types "); eputs(type_to_string(left));
+		eputs(" and "); eputs(type_to_string(right)); eputln();
 		exit(1);
 	}
 
@@ -451,8 +462,8 @@ function Parser.type_check_call(expr: Node*) {
 
 		if(!argType.assignable(paramType)) {
 			expr.print_position();
-			eputs("Function argument "); eputd(i + 1); eputs(" expected type '"); eputs(type_to_string(paramType)); eputs("' but got '");
-			eputs(type_to_string(argType)); eputsln("'");
+			eputs("Function argument "); eputd(i + 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
+			eputs(type_to_string(argType)); eputln();
 			exit(1);
 		}
 	}
@@ -480,7 +491,7 @@ function Parser.type_check_method_call(expr: Node*) {
 	}
 	else {
 		expr.print_position();
-		eputs("Cannot access method on type '"); eputs(type_to_string(parentType)); eputsln("'");
+		eputs("Cannot access method on type "); eputs(type_to_string(parentType)); eputln();
 		exit(1);
 	}
 
@@ -490,7 +501,7 @@ function Parser.type_check_method_call(expr: Node*) {
 
 	if(funktion == null) {
 		expr.print_position();
-		eputs("Unknown method '"); eput_token_string(name); eputs("'' of type '"); eputs(type_to_string(parentType)); eputsln("'");
+		eputs("Unknown method '"); eput_token_string(name); eputs("'' of type "); eputs(type_to_string(parentType)); eputln();
 		exit(1);
 	}
 
@@ -515,8 +526,8 @@ function Parser.type_check_method_call(expr: Node*) {
 
 		if(!argType.assignable(paramType)) {
 			expr.print_position();
-			eputs("Function argument "); eputd(i - 1); eputs(" expected type '"); eputs(type_to_string(paramType)); eputs("' but got '");
-			eputs(type_to_string(argType)); eputsln("'");
+			eputs("Function argument "); eputd(i - 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
+			eputs(type_to_string(argType)); eputln();
 			exit(1);
 		}
 	}
@@ -530,7 +541,7 @@ function Parser.type_check_ternary_expr(expr: Node*) {
 
 	if(!condition.assignable(INT_TYPE)) {
 		expr.print_position();
-		eputs("Cannot use type '"); eputs(type_to_string(condition)); eputsln("as a condition");
+		eputs("Cannot use type "); eputs(type_to_string(condition)); eputsln(" as a condition");
 		exit(1);
 	}
 
@@ -542,7 +553,7 @@ function Parser.type_check_ternary_expr(expr: Node*) {
 
 	if(!doTrue.assignable(doFalse)) {
 		expr.print_position();
-		eputs("Cannot conditionally return differing types '"); eputs(type_to_string(doTrue)); eputs("' and '"); eputs(type_to_string(doFalse)); eputsln("'");
+		eputs("Cannot conditionally return differing types "); eputs(type_to_string(doTrue)); eputs(" and "); eputs(type_to_string(doFalse)); eputln();
 		exit(1);
 	}
 
@@ -555,7 +566,7 @@ function Parser.type_check_access_subscript(expr: Node*) {
 
 	if(lhs.indirection == 0) {
 		expr.print_position();
-		eputs("Cannot subscript value type '"); eputs(type_to_string(lhs)); eputsln("'");
+		eputs("Cannot subscript value type "); eputs(type_to_string(lhs)); eputln();
 		exit(1);
 	}
 
@@ -564,7 +575,7 @@ function Parser.type_check_access_subscript(expr: Node*) {
 
 	if(!rhs.assignable(INT_TYPE)) {
 		expr.print_position();
-		eputs("Cannot subscript with index of type '"); eputs(type_to_string(rhs)); eputsln("'");
+		eputs("Cannot subscript with index of type "); eputs(type_to_string(rhs)); eputln();
 		exit(1);
 	}
 
@@ -595,7 +606,7 @@ function Parser.type_check_access_member(expr: Node*) {
 	}
 	else {
 		expr.print_position();
-		eputs("Cannot access member on type '"); eputs(type_to_string(parentType)); eputsln("'");
+		eputs("Cannot access member on type "); eputs(type_to_string(parentType)); eputln();
 		exit(1);
 	}
 
@@ -631,8 +642,8 @@ function Parser.type_check_assign(expr: Node*) {
 
 	if(!rhs.assignable(lhs)) {
 		expr.print_position();
-		eputs("Cannot assign type '"); eputs(type_to_string(rhs)); eputs("' to type '"); eputs(type_to_string(lhs));
-		eputsln("'");
+		eputs("Cannot assign type "); eputs(type_to_string(rhs)); eputs(" to type "); eputs(type_to_string(lhs));
+		eputln();
 		exit(1);
 	}
 
@@ -657,8 +668,8 @@ function Parser.type_check_inc_decrement(expr: Node*) {
 
 	if(!type.assignable(INT_TYPE)) {
 		expr.print_position();
-		eputs("Cannot perform '"); eputs(node_type_to_string(expr.type)); eputs("' on type '"); eputs(type_to_string(type));
-		eputsln("'");
+		eputs("Cannot perform '"); eputs(node_type_to_string(expr.type)); eputs("' on type "); eputs(type_to_string(type));
+		eputln();
 		exit(1);
 	}
 
@@ -739,8 +750,8 @@ function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
 
 		if(!item.assignable(declItemType)) {
 			(array.block.children.at(i) as Node*).print_position();
-			eputs("Cannot initialize array of type '"); eputs(type_to_string(declItemType)); eputs("' with item of type '");
-			eputs(type_to_string(item)); eputsln("'");
+			eputs("Cannot initialize array of type "); eputs(type_to_string(declItemType)); eputs(" with item of type ");
+			eputs(type_to_string(item)); eputln();
 			exit(1);
 		}
 	}
@@ -794,8 +805,8 @@ function Parser.type_check_define_var(stmt: Node*) {
 
 		if(!valueType.assignable(declType)) {
 			stmt.print_position();
-			eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable expecting '"); eputs(type_to_string(declType));
-			eputsln("'");
+			eputs("Cannot assign type "); eputs(type_to_string(valueType)); eputs(" to variable expecting "); eputs(type_to_string(declType));
+			eputln();
 			exit(1);
 		}
 	}
@@ -810,7 +821,7 @@ function Parser.type_check_if_statement(stmt: Node*) {
 
 	if(!conditionType.assignable(INT_TYPE)) {
 		stmt.print_position();
-		eputs("Expected condition to be type 'int' but got '"); eputs(type_to_string(conditionType)); eputsln("'");
+		eputs("Expected condition to be type 'int' but got "); eputs(type_to_string(conditionType)); eputln();
 		exit(1);
 	}
 
@@ -837,7 +848,7 @@ function Parser.type_check_while_statement(stmt: Node*) {
 
 	if(!conditionType.assignable(INT_TYPE)) {
 		stmt.print_position();
-		eputs("Expected condition to be type 'int' but got '"); eputs(type_to_string(conditionType)); eputsln("'");
+		eputs("Expected condition to be type 'int' but got "); eputs(type_to_string(conditionType)); eputln();
 		exit(1);
 	}
 
@@ -857,7 +868,7 @@ function Parser.type_check_for_statement(stmt: Node*) {
 
 		if(!conditionType.assignable(INT_TYPE)) {
 			stmt.print_position();
-			eputs("Expected condition to be type 'int' but got '"); eputs(type_to_string(conditionType)); eputsln("'");
+			eputs("Expected condition to be type 'int' but got "); eputs(type_to_string(conditionType)); eputln();
 			exit(1);
 		}
 	}
@@ -929,8 +940,8 @@ function Parser.type_check_statement(stmt: Node*) {
 		var expectedType = this.currentFunction.funktion.returnType;
 		if(!returnType.assignable(expectedType)) {
 			stmt.print_position();
-			eputs("Cannot return type '"); eputs(type_to_string(returnType)); eputs("' from function expecting '"); eputs(type_to_string(expectedType));
-			eputsln("'");
+			eputs("Cannot return type "); eputs(type_to_string(returnType)); eputs(" from function expecting "); eputs(type_to_string(expectedType));
+			eputln();
 			exit(1);
 		}
 		this.currentBlock.block.hasReturned = true;
@@ -1032,8 +1043,8 @@ function Parser.type_check_function(funktion: Node*) {
 		}
 		else {
 			funktion.print_position();
-			eputs("A non-void returning function must return a value (returning '"); eputs(type_to_string(funktion.funktion.returnType));
-			eputsln("')");
+			eputs("A non-void returning function must return a value (returning "); eputs(type_to_string(funktion.funktion.returnType));
+			eputsln(")");
 			exit(1);
 		}
 	}
@@ -1079,8 +1090,8 @@ function Parser.type_check_global_var(stmt: Node*) {
 
 		if(!valueType.assignable(declType)) {
 			stmt.print_position();
-			eputs("Cannot assign type '"); eputs(type_to_string(valueType)); eputs("' to variable expecting '"); eputs(type_to_string(declType));
-			eputsln("'");
+			eputs("Cannot assign type "); eputs(type_to_string(valueType)); eputs(" to variable expecting "); eputs(type_to_string(declType));
+			eputln();
 			exit(1);
 		}
 	}

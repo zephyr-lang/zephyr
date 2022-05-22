@@ -56,6 +56,7 @@ enum TokenType {
 	TOKEN_STRING,
 	TOKEN_IDENTIFIER,
 
+	TOKEN_ALIAS,
 	TOKEN_AS,
 	TOKEN_ANY,
 	TOKEN_BREAK,
@@ -145,6 +146,7 @@ function token_type_to_string(type: int): i8* {
 		TOKEN_STRING -> return "string";
 		TOKEN_IDENTIFIER -> return "identifier";
 
+		TOKEN_ALIAS -> return "alias";
 		TOKEN_AS -> return "as";
 		TOKEN_ANY -> return "any";
 		TOKEN_BREAK -> return "break";
@@ -211,4 +213,11 @@ function synthetic_token(type: int, value: i8*): Token* {
 	token.start = value;
 	token.length = strlen(value);
 	return token;
+}
+
+function Token.name_to_str(): i8* {
+	var name = malloc(this.length + 1);
+	memcpy(name, this.start, this.length);
+	name[this.length] = 0;
+	return name;
 }

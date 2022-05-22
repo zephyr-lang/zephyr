@@ -85,6 +85,7 @@ function Lexer.match_keyword(keyword: i8*): int {
 }
 
 function Lexer.identifier_type(): int {
+	if(this.match_keyword("alias")) return TOKEN_ALIAS;
 	if(this.match_keyword("as")) return TOKEN_AS;
 	if(this.match_keyword("any")) return TOKEN_ANY;
 	if(this.match_keyword("break")) return TOKEN_BREAK;

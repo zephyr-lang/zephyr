@@ -77,6 +77,7 @@ enum DataType {
 	DATA_TYPE_ANY,
 	DATA_TYPE_STRUCT,
 	DATA_TYPE_UNION,
+	DATA_TYPE_ALIAS,
 	DATA_TYPE_UNRESOLVED
 }
 
@@ -89,6 +90,7 @@ struct Type {
 	name: Token*;
 	fields: Vector*;
 	methods: Vector*;
+	aliased: Type*;
 
 	built: int;
 }
@@ -224,7 +226,7 @@ function data_type_to_string(type: int): i8* {
 		DATA_TYPE_I32 -> return "i32";
 		DATA_TYPE_I64 -> return "i64";
 		DATA_TYPE_ANY -> return "any";
-		DATA_TYPE_UNRESOLVED, DATA_TYPE_STRUCT, DATA_TYPE_UNION -> {
+		DATA_TYPE_ALIAS, DATA_TYPE_UNRESOLVED, DATA_TYPE_STRUCT, DATA_TYPE_UNION -> {
 			eputsln("Unreachable - data_type_to_string");
 			return null;
 		}
@@ -240,7 +242,7 @@ function struct_name_string(strukt: Type*): i8* {
 	return str;
 }
 
-function type_to_string(type: Type*): i8* {
+function __type_to_string(type: Type*, quoted: int): i8* {
 	var baseType: i8*;
 
 	if(type.type == DATA_TYPE_STRUCT || type.type == DATA_TYPE_UNION || type.type == DATA_TYPE_UNRESOLVED) {
@@ -250,13 +252,47 @@ function type_to_string(type: Type*): i8* {
 		baseType = data_type_to_string(type.type);
 	}
 
-	var str: i8* = malloc(strlen(baseType) + type.indirection + 1);
-	strcpy(str, baseType);
+	var aliasName: Token*;
+	var aliasLength = 0;
+	if(type.type != DATA_TYPE_ALIAS && type.aliased != null) {
+		aliasName = type.aliased.name;
+		// " (alias of " ... ")"
+		aliasLength = 12 + aliasName.length;
+	}
+
+	var quotesLength = quoted ? 2 : 0;
+
+	var str: i8* = malloc(quoted + strlen(baseType) + type.indirection + aliasLength + 1);
+	if(quoted) {
+		str[0] = 39; // '
+		strcpy(&str[1], baseType);
+	}
+	else
+		strcpy(str, baseType);
 
 	for(var i = 0; i < type.indirection; ++i) {
 		strcat(str, "*");
 	}
+	if(quoted) strcat(str, "'");
+
+	if(aliasLength != 0) {
+		strcat(str, " (alias of ");
+		var name = aliasName.name_to_str();
+		strcat(str, name);
+		free(name);
+		strcat(str, ")");
+	}
+
+
 	return str;
+}
+
+function type_to_string(type: Type*): i8* {
+	return __type_to_string(type, true);
+}
+
+function uq_type_to_string(type: Type*): i8* {
+	return __type_to_string(type, false);
 }
 
 function node_type_to_string(type: int): i8* {
@@ -385,10 +421,10 @@ function print_ast_depth(node: Node*, depth: int) {
 			putsln("}");
 		}
 		AST_FUNCTION -> {
-			puts("function "); put_token_string(node.funktion.name); puts(": "); putsln(type_to_string(node.funktion.returnType));
+			puts("function "); put_token_string(node.funktion.name); puts(": "); putsln(uq_type_to_string(node.funktion.returnType));
 			for(var i = 0; i < node.funktion.arguments.size; ++i) {
 				var arg: Node* = node.funktion.arguments.at(i);
-				puts("("); put_token_string(arg.variable.name); puts(": "); puts(type_to_string(arg.variable.type)); puts(") ");
+				puts("("); put_token_string(arg.variable.name); puts(": "); puts(uq_type_to_string(arg.variable.type)); puts(") ");
 			}
 			if(node.funktion.arguments.size > 0) putln();
 			if(!node.funktion.hasImplicitBody)
@@ -483,7 +519,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			puts("const "); put_token_string(node.constant.name); puts(" = "); putd(node.constant.value); putln();
 		}
 		AST_DEFINE_VAR,AST_DEFINE_GLOBAL_VAR -> {
-			puts("var "); put_token_string(node.variable.name); puts(": "); putsln(type_to_string(node.variable.type));
+			puts("var "); put_token_string(node.variable.name); puts(": "); putsln(uq_type_to_string(node.variable.type));
 			if(node.variable.value != null) {
 				print_ast_depth(node.variable.value, depth + 1);
 				putln();
@@ -510,7 +546,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.conditional.doFalse, depth + 1);
 		}
 		OP_SIZEOF -> {
-			puts("sizeof("); puts(type_to_string(node.computedType)); puts(")");
+			puts("sizeof("); puts(uq_type_to_string(node.computedType)); puts(")");
 		}
 		OP_ACCESS_SUBSCRIPT -> {
 			putsln("subscript [");
@@ -539,7 +575,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.unary, depth + 1);
 			putln();
 			for(var i = 0; i < depth; ++i) puts("  ");
-			puts("as "); puts(type_to_string(node.computedType));
+			puts("as "); puts(uq_type_to_string(node.computedType));
 		}
 		AST_STRUCT -> {
 			puts("struct "); put_token_string(node.variable.name); putln();
@@ -560,7 +596,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			}
 		}
 		AST_MEMBER -> {
-			put_token_string(node.variable.name); puts(": "); putsln(type_to_string(node.variable.type));
+			put_token_string(node.variable.name); puts(": "); putsln(uq_type_to_string(node.variable.type));
 		}
 		OP_ACCESS_MEMBER -> {
 			puts("."); put_token_string(node.member.name); putln();

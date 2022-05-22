@@ -1271,6 +1271,20 @@ function Parser.parse_import() {
 	this.advance();
 }
 
+function Parser.parse_alias() {
+	var aliasName = this.consume(TOKEN_IDENTIFIER, "Expected alias name");
+	var aliasType = this.parse_type();
+
+	this.consume(TOKEN_SEMICOLON, "Expected ';' after alias");
+
+	var alius = new_type();
+	alius.type = DATA_TYPE_ALIAS;
+	alius.name = aliasName;
+	alius.aliased = aliasType;
+
+	this.definedTypes.push(alius);
+}
+
 function Parser.parse_program(): Node* {
 	var program = new_node(AST_PROGRAM, this.current);
 	program.block.children = new_vector();
@@ -1313,6 +1327,9 @@ function Parser.parse_program(): Node* {
 		}
 		else if(this.match(TOKEN_IMPORT)) {
 			this.parse_import();
+		}
+		else if(this.match(TOKEN_ALIAS)) {
+			this.parse_alias();
 		}
 		else {
 			this.error_current("Expected definition");
