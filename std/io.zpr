@@ -94,11 +94,13 @@ function eputd(val: int) {
 
 // ========== Files ==========
 
+const __FILE_BUFFER_CAP = 1024;
+
 struct File {
 	fd: int;
 	name: i8*;
 
-	buffer: i8*;
+	buffer: i8[__FILE_BUFFER_CAP];
 	bufferSize: int;
 }
 
@@ -115,7 +117,6 @@ function fopen(name: i8*, mode: i8): File* {
 		free(f);
 		return null;
 	}
-	f.buffer = malloc(1024);
 	return f;
 }
 
@@ -129,10 +130,10 @@ function File.flush() {
 }
 
 function File.write(buf: any*, size: int) {
-	if(this.bufferSize + size > 1024) {
+	if(this.bufferSize + size > __FILE_BUFFER_CAP) {
 		this.flush();
 	}
-	if(size > 1024) {
+	if(size > __FILE_BUFFER_CAP) {
 		write(this.fd, buf, size);
 	}
 	else {

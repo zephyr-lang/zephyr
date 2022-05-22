@@ -342,7 +342,7 @@ function generate_access_member(expr: Node*, out: File*) {
 	generate_expr_rax(expr.member.parent, out);
 	var field = expr.member.memberRef;
 	
-	if(field.variable.type.is_structural()) {
+	if(field.variable.type.isArray || field.variable.type.is_structural()) {
 		out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
 	}
 	else {
