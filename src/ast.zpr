@@ -209,7 +209,7 @@ struct Node {
 		};
 
 		branch: struct {
-			value: int;
+			values: Vector*;
 			body: Node*;
 		};
 	};
@@ -599,7 +599,11 @@ function print_ast_depth(node: Node*, depth: int) {
 		}
 	}
 	else if(node.type == AST_BRANCH) {
-		putd(node.branch.value); putln();
+		for(var i = 0; i < node.branch.values.size; ++i) {
+			putd(node.branch.values.at(i) as int);
+			if(i != node.branch.values.size - 1) putsln(", ");
+			else putln();
+		}
 		print_ast_depth(node.branch.body, depth + 1);
 	}
 	else {

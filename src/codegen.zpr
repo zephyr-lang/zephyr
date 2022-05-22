@@ -614,8 +614,11 @@ function generate_when_statement(stmt: Node*, out: File*) {
 	for(var i = 0; i < stmt.vhen.branches.size; ++i) {
 		var case: Node* = stmt.vhen.branches.at(i);
 
-		out.puts("    cmp rax, "); out.putd(case.branch.value); out.putln();
-		out.puts("    je .l"); out.putd(label + i); out.putln();
+		for(var valI = 0; valI < case.branch.values.size; ++valI) {
+			var value = case.branch.values.at(valI) as int;
+			out.puts("    cmp rax, "); out.putd(value); out.putln();
+			out.puts("    je .l"); out.putd(label + i); out.putln();
+		}
 	}
 
 	out.puts("    jmp .l"); out.putd(defaultLabel); out.putln();

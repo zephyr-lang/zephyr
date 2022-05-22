@@ -859,14 +859,22 @@ function Parser.parse_when_statement(): Node* {
 			break;
 		}
 
+		var branch = new_node(AST_BRANCH, this.current);
+		branch.branch.values = new_vector();
+
 		var value = this.parse_constant();
+		branch.branch.values.push(value as any*);
+
+		while(this.match(TOKEN_COMMA)) {
+			var value = this.parse_constant();
+			branch.branch.values.push(value as any*);
+		}
 
 		var arrow = this.consume(TOKEN_ARROW, "Expected '->' after branch value");
 
-		var body = this.parse_statement();
+		branch.position = arrow;
 
-		var branch = new_node(AST_BRANCH, arrow);
-		branch.branch.value = value;
+		var body = this.parse_statement();
 		branch.branch.body = body;
 
 		vhen.vhen.branches.push(branch);

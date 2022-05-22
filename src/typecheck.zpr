@@ -885,7 +885,7 @@ function Parser.type_check_when_statement(stmt: Node*) {
 	for(var i = 0; i < stmt.vhen.branches.size; ++i) {
 		var branch: Node* = stmt.vhen.branches.at(i);
 
-		// branch.branch.value is guaranteed to be an integer as it is a constant
+		// branch.branch.values are guaranteed to be an integer as they are a constant
 
 		this.type_check_statement(branch.branch.body);
 	}
