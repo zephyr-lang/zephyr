@@ -89,6 +89,33 @@ function main(): int {
 	return 0;
 }"
 
+assert_stdout "1
+2
+3
+4
+5
+6
+7
+8
+9
+10" "
+const SIZE = 10;
+
+function main(): int {
+	var arr: int[SIZE];
+
+	for(var i = 0; i < SIZE; ++i) {
+		arr[i] = i + 1;
+	}
+
+	for(var i = 0; i < SIZE; ++i) {
+		printu(arr[i]);
+	}
+
+	return 0;
+}
+"
+
 echo " Done"
 
 echo -n "Global: "

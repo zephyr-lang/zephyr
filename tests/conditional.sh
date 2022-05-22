@@ -312,3 +312,64 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "When: "
+
+assert_stdout "0!
+1!
+Neither 0 nor 1!" "
+import \"std/io.zpr\";
+
+function main(): int {
+
+	for(var i = 0; i < 3; ++i) {
+		when(i) {
+			0 -> putsln(\"0!\");
+			1 -> putsln(\"1!\");
+			else -> putsln(\"Neither 0 nor 1!\");
+		}
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "0!
+1!" "
+import \"std/io.zpr\";
+
+function main(): int {
+
+	for(var i = 0; i < 3; ++i) {
+		when(i) {
+			0 -> putsln(\"0!\");
+			1 -> putsln(\"1!\");
+		}
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "not 1 or 2
+Either 1 or 2
+Either 1 or 2
+not 1 or 2" "
+import \"std/io.zpr\";
+
+function main(): int {
+
+	for(var i = 0; i <= 3; ++i) {
+		when(i) {
+			1, 2 -> putsln(\"Either 1 or 2\");
+			else -> {
+				putsln(\"not 1 or 2\");
+			}
+		}
+	}
+
+	return 0;
+}
+"
+
+echo " Done"
