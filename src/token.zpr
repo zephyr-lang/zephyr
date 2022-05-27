@@ -180,13 +180,15 @@ function token_type_to_string(type: TokenType): i8* {
 }
 
 function put_token_string(token: Token*) {
-	// A bit of a hack
-	write(stdout, token.start, token.length);
+	fput_token_string(stdout, token);
 }
 
 function eput_token_string(token: Token*) {
-	// A bit of a hack
-	write(stderr, token.start, token.length);
+	fput_token_string(stderr, token);
+}
+
+function fput_token_string(fd: int, token: Token*) {
+	write(fd, token.start, token.length);
 }
 
 function File.put_token_string(token: Token*) {

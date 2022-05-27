@@ -47,13 +47,17 @@ function Type.assignable(b: Type*): bool {
 		return true;
 	}
 
-	if(this.type == DATA_TYPE_STRUCT && b.type == DATA_TYPE_STRUCT && this.indirection == 0 && b.indirection == 0) {
-		if(this.size() == b.size()) {
-			//TODO: Warning
+	if(this.type == DATA_TYPE_STRUCT && b.type == DATA_TYPE_STRUCT) {
+		if(this.indirection != b.indirection) return false;
+
+		if(this.name.equals(&b.name) && this.size() == b.size()) {
 			return true;
 		}
+
 		return false;
 	}
+
+	//TODO Support assigning unions properly
 
 	return this.type == b.type && this.indirection == b.indirection;
 }
@@ -138,9 +142,11 @@ function Token.print_position() {
 	eputs(": ");
 }
 
-function lookup_type(name: Token*): Type* {
+function lookup_type(name: Name*): Type* {
 	for(var i = 0; i < tc_definedTypes.size; ++i) {
 		var type: Type* = tc_definedTypes.at(i);
+
+		//TODO Support namespaces
 
 		if(type.name.equals(name)) {
 			return type;
@@ -148,7 +154,7 @@ function lookup_type(name: Token*): Type* {
 	}
 
 	name.print_position();
-	eputs("Unknown type '"); eput_token_string(name); eputsln("'");
+	eputs("Unknown type '"); name.eput(); eputsln("'");
 	exit(1);
 
 	return null;
@@ -156,7 +162,7 @@ function lookup_type(name: Token*): Type* {
 
 function resolve_type(type: Type*): Type* {
 	if(type.type != DATA_TYPE_UNRESOLVED) return type;
-	var resolve = lookup_type(type.name);
+	var resolve = lookup_type(&type.name);
 
 	if(resolve.type == DATA_TYPE_ALIAS) {
 		var new = copy_type(resolve.aliased);
@@ -176,8 +182,10 @@ function resolve_type(type: Type*): Type* {
 	return type;
 }
 
-function Parser.lookup_variable(name: Token*): Node* {
+function Parser.lookup_variable(name: Name*): Node* {
 	var block = this.currentBlock;
+
+	//TODO Support namespaces
 
 	while(block != null) {
 		var variable = this.lookup_scope_variable(name, block);
@@ -214,7 +222,9 @@ function Parser.lookup_variable(name: Token*): Node* {
 	return null;
 }
 
-function Parser.lookup_constant(name: Token*): Node* {
+function Parser.lookup_constant(name: Name*): Node* {
+	// TODO Support namespaces
+
 	for(var i = 0; i < this.constants.size; ++i) {
 		var constant: Node* = this.constants.at(i);
 		if(constant.constant.name.equals(name)) {
@@ -225,7 +235,7 @@ function Parser.lookup_constant(name: Token*): Node* {
 	return null;
 }
 
-function Parser.lookup_scope_variable(name: Token*, block: Node*): Node* {
+function Parser.lookup_scope_variable(name: Name*, block: Node*): Node* {
 	for(var i = 0; i < block.block.variables.size; ++i) {
 		var variable: Node* = block.block.variables.at(i);
 
@@ -236,11 +246,11 @@ function Parser.lookup_scope_variable(name: Token*, block: Node*): Node* {
 	return null;
 }
 
-function Parser.lookup_same_scope_variable(name: Token*): Node* {
+function Parser.lookup_same_scope_variable(name: Name*): Node* {
 	return this.lookup_scope_variable(name, this.currentBlock);
 }
 
-function Parser.lookup_global_variable(name: Token*): Node* {
+function Parser.lookup_global_variable(name: Name*): Node* {
 	for(var i = 0; i < this.globalVars.size; ++i) {
 		var variable: Node* = this.globalVars.at(i);
 
@@ -256,7 +266,7 @@ function Type.lookup_field(name: Token*): Node* {
 	for(var i = 0; i < this.fields.size; ++i) {
 		var field: Node* = this.fields.at(i);
 
-		if(field.variable.name.equals(name)) {
+		if(field.variable.name.name.equals(name)) {
 			return field;
 		}
 	}
@@ -268,7 +278,7 @@ function Type.lookup_field(name: Token*): Node* {
 	return null;
 }
 
-function Type.lookup_method(name: Token*): Node* {
+function Type.lookup_method(name: Name*): Node* {
 	resolve_type(this);
 
 	for(var i = 0; i < this.methods.size; ++i) {
@@ -280,7 +290,7 @@ function Type.lookup_method(name: Token*): Node* {
 	}
 
 	name.print_position();
-	eputs("Type "); eputs(type_to_string(this)); eputs(" has no method '"); eput_token_string(name); eputsln("'");
+	eputs("Type "); eputs(type_to_string(this)); eputs(" has no method '"); name.eput(); eputsln("'");
 	exit(1);
 
 	return null;
@@ -389,11 +399,11 @@ function Parser.type_check_binary(expr: Node*) {
 }
 
 function Parser.type_check_access_var(expr: Node*) {
-	var variable = this.lookup_variable(expr.variable.name);
+	var variable = this.lookup_variable(&expr.variable.name);
 
 	if(variable == null) {
 		expr.print_position();
-		eputs("Unknown variable '"); eput_token_string(expr.variable.name); eputsln("' in current scope");
+		eputs("Unknown variable '"); expr.variable.name.eput(); eputsln("' in current scope");
 		exit(1);
 	}
 
@@ -429,11 +439,11 @@ function Parser.type_check_access_var(expr: Node*) {
 }
 
 function Parser.type_check_call(expr: Node*) {
-	var funktion = this.lookup_variable(expr.funktion.name);
+	var funktion = this.lookup_variable(&expr.funktion.name);
 
 	if(funktion == null) {
 		expr.print_position();
-		eputs("Unknown variable '"); eput_token_string(expr.variable.name); eputsln("' in current scope");
+		eputs("Unknown variable '"); expr.variable.name.eput(); eputsln("' in current scope");
 		exit(1);
 	}
 
@@ -481,12 +491,12 @@ function Parser.type_check_method_call(expr: Node*) {
 	var funktion: Node*;
 
 	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
-		funktion = parentType.lookup_method(name);
+		funktion = parentType.lookup_method(&name);
 	}
 	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
 		var copy = copy_type(parentType);
 		copy.indirection = copy.indirection - 1;
-		funktion = copy.lookup_method(name);
+		funktion = copy.lookup_method(&name);
 		parentType = copy;
 	}
 	else {
@@ -501,7 +511,7 @@ function Parser.type_check_method_call(expr: Node*) {
 
 	if(funktion == null) {
 		expr.print_position();
-		eputs("Unknown method '"); eput_token_string(name); eputs("'' of type "); eputs(type_to_string(parentType)); eputln();
+		eputs("Unknown method '"); name.eput(); eputs("'' of type "); eputs(type_to_string(parentType)); eputln();
 		exit(1);
 	}
 
@@ -764,11 +774,11 @@ function Parser.type_check_define_var(stmt: Node*) {
 
 	var name = stmt.variable.name;
 
-	var redeclaration = this.lookup_same_scope_variable(name);
+	var redeclaration = this.lookup_same_scope_variable(&name);
 
 	if(redeclaration != null) {
 		stmt.print_position();
-		eputs("Redeclaration of variable '"); eput_token_string(name); eputsln("' in current scope");
+		eputs("Redeclaration of variable '"); name.eput(); eputsln("' in current scope");
 		exit(1);
 	}
 
@@ -1055,11 +1065,11 @@ function Parser.type_check_global_var(stmt: Node*) {
 	resolve_type(declType);
 	var name = stmt.variable.name;
 
-	var redeclaration = this.lookup_global_variable(name);
+	var redeclaration = this.lookup_global_variable(&name);
 
 	if(redeclaration != null) {
 		stmt.print_position();
-		eputs("Redeclaration of variable '"); eput_token_string(name); eputsln("' in current scope");
+		eputs("Redeclaration of variable '"); name.eput(); eputsln("' in current scope");
 		exit(1);
 	}
 
@@ -1107,7 +1117,7 @@ function add_offsets_to_union(unionType: Type*) {
 		var field: Node* = unionType.fields.at(i);
 		var type = field.variable.type;
 
-		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_UNION) && type.name.equals(unionType.name) && type.indirection == 0) {
+		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_UNION) && type.name.equals(&unionType.name) && type.indirection == 0) {
 			field.print_position();
 			eputsln("A union cannot contain a member of itself (use a pointer instead)");
 			exit(1);
@@ -1137,7 +1147,7 @@ function add_offsets_to_struct(structType: Type*) {
 		var field: Node* = structType.fields.at(i);
 		var type = field.variable.type;
 
-		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_STRUCT) && type.name.equals(structType.name) && type.indirection == 0) {
+		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_STRUCT) && type.name.equals(&structType.name) && type.indirection == 0) {
 			field.print_position();
 			eputsln("A struct cannot contain a member of itself (use a pointer instead)");
 			exit(1);
@@ -1164,6 +1174,8 @@ function Parser.type_check(program: Node*) {
 	tc_definedTypes = this.definedTypes;
 
 	var mainTok = synthetic_token(TOKEN_IDENTIFIER, "main");
+	var mainName: Name;
+	this.bind_name(&mainName, mainTok);
 
 	for(var i = 0; i < program.block.children.size; ++i) {
 		var node: Node* = program.block.children.at(i);
@@ -1172,7 +1184,7 @@ function Parser.type_check(program: Node*) {
 			if(!node.funktion.hasImplicitBody)
 				this.type_check_function(node);
 
-			if(node.funktion.name.equals(mainTok)) {
+			if(node.funktion.name.equals(&mainName)) {
 				node.funktion.used = true;
 			}
 		}

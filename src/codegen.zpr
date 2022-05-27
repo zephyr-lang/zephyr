@@ -78,7 +78,7 @@ function generate_addrof_rax(expr: Node*, out: File*) {
 			out.puts("    lea rax, [rbp-"); out.putd(expr.unary.variable.stackOffset); out.putsln("]");
 		}
 		LVALUE_GLOBAL -> {
-			out.puts("    lea rax, [_g_"); out.put_token_string(expr.unary.variable.name); out.putsln("]");
+			out.puts("    lea rax, [_G"); out.put_name(&expr.unary.variable.name); out.putsln("]");
 		}
 		LVALUE_SUBSCRIPT -> {
 			generate_expr_rax(expr.unary.binary.lhs, out);
@@ -251,7 +251,7 @@ function generate_call_rax(expr: Node*, out: File*) {
 
 	cg_registersInUse = cg_registersInUse - localRegUse;
 
-	out.puts("    call _f_"); out.put_token_string(expr.funktion.name); out.putln();
+	out.puts("    call _F"); out.put_name(&expr.funktion.name); out.putln();
 
 	for(var i = 0; i < cg_registersInUse; ++i) {
 		out.puts("    pop "); out.putsln(cg_ARG_REGISTERS[cg_registersInUse - i - 1]);
@@ -283,7 +283,7 @@ function generate_call_method_rax(expr: Node*, out: File*) {
 
 	cg_registersInUse = cg_registersInUse - localRegUse;
 
-	out.puts("    call _m_"); out.put_token_string(expr.funktion.parentType.name); out.puts("_"); out.put_token_string(expr.funktion.name);
+	out.puts("    call _M"); out.put_name(&expr.funktion.parentType.name); out.puts("_"); out.put_name(&expr.funktion.name);
 	out.putln();
 
 	for(var i = 0; i < cg_registersInUse; ++i) {
@@ -319,12 +319,12 @@ function generate_access_var(expr: Node*, out: File*) {
 
 function generate_access_global_var(expr: Node*, out: File*) {
 	if(expr.variable.type.isArray || expr.variable.type.is_structural()) {
-		out.puts("    lea rax, [_g_"); out.put_token_string(expr.variable.name); out.putsln("]");
+		out.puts("    lea rax, [_G"); out.put_name(&expr.variable.name); out.putsln("]");
 		return;
 	}
 
 	out.puts("    "); out.puts(expr.variable.type.movzx()); out.puts(" "); out.puts(expr.variable.type.rax_subregister()); out.puts(", ");
-	out.puts(expr.variable.type.qualifier()); out.puts(" [_g_"); out.put_token_string(expr.variable.name); out.putsln("]");
+	out.puts(expr.variable.type.qualifier()); out.puts(" [_G"); out.put_name(&expr.variable.name); out.putsln("]");
 }
 
 function generate_access_subscript(expr: Node*, out: File*) {
@@ -374,7 +374,7 @@ function generate_lvalue_rax(expr: Node*, out: File*) {
 			out.puts("    lea rax, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
 		}
 		LVALUE_GLOBAL -> {
-			out.puts("    lea rax, [_g_"); out.put_token_string(expr.variable.name); out.putsln("]");
+			out.puts("    lea rax, [_G"); out.put_name(&expr.variable.name); out.putsln("]");
 		}
 		LVALUE_SUBSCRIPT -> {
 			generate_expr_rax(expr.binary.lhs, out);
@@ -472,7 +472,7 @@ function generate_expr_rax(expr: Node*, out: File*) {
 			out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
 		}
 		AST_STRING -> {
-			out.puts("    lea rax, [_s"); out.putd(expr.literal.az.string.id); out.putsln("]");
+			out.puts("    lea rax, [_S"); out.putd(expr.literal.az.string.id); out.putsln("]");
 		}
 		AST_ACCESS_VAR -> {
 			generate_access_var(expr, out);
@@ -739,15 +739,15 @@ function generate_block(block: Node*, out: File*) {
 
 function generate_function(funktion: Node*, out: File*) {
 	if(!funktion.funktion.isMethod) {
-		out.puts("global _f_"); out.put_token_string(funktion.funktion.name); out.putln();
-		out.puts("_f_"); out.put_token_string(funktion.funktion.name); out.putsln(":");
+		out.puts("global _F"); out.put_name(&funktion.funktion.name); out.putln();
+		out.puts("_F"); out.put_name(&funktion.funktion.name); out.putsln(":");
 	}
 	else {
-		out.puts("global _m_"); out.put_token_string(funktion.funktion.parentType.name); 
-		out.puts("_"); out.put_token_string(funktion.funktion.name); out.putln();
+		out.puts("global _M"); out.put_name(&funktion.funktion.parentType.name); 
+		out.puts("_"); out.put_name(&funktion.funktion.name); out.putln();
 
-		out.puts("_m_"); out.put_token_string(funktion.funktion.parentType.name);
-		out.puts("_"); out.put_token_string(funktion.funktion.name); out.putsln(":");
+		out.puts("_M"); out.put_name(&funktion.funktion.parentType.name);
+		out.puts("_"); out.put_name(&funktion.funktion.name); out.putsln(":");
 	}
 
 	out.putsln("    push rbp");
@@ -815,8 +815,8 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 				for(var i = 0; i < array.block.children.size; ++i) {
 					generate_expr_rax(array.block.children.at(i), out);
-					out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_");
-					out.put_token_string(variable.variable.name); out.puts("+"); out.putd(i * itemType.size());
+					out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_G");
+					out.put_name(&variable.variable.name); out.puts("+"); out.putd(i * itemType.size());
 					out.puts("], "); out.putsln(type.rax_subregister());
 				}
 				continue;
@@ -825,11 +825,11 @@ function Parser.generate_program(ast: Node*, out: File*) {
 			generate_expr_rax(variable.variable.value, out);
 
 			if(type.is_structural()) {
-				out.puts("    lea rcx, [_g_"); out.put_token_string(variable.variable.name); out.putsln("]");
+				out.puts("    lea rcx, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
 				generate_copy(type.fields, 0, out);
 			}
 			else {
-				out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_g_"); out.put_token_string(variable.variable.name);
+				out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_G"); out.put_name(&variable.variable.name);
 				out.puts("], "); out.putsln(type.rax_subregister());
 			}
 		}
@@ -838,7 +838,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 	out.putsln("    pop rdi");
 	out.putsln("    mov rsi, rsp");
 
-	out.putsln("    call _f_main");
+	out.putsln("    call _FZmain");
 	out.putsln("    mov rdi, rax");
 	out.putsln("    mov rax, 60");
 	out.putsln("    syscall");
@@ -849,7 +849,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		for(var i = 0; i < this.globalVars.size; ++i) {
 			var variable: Node* = this.globalVars.at(i);
 
-			out.puts("_g_"); out.put_token_string(variable.variable.name); out.puts(": ");
+			out.puts("_G"); out.put_name(&variable.variable.name); out.puts(": ");
 			
 			var type = variable.variable.type;
 
@@ -870,7 +870,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		for(var i = 0; i < this.strings.size; ++i) {
 			var str: Node* = this.strings.at(i);
 
-			out.puts("_s"); out.putd(str.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.literal.az.string.chars);
+			out.puts("_S"); out.putd(str.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.literal.az.string.chars);
 			out.putc('"'); out.putsln(", 0");
 		}
 	}

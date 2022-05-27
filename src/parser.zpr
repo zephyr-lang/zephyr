@@ -54,6 +54,20 @@ function Node.add_child(child: Node*) {
 	this.block.children.push(child);
 }
 
+function Parser.namespace_name(name: Name*, token: Token*) {
+	name.name = token;
+	//TODO
+}
+
+function Parser.bind_name(name: Name*, token: Token*) {
+	name.name = token;
+	name.namespace = null;
+}
+
+function Parser.bind_namespace(name: Name*) {
+	//TODO
+}
+
 function allow_expr_stmt(expr: Node*): int {
 	return expr.type == AST_CALL ||
 	       expr.type == AST_CALL_METHOD ||
@@ -79,10 +93,11 @@ function is_assignment(type: int): int {
 }
 
 //TODO: Remove duplicate code between parser and typechecker
-function Parser.lookup_type(name: Token*): Type* {
+function Parser.lookup_type(name: Name*): Type* {
 	for(var i = 0; i < this.definedTypes.size; ++i) {
 		var type: Type* = this.definedTypes.at(i);
 
+		//TODO: Support namespaces
 		if(type.name.equals(name)) {
 			return type;
 		}
@@ -191,7 +206,7 @@ function Parser.parse_type(): Type* {
 	else if(this.previous.type == TOKEN_ANY) type.type = DATA_TYPE_ANY;
 	else if(this.previous.type == TOKEN_IDENTIFIER) {
 		type.type = DATA_TYPE_UNRESOLVED;
-		type.name = this.previous;
+		this.bind_name(&type.name, this.previous);
 	}
 	else {
 		this.error("Expected type");
@@ -225,7 +240,9 @@ function Parser.parse_constant(): int {
 		return literal.start[1];
 	}
 	else if(this.match(TOKEN_IDENTIFIER)) {
-		var constant = this.lookup_constant(this.previous);
+		var name: Name;
+		this.bind_name(&name, this.previous);
+		var constant = this.lookup_constant(&name);
 		if(constant == null) {
 			this.error("Unknown compile-time constant");
 			return 0;
@@ -240,7 +257,7 @@ function Parser.parse_constant(): int {
 
 function Parser.parse_call(name: Token*): Node* {
 	var call = new_node(AST_CALL, name);
-	call.funktion.name = name;
+	this.bind_name(&call.funktion.name, name);
 	call.funktion.arguments = new_vector();
 
 	if(!this.check(TOKEN_RIGHT_PAREN)) {
@@ -268,7 +285,7 @@ function Parser.parse_identifier(): Node* {
 	}
 
 	var access = new_node(AST_ACCESS_VAR, name);
-	access.variable.name = name;
+	this.bind_name(&access.variable.name, name);
 	access.lvalue = LVALUE_LOCAL;
 	return access;
 }
@@ -371,7 +388,7 @@ function Parser.parse_member_access(): Node* {
 			if(this.match(TOKEN_LEFT_PAREN)) {
 				var call = this.parse_call(memberName);
 				call.type = AST_CALL_METHOD;
-				call.funktion.name = memberName;
+				this.bind_name(&call.funktion.name, memberName);
 				call.funktion.isMethod = true;
 				call.funktion.parent = left;
 				left = call;
@@ -829,7 +846,7 @@ function Parser.parse_var_declaration(): Node* {
 	this.consume(TOKEN_SEMICOLON, "Expected ';' after variable declaration");
 
 	var variable = new_node(AST_DEFINE_VAR, name);
-	variable.variable.name = name;
+	this.bind_name(&variable.variable.name, name);
 	variable.variable.type = type;
 	variable.variable.value = value;
 
@@ -962,7 +979,9 @@ function Parser.parse_function(): Node* {
 	funktion.funktion.arguments = new_vector();
 
 	if(this.match(TOKEN_DOT)) {
-		var parent = this.lookup_type(name);
+		var parentName: Name;
+		this.bind_name(&parentName, name);
+		var parent = this.lookup_type(&parentName);
 		if(parent == null) return null;
 
 		funktion.funktion.parentType = parent;
@@ -972,11 +991,11 @@ function Parser.parse_function(): Node* {
 		var synthThis = synthetic_token(TOKEN_IDENTIFIER, "this");
 		var type = new_type();
 		type.type = DATA_TYPE_UNRESOLVED;
-		type.name = name;
+		this.bind_name(&type.name, name);
 		type.indirection = 1;
 
 		var thisNode = new_node(AST_DEFINE_VAR, synthThis);
-		thisNode.variable.name = synthThis;
+		this.bind_name(&thisNode.variable.name, synthThis);
 		thisNode.variable.type = type;
 
 		funktion.funktion.arguments.push(thisNode);
@@ -986,7 +1005,11 @@ function Parser.parse_function(): Node* {
 		name = methodName;
 	}
 
-	funktion.funktion.name = name;
+	if(!funktion.funktion.isMethod) {
+		this.namespace_name(&funktion.funktion.name, name);
+	} else {
+		this.bind_name(&funktion.funktion.name, name);
+	}
 	
 	this.consume(TOKEN_LEFT_PAREN, "Expected '(' after function name");
 	
@@ -996,7 +1019,7 @@ function Parser.parse_function(): Node* {
 		var type = this.parse_type();
 
 		var arg = new_node(AST_DEFINE_VAR, argName);
-		arg.variable.name = argName;
+		this.bind_name(&arg.variable.name, argName);
 		arg.variable.type = type;
 		funktion.funktion.arguments.push(arg);
 
@@ -1006,7 +1029,7 @@ function Parser.parse_function(): Node* {
 			var type = this.parse_type();
 
 			var arg = new_node(AST_DEFINE_VAR, argName);
-			arg.variable.name = argName;
+			this.bind_name(&arg.variable.name, argName);
 			arg.variable.type = type;
 
 			funktion.funktion.arguments.push(arg);
@@ -1049,11 +1072,11 @@ function Parser.parse_member_definition(type: Type*) {
 
 		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
 
-		vnion.variable.name = memName;
-		vnion.computedType.name = memName;
+		this.bind_name(&vnion.variable.name, memName);
+		this.bind_name(&vnion.computedType.name, memName);
 
 		var member = new_node(AST_MEMBER, memName);
-		member.variable.name = memName;
+		this.bind_name(&member.variable.name, memName);
 		member.variable.type = vnion.computedType;
 		member.variable.value = vnion;
 
@@ -1064,11 +1087,11 @@ function Parser.parse_member_definition(type: Type*) {
 
 		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
 
-		strukt.variable.name = memName;
-		strukt.computedType.name = memName;
+		this.bind_name(&strukt.variable.name, memName);
+		this.bind_name(&strukt.computedType.name, memName);
 
 		var member = new_node(AST_MEMBER, memName);
-		member.variable.name = memName;
+		this.bind_name(&member.variable.name, memName);
 		member.variable.type = strukt.computedType;
 		member.variable.value = strukt;
 
@@ -1080,7 +1103,7 @@ function Parser.parse_member_definition(type: Type*) {
 		this.consume(TOKEN_SEMICOLON, "Expected ';' after member declaration");
 
 		var member = new_node(AST_MEMBER, memName);
-		member.variable.name = memName;
+		this.bind_name(&member.variable.name, memName);
 		member.variable.type = memType;
 
 		type.fields.push(member);
@@ -1100,7 +1123,11 @@ function Parser.parse_struct_definition(member: int): Node* {
 
 	var structType = new_type();
 	structType.type = DATA_TYPE_STRUCT;
-	structType.name = name;
+	if(!member)
+		this.namespace_name(&structType.name, name);
+	else
+		this.bind_name(&structType.name, name);
+
 	structType.fields = new_vector();
 	structType.methods = new_vector();
 
@@ -1132,7 +1159,7 @@ function Parser.parse_struct_definition(member: int): Node* {
 	strukt.computedType = structType;
 
 	if(!member) {
-		strukt.variable.name = name;
+		this.namespace_name(&strukt.variable.name, name);
 		this.definedTypes.push(structType);
 	}
 
@@ -1152,7 +1179,10 @@ function Parser.parse_union_definition(member: int): Node* {
 
 	var unionType = new_type();
 	unionType.type = DATA_TYPE_UNION;
-	unionType.name = name;
+	if(!member)
+		this.namespace_name(&unionType.name, name);
+	else
+		this.bind_name(&unionType.name, name);
 	unionType.fields = new_vector();
 
 	//TODO: do ... while
@@ -1170,7 +1200,7 @@ function Parser.parse_union_definition(member: int): Node* {
 	vnion.computedType = unionType;
 
 	if(!member) {
-		vnion.variable.name = name;
+		this.namespace_name(&vnion.variable.name, name);
 
 		this.definedTypes.push(unionType);
 	}
@@ -1188,7 +1218,7 @@ function Parser.parse_const_declaration(): Node* {
 	this.consume(TOKEN_SEMICOLON, "Expected ';' after constant declaration");
 
 	var constant = new_node(AST_DEFINE_CONST, name);
-	constant.constant.name = name;
+	this.namespace_name(&constant.constant.name, name);
 	constant.constant.value = val;
 
 	this.constants.push(constant);
@@ -1214,7 +1244,7 @@ function Parser.parse_enum_declaration(): Node* {
 		var constantName = this.consume(TOKEN_IDENTIFIER, "Expected constant name");
 
 		var constant = new_node(AST_DEFINE_CONST, name);
-		constant.constant.name = constantName;
+		this.namespace_name(&constant.constant.name, constantName);
 		constant.constant.value = count;
 
 		this.constants.push(constant);
@@ -1228,7 +1258,7 @@ function Parser.parse_enum_declaration(): Node* {
 
 	var alius = new_type();
 	alius.type = DATA_TYPE_ALIAS;
-	alius.name = name;
+	this.namespace_name(&alius.name, name);
 	alius.aliased = INT_TYPE;
 
 	this.definedTypes.push(alius);
@@ -1286,7 +1316,7 @@ function Parser.parse_alias() {
 
 	var alius = new_type();
 	alius.type = DATA_TYPE_ALIAS;
-	alius.name = aliasName;
+	this.namespace_name(&alius.name, aliasName);
 	alius.aliased = aliasType;
 
 	this.definedTypes.push(alius);
@@ -1314,6 +1344,7 @@ function Parser.parse_program(): Node* {
 		else if(this.match(TOKEN_VAR)) {
 			var variable = this.parse_var_declaration();
 			variable.type = AST_DEFINE_GLOBAL_VAR;
+			this.bind_namespace(&variable.variable.name);
 			program.add_child(variable);
 		}
 		else if(this.match(TOKEN_CONST)) {
