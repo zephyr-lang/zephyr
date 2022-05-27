@@ -1170,42 +1170,57 @@ function add_offsets_to_struct(structType: Type*) {
 	}
 }
 
-function Parser.type_check(program: Node*) {
-	tc_definedTypes = this.definedTypes;
+function Parser.type_check_namespace(nameSpace: Node*) {
+	for(var i = 0; i < nameSpace.nameSpace.body.block.children.size; ++i) {
+		var node: Node* = nameSpace.nameSpace.body.block.children.at(i);
 
+		this.type_check_top_level_declaration(node);
+	}
+}
+
+function Parser.type_check_top_level_declaration(node: Node*) {
 	var mainTok = synthetic_token(TOKEN_IDENTIFIER, "main");
 	var mainName: Name;
 	this.bind_name(&mainName, mainTok);
 
+	if(node.type == AST_FUNCTION) {
+		if(!node.funktion.hasImplicitBody)
+			this.type_check_function(node);
+
+		if(node.funktion.name.equals(&mainName)) {
+			node.funktion.used = true;
+		}
+	}
+	else if(node.type == AST_DEFINE_GLOBAL_VAR) {
+		this.type_check_global_var(node);
+	}
+	else if(node.type == AST_DEFINE_CONST) {
+		// Do nothing - parser verifies that this is an integer
+	}
+	else if(node.type == AST_ENUM) {
+		// Do nothing - parser verifies that all fields are integers
+	}
+	else if(node.type == AST_STRUCT) {
+		add_offsets_to_struct(node.computedType);
+	}
+	else if(node.type == AST_UNION) {
+		add_offsets_to_union(node.computedType);
+	}
+	else if(node.type == AST_NAMESPACE) {
+		this.type_check_namespace(node);
+	}
+	else {
+		eputsln("Unreachable - unhandled node type in type_check_top_level_declaration");
+		exit(1);
+	}
+}
+
+function Parser.type_check(program: Node*) {
+	tc_definedTypes = this.definedTypes;
+
 	for(var i = 0; i < program.block.children.size; ++i) {
 		var node: Node* = program.block.children.at(i);
 
-		if(node.type == AST_FUNCTION) {
-			if(!node.funktion.hasImplicitBody)
-				this.type_check_function(node);
-
-			if(node.funktion.name.equals(&mainName)) {
-				node.funktion.used = true;
-			}
-		}
-		else if(node.type == AST_DEFINE_GLOBAL_VAR) {
-			this.type_check_global_var(node);
-		}
-		else if(node.type == AST_DEFINE_CONST) {
-			// Do nothing - parser verifies that this is an integer
-		}
-		else if(node.type == AST_ENUM) {
-			// Do nothing - parser verifies that all fields are integers
-		}
-		else if(node.type == AST_STRUCT) {
-			add_offsets_to_struct(node.computedType);
-		}
-		else if(node.type == AST_UNION) {
-			add_offsets_to_union(node.computedType);
-		}
-		else {
-			eputsln("Unreachable - unhandled node type in type_check (program)");
-			exit(1);
-		}
+		this.type_check_top_level_declaration(node);
 	}
 }

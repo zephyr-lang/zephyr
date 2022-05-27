@@ -102,6 +102,7 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("i64")) return TOKEN_I64;
 	if(this.match_keyword("for")) return TOKEN_FOR;
 	if(this.match_keyword("function")) return TOKEN_FUNCTION;
+	if(this.match_keyword("namespace")) return TOKEN_NAMESPACE;
 	if(this.match_keyword("return")) return TOKEN_RETURN;
 	if(this.match_keyword("sizeof")) return TOKEN_SIZEOF;
 	if(this.match_keyword("struct")) return TOKEN_STRUCT;

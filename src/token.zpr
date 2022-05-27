@@ -73,6 +73,7 @@ enum TokenType {
 	TOKEN_I64,
 	TOKEN_FOR,
 	TOKEN_FUNCTION,
+	TOKEN_NAMESPACE,
 	TOKEN_RETURN,
 	TOKEN_SIZEOF,
 	TOKEN_STRUCT,
@@ -163,6 +164,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TOKEN_I64 -> return "i64";
 		TOKEN_FOR -> return "for";
 		TOKEN_FUNCTION -> return "function";
+		TOKEN_NAMESPACE -> return "namespace";
 		TOKEN_RETURN -> return "return";
 		TOKEN_SIZEOF -> return "sizeof";
 		TOKEN_STRUCT -> return "struct";

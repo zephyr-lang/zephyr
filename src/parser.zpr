@@ -26,6 +26,8 @@ struct Parser {
 
 	constants: Vector*;
 
+	namespaceStack: Vector*;
+
 	error: int;
 	panic: int;
 }
@@ -40,6 +42,7 @@ function new_parser(lexer: Lexer*): Parser* {
 	parser.lexerStack = new_vector();
 	parser.openedFiles = new_vector();
 	parser.constants = new_vector();
+	parser.namespaceStack = new_vector();
 	return parser;
 }
 
@@ -56,16 +59,20 @@ function Node.add_child(child: Node*) {
 
 function Parser.namespace_name(name: Name*, token: Token*) {
 	name.name = token;
-	//TODO
+	if(!this.namespaceStack.empty()) {
+		name.namespaceName = this.namespaceStack.top();
+	}
 }
 
 function Parser.bind_name(name: Name*, token: Token*) {
 	name.name = token;
-	name.namespace = null;
+	name.namespaceName = null;
 }
 
 function Parser.bind_namespace(name: Name*) {
-	//TODO
+	if(!this.namespaceStack.empty()) {
+		name.namespaceName = this.namespaceStack.top();
+	}
 }
 
 function allow_expr_stmt(expr: Node*): int {
@@ -1322,6 +1329,70 @@ function Parser.parse_alias() {
 	this.definedTypes.push(alius);
 }
 
+function Parser.parse_namespace(): Node* {
+	var namespaceName = this.consume(TOKEN_IDENTIFIER, "Expected namespace name");
+	var nameSpace = new_namespace(namespaceName, this.namespaceStack.empty() ? null : this.namespaceStack.top());
+
+	this.namespaceStack.push(nameSpace);
+
+	this.consume(TOKEN_LEFT_BRACE, "Expected '{' after namespace name");
+
+	var namespaceNode = new_node(AST_NAMESPACE, namespaceName);
+
+	var body = new_node(AST_BLOCK, this.previous);
+	body.block.children = new_vector();
+
+	namespaceNode.nameSpace.name = nameSpace;
+	namespaceNode.nameSpace.body = body;
+
+	while(!this.match(TOKEN_RIGHT_BRACE)) {
+		this.parse_top_level_declaration(body);
+	}
+
+	this.namespaceStack.pop();
+
+	return namespaceNode;
+}
+
+function Parser.parse_top_level_declaration(block: Node*) {
+	if(this.match(TOKEN_FUNCTION)) {
+		var funktion = this.parse_function();
+		block.add_child(funktion);
+	}
+	else if(this.match(TOKEN_VAR)) {
+		var variable = this.parse_var_declaration();
+		variable.type = AST_DEFINE_GLOBAL_VAR;
+		this.bind_namespace(&variable.variable.name);
+		block.add_child(variable);
+	}
+	else if(this.match(TOKEN_CONST)) {
+		var constant = this.parse_const_declaration();
+		block.add_child(constant);
+	}
+	else if(this.match(TOKEN_STRUCT)) {
+		var strukt = this.parse_struct_definition(false);
+		block.add_child(strukt);
+	}
+	else if(this.match(TOKEN_UNION)) {
+		var vnion = this.parse_union_definition(false);
+		block.add_child(vnion);
+	}
+	else if(this.match(TOKEN_ENUM)) {
+		var envm = this.parse_enum_declaration();
+		block.add_child(envm);
+	}
+	else if(this.match(TOKEN_NAMESPACE)) {
+		var nameSpace = this.parse_namespace();
+		block.add_child(nameSpace);
+	}
+	else if(this.match(TOKEN_ALIAS)) {
+		this.parse_alias();
+	}
+	else {
+		this.error_current("Expected definition");
+	}
+}
+
 function Parser.parse_program(): Node* {
 	var program = new_node(AST_PROGRAM, this.current);
 	program.block.children = new_vector();
@@ -1337,42 +1408,14 @@ function Parser.parse_program(): Node* {
 	this.lexerStack.push(this.lexer);
 
 	while(!this.match(TOKEN_EOF)) {
-		if(this.match(TOKEN_FUNCTION)) {
-			var funktion = this.parse_function();
-			program.add_child(funktion);
-		}
-		else if(this.match(TOKEN_VAR)) {
-			var variable = this.parse_var_declaration();
-			variable.type = AST_DEFINE_GLOBAL_VAR;
-			this.bind_namespace(&variable.variable.name);
-			program.add_child(variable);
-		}
-		else if(this.match(TOKEN_CONST)) {
-			var constant = this.parse_const_declaration();
-			program.add_child(constant);
-		}
-		else if(this.match(TOKEN_STRUCT)) {
-			var strukt = this.parse_struct_definition(false);
-			program.add_child(strukt);
-		}
-		else if(this.match(TOKEN_UNION)) {
-			var vnion = this.parse_union_definition(false);
-			program.add_child(vnion);
-		}
-		else if(this.match(TOKEN_ENUM)) {
-			var envm = this.parse_enum_declaration();
-			program.add_child(envm);
-		}
-		else if(this.match(TOKEN_IMPORT)) {
+		if(this.match(TOKEN_IMPORT)) {
 			this.parse_import();
 		}
-		else if(this.match(TOKEN_ALIAS)) {
-			this.parse_alias();
-		}
 		else {
-			this.error_current("Expected definition");
-			break;
+			this.parse_top_level_declaration(program);
 		}
+
+		if(this.error) break;
 
 		var tok = this.current;
 		var changedLexer = false;

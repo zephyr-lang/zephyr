@@ -62,6 +62,7 @@ enum NodeType {
 	AST_BREAK,
 	AST_RETURN,
 	AST_FUNCTION,
+	AST_NAMESPACE,
 	AST_BLOCK,
 	AST_PROGRAM
 }
@@ -214,6 +215,11 @@ struct Node {
 			values: Vector*;
 			body: Node*;
 		};
+
+		nameSpace: struct {
+			name: Namespace*;
+			body: Node*;
+		};
 	};
 }
 
@@ -222,17 +228,20 @@ struct Namespace {
 }
 
 struct Name {
-	namespace: Namespace*;
+	namespaceName: Namespace*;
 	name: Token*;
 }
 
-function Name.init(namespace: Namespace*, name: Token*) {
-	this.namespace = namespace;
+function Name.init(namespaceName: Namespace*, name: Token*) {
+	this.namespaceName = namespaceName;
 	this.name = name;
 }
 
 function Name.fput(fd: int) {
-	if(this.namespace != null) this.namespace.fput(fd);
+	if(this.namespaceName != null) {
+		this.namespaceName.fput(fd);
+		fputs(fd, "::");
+	}
 	fput_token_string(fd, this.name);
 }
 
@@ -251,15 +260,15 @@ function Name.print_position() {
 function Name.equals(other: Name*): bool {
 	if(!this.name.equals(other.name)) return false;
 
-	if(this.namespace == null || other.namespace == null) {
-		return (this.namespace == null && other.namespace == null);
+	if(this.namespaceName == null || other.namespaceName == null) {
+		return (this.namespaceName == null && other.namespaceName == null);
 	}
 
-	if(this.namespace.parts.size != other.namespace.parts.size) return false;
+	if(this.namespaceName.parts.size != other.namespaceName.parts.size) return false;
 
-	for(var i = 0; i < this.namespace.parts.size; ++i) {
-		var thisPart: Token* = this.namespace.parts.at(i);
-		var otherPart: Token* = other.namespace.parts.at(i);
+	for(var i = 0; i < this.namespaceName.parts.size; ++i) {
+		var thisPart: Token* = this.namespaceName.parts.at(i);
+		var otherPart: Token* = other.namespaceName.parts.at(i);
 
 		if(!thisPart.equals(otherPart)) return false;
 	}
@@ -268,22 +277,27 @@ function Name.equals(other: Name*): bool {
 }
 
 function File.put_name(name: Name*) {
-	if(name.namespace != null) this.put_namespace_name(name.namespace);
+	if(name.namespaceName != null) { 
+		this.put_namespace_name(name.namespaceName);
+		this.puts("_");
+	}
 	this.puts("Z");
 	this.put_token_string(name.name);
 }
 
 function new_namespace(name: Token*, parent: Namespace*): Namespace* {
-	var namespace: Namespace* = malloc(sizeof(Namespace));
+	var namespaceName: Namespace* = malloc(sizeof(Namespace));
+	namespaceName.parts = new_vector();
+
 	if(parent != null) {
 		for(var i = 0; i < parent.parts.size; ++i) {
-			namespace.parts.push(parent.parts.at(i));
+			namespaceName.parts.push(parent.parts.at(i));
 		}
 	}
 
-	namespace.parts.push(name);
+	namespaceName.parts.push(name);
 
-	return namespace;
+	return namespaceName;
 }
 
 function Namespace.fput(fd: int) {
@@ -301,11 +315,11 @@ function Namespace.eput() {
 	this.fput(stderr);
 }
 
-function File.put_namespace_name(namespace: Namespace*) {
+function File.put_namespace_name(namespaceName: Namespace*) {
 	this.puts("N");
-	for(var i = 0; i < namespace.parts.size; ++i) {
-		this.put_token_string(namespace.parts.at(i));
-		if(i != namespace.parts.size - 1) this.puts("_");
+	for(var i = 0; i < namespaceName.parts.size; ++i) {
+		this.put_token_string(namespaceName.parts.at(i));
+		if(i != namespaceName.parts.size - 1) this.puts("_");
 	}
 }
 
@@ -447,6 +461,7 @@ function node_type_to_string(type: NodeType): i8* {
 		AST_BREAK -> return "break";
 		AST_RETURN -> return "return";
 		AST_FUNCTION -> return "function";
+		AST_NAMESPACE -> return "namespace";
 		AST_BLOCK -> return "block";
 		AST_PROGRAM -> return "program";
 	}
@@ -540,6 +555,7 @@ function print_ast_depth(node: Node*, depth: int) {
 				if(i != node.funktion.arguments.size -1 ) putln();
 			}
 
+			putln();
 			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("of");
 			print_ast_depth(node.funktion.parent, depth + 1);
@@ -705,6 +721,7 @@ function print_ast_depth(node: Node*, depth: int) {
 		OP_ASSIGN -> {
 			putsln(token_type_to_string(node.assignment.op.type));
 			print_ast_depth(node.assignment.lhs, depth);
+			putln();
 			print_ast_depth(node.assignment.rhs, depth + 1);
 		}
 		OP_PRE_INCREMENT -> {
@@ -742,6 +759,12 @@ function print_ast_depth(node: Node*, depth: int) {
 				else putln();
 			}
 			print_ast_depth(node.branch.body, depth + 1);
+		}
+		AST_NAMESPACE -> {
+			puts("namespace "); node.nameSpace.name.put(); putln();
+			for(var i = 0; i < node.nameSpace.body.block.children.size; ++i) {
+				print_ast_depth(node.nameSpace.body.block.children.at(i), depth + 1);
+			}
 		}
 		else -> {
 			eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

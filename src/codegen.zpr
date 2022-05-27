@@ -770,6 +770,38 @@ function generate_function(funktion: Node*, out: File*) {
 	generate_block(funktion.funktion.body, out);
 }
 
+function Parser.generate_namespace(node: Node*, out: File*) {
+	for(var i = 0; i < node.nameSpace.body.block.children.size; ++i) {
+		var child: Node* = node.nameSpace.body.block.children.at(i);
+		this.generate_top_level_declaration(child, out);
+	}
+}
+
+function Parser.generate_top_level_declaration(node: Node*, out: File*) {
+	when(node.type) {
+		AST_FUNCTION -> {
+			if(node.funktion.used)
+				generate_function(node, out);
+		}
+		AST_DEFINE_GLOBAL_VAR -> {
+			// Handled below (generate_program)
+		}
+		AST_DEFINE_CONST -> {
+			// No code generated - expanded inline
+		}
+		AST_ENUM, AST_STRUCT, AST_UNION -> {
+			// No code generated
+		}
+		AST_NAMESPACE -> {
+			this.generate_namespace(node, out);
+		}
+		else -> {
+			eputs("Unsupported type in generate_top_level_declaration - "); eputs(node_type_to_string(node.type)); eputln();
+			exit(1);
+		}
+	}
+}
+
 function Parser.generate_program(ast: Node*, out: File*) {
 	out.putsln("section .text");
 	
@@ -777,25 +809,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 	for(var i = 0; i < ast.block.children.size; ++i) {
 		var node: Node* = ast.block.children.at(i);
-		when(node.type) {
-			AST_FUNCTION -> {
-				if(node.funktion.used)
-					generate_function(node, out);
-			}
-			AST_DEFINE_GLOBAL_VAR -> {
-				// Handled below
-			}
-			AST_DEFINE_CONST -> {
-				// No code generated - expanded inline
-			}
-			AST_ENUM, AST_STRUCT, AST_UNION -> {
-				// No code generated
-			}
-			else -> {
-				eputs("Unsupported type in generate_program - "); eputs(node_type_to_string(node.type)); eputln();
-				exit(1);
-			}
-		}
+		this.generate_top_level_declaration(node, out);
 	}
 
 	// Entry point of _start -> initialises state, calls main and exits (via syscall)
