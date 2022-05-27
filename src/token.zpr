@@ -10,6 +10,7 @@ enum TokenType {
 	TOKEN_LEFT_SQBR,
 	TOKEN_RIGHT_SQBR,
 	TOKEN_COLON,
+	TOKEN_COLON_COLON,
 	TOKEN_SEMICOLON,
 	TOKEN_COMMA,
 	TOKEN_DOT,
@@ -104,6 +105,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TOKEN_RIGHT_BRACE -> return "right-sqbr";
 		TOKEN_RIGHT_BRACE -> return "right-sqbr";
 		TOKEN_COLON -> return "colon";
+		TOKEN_COLON_COLON -> return "colon-colon";
 		TOKEN_SEMICOLON -> return "semicolon";
 		TOKEN_COMMA -> return "comma";
 		TOKEN_DOT -> return "dot";

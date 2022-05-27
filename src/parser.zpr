@@ -75,6 +75,10 @@ function Parser.bind_namespace(name: Name*) {
 	}
 }
 
+function Parser.bind_to_namespace(name: Name*, namespaceName: Namespace*) {
+	name.namespaceName = namespaceName;
+}
+
 function allow_expr_stmt(expr: Node*): int {
 	return expr.type == AST_CALL ||
 	       expr.type == AST_CALL_METHOD ||
@@ -213,7 +217,19 @@ function Parser.parse_type(): Type* {
 	else if(this.previous.type == TOKEN_ANY) type.type = DATA_TYPE_ANY;
 	else if(this.previous.type == TOKEN_IDENTIFIER) {
 		type.type = DATA_TYPE_UNRESOLVED;
-		this.bind_name(&type.name, this.previous);
+
+		var name = this.previous;
+
+		var nameSpace = new_namespace(null, null);
+		nameSpace.parts = new_vector();
+
+		while(this.match(TOKEN_COLON_COLON)) {
+			nameSpace.parts.push(name);
+			name = this.consume(TOKEN_IDENTIFIER, "Expected identifier");	
+		}
+
+		this.bind_name(&type.name, name);
+		if(nameSpace.parts.size > 0) this.bind_to_namespace(&type.name, nameSpace);
 	}
 	else {
 		this.error("Expected type");
@@ -287,12 +303,23 @@ function Parser.parse_call(name: Token*): Node* {
 function Parser.parse_identifier(): Node* {
 	var name = this.previous;
 
+	var nameSpace = new_namespace(null, null);
+	nameSpace.parts = new_vector();
+
+	while(this.match(TOKEN_COLON_COLON)) {
+		nameSpace.parts.push(name);
+		name = this.consume(TOKEN_IDENTIFIER, "Expected identifier");	
+	}
+
 	if(this.match(TOKEN_LEFT_PAREN)) {
-		return this.parse_call(name);
+		var call = this.parse_call(name);
+		if(nameSpace.parts.size > 0) this.bind_to_namespace(&call.funktion.name, nameSpace);
+		return call;
 	}
 
 	var access = new_node(AST_ACCESS_VAR, name);
 	this.bind_name(&access.variable.name, name);
+	if(nameSpace.parts.size > 0) this.bind_to_namespace(&access.variable.name, nameSpace);
 	access.lvalue = LVALUE_LOCAL;
 	return access;
 }
@@ -985,9 +1012,19 @@ function Parser.parse_function(): Node* {
 	var funktion = new_node(AST_FUNCTION, name);
 	funktion.funktion.arguments = new_vector();
 
+	var nameSpace = new_namespace(null, null);
+	nameSpace.parts = new_vector();
+
+	while(this.match(TOKEN_COLON_COLON)) {
+		nameSpace.parts.push(name);
+		name = this.consume(TOKEN_IDENTIFIER, "Expected identifier");
+	}
+
 	if(this.match(TOKEN_DOT)) {
 		var parentName: Name;
 		this.bind_name(&parentName, name);
+		if(nameSpace.parts.size > 0) this.bind_to_namespace(&parentName, nameSpace);
+
 		var parent = this.lookup_type(&parentName);
 		if(parent == null) return null;
 
@@ -999,6 +1036,8 @@ function Parser.parse_function(): Node* {
 		var type = new_type();
 		type.type = DATA_TYPE_UNRESOLVED;
 		this.bind_name(&type.name, name);
+		if(nameSpace.parts.size > 0) this.bind_to_namespace(&type.name, nameSpace);
+
 		type.indirection = 1;
 
 		var thisNode = new_node(AST_DEFINE_VAR, synthThis);
@@ -1010,6 +1049,9 @@ function Parser.parse_function(): Node* {
 		parent.methods.push(funktion);
 		
 		name = methodName;
+	}
+	else if(nameSpace.parts.size > 0) {
+		this.error("Cannot declare function inside another namespace");
 	}
 
 	if(!funktion.funktion.isMethod) {

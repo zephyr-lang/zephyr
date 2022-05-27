@@ -255,7 +255,7 @@ function Lexer.next(): Token* {
 		'}' -> return this.make_token(TOKEN_RIGHT_BRACE);
 		'[' -> return this.make_token(TOKEN_LEFT_SQBR);
 		']' -> return this.make_token(TOKEN_RIGHT_SQBR);
-		':' -> return this.make_token(TOKEN_COLON);
+		':' -> return this.make_token(this.match(':') ? TOKEN_COLON_COLON : TOKEN_COLON);
 		';' -> return this.make_token(TOKEN_SEMICOLON);
 		',' -> return this.make_token(TOKEN_COMMA);
 		'.' -> return this.make_token(TOKEN_DOT);

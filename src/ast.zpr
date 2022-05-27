@@ -295,7 +295,7 @@ function new_namespace(name: Token*, parent: Namespace*): Namespace* {
 		}
 	}
 
-	namespaceName.parts.push(name);
+	if(name != null) namespaceName.parts.push(name);
 
 	return namespaceName;
 }
