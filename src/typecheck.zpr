@@ -10,16 +10,16 @@ var tc_checkingLoop = false;
 
 function Type.is_integral(): bool {
 	return this.indirection == 0 && (
-		this.type == DATA_TYPE_INT ||
-		this.type == DATA_TYPE_I8 ||
-		this.type == DATA_TYPE_I16 ||
-		this.type == DATA_TYPE_I32 ||
-		this.type == DATA_TYPE_I64
+		this.type == DataType::INT ||
+		this.type == DataType::I8 ||
+		this.type == DataType::I16 ||
+		this.type == DataType::I32 ||
+		this.type == DataType::I64
 	);
 }
 
 function Type.is_void(): bool {
-	return this.indirection == 0 && this.type == DATA_TYPE_VOID;
+	return this.indirection == 0 && this.type == DataType::VOID;
 }
 
 function Type.is_structural(): bool {
@@ -29,18 +29,18 @@ function Type.is_structural(): bool {
 
 function Type.is_structural_base(): bool {
 	resolve_type(this);
-	return this.type == DATA_TYPE_STRUCT || this.type == DATA_TYPE_UNION;
+	return this.type == DataType::STRUCT || this.type == DataType::UNION;
 }
 
 function Type.assignable(b: Type*): bool {
 	resolve_type(this);
 	resolve_type(b);
 
-	if(b.type == DATA_TYPE_ANY && b.indirection == 0) {
+	if(b.type == DataType::ANY && b.indirection == 0) {
 		return true;
 	}
 
-	if((this.type == DATA_TYPE_ANY || b.type == DATA_TYPE_ANY) && this.indirection >= 1  && b.indirection >= 1) {
+	if((this.type == DataType::ANY || b.type == DataType::ANY) && this.indirection >= 1  && b.indirection >= 1) {
 		return true;
 	}
 
@@ -48,7 +48,7 @@ function Type.assignable(b: Type*): bool {
 		return true;
 	}
 
-	if(this.type == DATA_TYPE_STRUCT && b.type == DATA_TYPE_STRUCT) {
+	if(this.type == DataType::STRUCT && b.type == DataType::STRUCT) {
 		if(this.indirection != b.indirection) return false;
 
 		if(this.name.equals(&b.name) && this.size() == b.size()) {
@@ -77,13 +77,13 @@ function Type.size(): int {
 	resolve_type(this);
 	if(this.indirection != 0) return 8;
 
-	if(this.type == DATA_TYPE_INT) return 8;
-	if(this.type == DATA_TYPE_I8) return 1;
-	if(this.type == DATA_TYPE_I16) return 2;
-	if(this.type == DATA_TYPE_I32) return 4;
-	if(this.type == DATA_TYPE_I64) return 8;
-	if(this.type == DATA_TYPE_ANY) return 8;
-	if(this.type == DATA_TYPE_STRUCT) {
+	if(this.type == DataType::INT) return 8;
+	if(this.type == DataType::I8) return 1;
+	if(this.type == DataType::I16) return 2;
+	if(this.type == DataType::I32) return 4;
+	if(this.type == DataType::I64) return 8;
+	if(this.type == DataType::ANY) return 8;
+	if(this.type == DataType::STRUCT) {
 		var size = 0;
 		var unionSize = 0;
 		var inUnion = false;
@@ -113,7 +113,7 @@ function Type.size(): int {
 
 		return size;
 	}
-	if(this.type == DATA_TYPE_UNION) {
+	if(this.type == DataType::UNION) {
 		var size = 0;
 		for(var i = 0; i < this.fields.size; ++i) {
 			var memSize = (this.fields.at(i) as Node*).variable.type.size_offset();
@@ -134,7 +134,7 @@ function Node.print_position() {
 function Token.print_position() {
 	eputs("["); eputs(this.filename); eputs(":"); eputd(this.line); eputs("] Error ");
 
-	if(this.type == TOKEN_EOF) {
+	if(this.type == TokenType::EOF) {
 		eputs("@ EOF");
 	}
 	else {
@@ -185,10 +185,10 @@ function lookup_type(name: Name*): Type* {
 }
 
 function resolve_type(type: Type*): Type* {
-	if(type.type != DATA_TYPE_UNRESOLVED) return type;
+	if(type.type != DataType::UNRESOLVED) return type;
 	var resolve = lookup_type(&type.name);
 
-	if(resolve.type == DATA_TYPE_ALIAS) {
+	if(resolve.type == DataType::ALIAS) {
 		var new = copy_type(resolve.aliased);
 		new.indirection = type.indirection;
 		new.isArray = type.isArray;
@@ -365,16 +365,16 @@ function Type.lookup_method(name: Name*): Node* {
 }
 
 function assignment_op_to_node_type(op: int): int {
-	if(op == TOKEN_PLUS_EQ) return OP_ADD;
-	if(op == TOKEN_MINUS_EQ) return OP_SUB;
-	if(op == TOKEN_STAR_EQ) return OP_MUL;
-	if(op == TOKEN_SLASH_EQ) return OP_DIV;
-	if(op == TOKEN_PERCENT_EQ) return OP_MOD;
-	if(op == TOKEN_AMP_EQ) return OP_BWAND;
-	if(op == TOKEN_BAR_EQ) return OP_BWOR;
-	if(op == TOKEN_XOR_EQ) return OP_XOR;
-	if(op == TOKEN_LSH_EQ) return OP_LSH;
-	if(op == TOKEN_RSH_EQ) return OP_RSH;
+	if(op == TokenType::PLUS_EQ) return NodeType::ADD;
+	if(op == TokenType::MINUS_EQ) return NodeType::SUB;
+	if(op == TokenType::STAR_EQ) return NodeType::MUL;
+	if(op == TokenType::SLASH_EQ) return NodeType::DIV;
+	if(op == TokenType::PERCENT_EQ) return NodeType::MOD;
+	if(op == TokenType::AMP_EQ) return NodeType::BWAND;
+	if(op == TokenType::BAR_EQ) return NodeType::BWOR;
+	if(op == TokenType::XOR_EQ) return NodeType::XOR;
+	if(op == TokenType::LSH_EQ) return NodeType::LSH;
+	if(op == TokenType::RSH_EQ) return NodeType::RSH;
 
 	eputsln("Unreachable in assignment_op_to_node_type");
 	exit(1);
@@ -424,11 +424,11 @@ function Parser.type_check_deref(expr: Node*) {
 }
 
 function Parser.type_check_unary(expr: Node*) {
-	if(expr.type == OP_ADDROF) {
+	if(expr.type == NodeType::ADDROF) {
 		this.type_check_addrof(expr);
 		return;
 	}
-	else if(expr.type == OP_DEREF) {
+	else if(expr.type == NodeType::DEREF) {
 		this.type_check_deref(expr);
 		return;
 	}
@@ -451,7 +451,7 @@ function Parser.type_check_binary(expr: Node*) {
 	this.type_check_expr(expr.binary.rhs);
 	var right: Type* = tc_typeStack.pop();
 
-	if((expr.type == OP_EQUAL || expr.type == OP_NOT_EQUAL) && left.indirection > 0 && right.indirection > 0 && left.assignable(right)) {
+	if((expr.type == NodeType::EQUAL || expr.type == NodeType::NOT_EQUAL) && left.indirection > 0 && right.indirection > 0 && left.assignable(right)) {
 		tc_typeStack.push(INT_TYPE);
 		return;
 	}
@@ -475,7 +475,7 @@ function Parser.type_check_access_var(expr: Node*) {
 		exit(1);
 	}
 
-	if(variable.type == AST_DEFINE_VAR) {
+	if(variable.type == NodeType::DEFINE_VAR) {
 		expr.variable.type = variable.variable.type;
 		expr.variable.stackOffset = variable.variable.stackOffset;
 
@@ -483,17 +483,17 @@ function Parser.type_check_access_var(expr: Node*) {
 
 		tc_typeStack.push(decay);
 	}
-	else if(variable.type == AST_DEFINE_GLOBAL_VAR) {
+	else if(variable.type == NodeType::DEFINE_GLOBAL_VAR) {
 		expr.variable.type = variable.variable.type;
-		expr.type = AST_ACCESS_GLOBAL_VAR;
-		expr.lvalue = LVALUE_GLOBAL;
+		expr.type = NodeType::ACCESS_GLOBAL_VAR;
+		expr.lvalue = LValue::GLOBAL;
 
 		tc_typeStack.push(expr.variable.type);
 	}
-	else if(variable.type == AST_DEFINE_CONST) {
+	else if(variable.type == NodeType::DEFINE_CONST) {
 		var value = variable.constant.value;
 
-		expr.type = AST_INT_LITERAL;
+		expr.type = NodeType::INT_LITERAL;
 		expr.literal.type = INT_TYPE;
 		expr.literal.az.integer = value;
 
@@ -515,7 +515,7 @@ function Parser.type_check_call(expr: Node*) {
 		exit(1);
 	}
 
-	if(funktion.type != AST_FUNCTION) {
+	if(funktion.type != NodeType::FUNCTION) {
 		expr.print_position();
 		eputsln("Can only call functions");
 		exit(1);
@@ -558,10 +558,10 @@ function Parser.type_check_method_call(expr: Node*) {
 	var name = expr.funktion.name;
 	var funktion: Node*;
 
-	if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 0) {
+	if(parentType.type == DataType::STRUCT && parentType.indirection == 0) {
 		funktion = parentType.lookup_method(&name);
 	}
-	else if(parentType.type == DATA_TYPE_STRUCT && parentType.indirection == 1 && !parentType.isArray) {
+	else if(parentType.type == DataType::STRUCT && parentType.indirection == 1 && !parentType.isArray) {
 		var copy = copy_type(parentType);
 		copy.indirection = copy.indirection - 1;
 		funktion = copy.lookup_method(&name);
@@ -583,7 +583,7 @@ function Parser.type_check_method_call(expr: Node*) {
 		exit(1);
 	}
 
-	if(funktion.type != AST_FUNCTION) {
+	if(funktion.type != NodeType::FUNCTION) {
 		expr.print_position();
 		eputsln("Can only call functions");
 		exit(1);
@@ -696,7 +696,7 @@ function Parser.type_check_access_member(expr: Node*) {
 function Parser.type_check_assign(expr: Node*) {
 	this.type_check_expr(expr.assignment.lhs);
 
-	if(expr.assignment.lhs.type == AST_INT_LITERAL) {
+	if(expr.assignment.lhs.type == NodeType::INT_LITERAL) {
 		expr.print_position();
 		eputsln("Cannot re-assign constant values");
 		exit(1);
@@ -705,7 +705,7 @@ function Parser.type_check_assign(expr: Node*) {
 	var lhs: Type* = tc_typeStack.pop();
 	resolve_type(lhs);
 
-	if(expr.assignment.op.type != TOKEN_EQ) {
+	if(expr.assignment.op.type != TokenType::EQ) {
 		expr.assignment.rhs = synthetic_binary_op(
 			expr.assignment.op,
 			expr.assignment.lhs,
@@ -731,7 +731,7 @@ function Parser.type_check_assign(expr: Node*) {
 }
 
 function Parser.type_check_inc_decrement(expr: Node*) {
-	if(expr.unary.lvalue == LVALUE_NONE) {
+	if(expr.unary.lvalue == LValue::NONE) {
 		expr.print_position();
 		eputs("Invalid lvalue for '"); eputs(node_type_to_string(expr.type)); eputsln("' operation");
 		exit(1);
@@ -761,47 +761,47 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(is_binary_op(expr.type)) {
 		this.type_check_binary(expr);
 	}
-	else if(expr.type == AST_INT_LITERAL) {
+	else if(expr.type == NodeType::INT_LITERAL) {
 		tc_typeStack.push(INT_TYPE);
 	}
-	else if(expr.type == AST_CHAR_LITERAL) {
+	else if(expr.type == NodeType::CHAR_LITERAL) {
 		tc_typeStack.push(I8_TYPE);
 	}
-	else if(expr.type == AST_STRING) {
+	else if(expr.type == NodeType::STRING) {
 		tc_typeStack.push(STR_TYPE);
 	}
-	else if(expr.type == AST_ACCESS_VAR || expr.type == AST_ACCESS_GLOBAL_VAR) {
+	else if(expr.type == NodeType::ACCESS_VAR || expr.type == NodeType::ACCESS_GLOBAL_VAR) {
 		this.type_check_access_var(expr);
 	}
-	else if(expr.type == AST_CALL) {
+	else if(expr.type == NodeType::CALL) {
 		this.type_check_call(expr);
 	}
-	else if(expr.type == AST_CALL_METHOD) {
+	else if(expr.type == NodeType::CALL_METHOD) {
 		this.type_check_method_call(expr);
 	}
-	else if(expr.type == OP_TERNARY) {
+	else if(expr.type == NodeType::TERNARY) {
 		this.type_check_ternary_expr(expr);
 	}
-	else if(expr.type == OP_SIZEOF) {
+	else if(expr.type == NodeType::SIZEOF) {
 		tc_typeStack.push(INT_TYPE);
 	}
-	else if(expr.type == OP_ACCESS_SUBSCRIPT) {
+	else if(expr.type == NodeType::ACCESS_SUBSCRIPT) {
 		this.type_check_access_subscript(expr);
 	}
-	else if(expr.type == AST_CAST) {
+	else if(expr.type == NodeType::CAST) {
 		// NOTE: All casts are completely allowed at the moment. Whether or not this is good
 		//       or requires a warning in some cases is to be decided.
 		this.type_check_expr(expr.unary);
 		resolve_type(expr.computedType);
 		tc_typeStack.push(expr.computedType);
 	}
-	else if(expr.type == OP_ACCESS_MEMBER) {
+	else if(expr.type == NodeType::ACCESS_MEMBER) {
 		this.type_check_access_member(expr);
 	}
-	else if(expr.type == OP_ASSIGN) {
+	else if(expr.type == NodeType::ASSIGN) {
 		this.type_check_assign(expr);
 	}
-	else if(expr.type == OP_PRE_INCREMENT || expr.type == OP_POST_INCREMENT || expr.type == OP_PRE_DECREMENT || expr.type == OP_POST_DECREMENT) {
+	else if(expr.type == NodeType::PRE_INCREMENT || expr.type == NodeType::POST_INCREMENT || expr.type == NodeType::PRE_DECREMENT || expr.type == NodeType::POST_DECREMENT) {
 		this.type_check_inc_decrement(expr);
 	}
 	else {
@@ -850,13 +850,13 @@ function Parser.type_check_define_var(stmt: Node*) {
 		exit(1);
 	}
 
-	if(declType.type == DATA_TYPE_VOID && stmt.variable.value == null) {
+	if(declType.type == DataType::VOID && stmt.variable.value == null) {
 		stmt.print_position();
 		eputsln("Cannot infer type to variable without initial value");
 		exit(1);
 	}
 
-	if(declType.type == DATA_TYPE_VOID) {
+	if(declType.type == DataType::VOID) {
 		this.type_check_expr(stmt.variable.value);
 		stmt.variable.type = tc_typeStack.pop();
 		declType = stmt.variable.type;
@@ -871,7 +871,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 	}
 
 	if(stmt.variable.value != null) {
-		if(stmt.variable.value.type == AST_ARRAY_INIT) {
+		if(stmt.variable.value.type == NodeType::ARRAY_INIT) {
 			this.type_check_array_init(stmt.variable.value, stmt.variable.type);
 		}
 		else {
@@ -993,19 +993,19 @@ function Parser.type_check_when_statement(stmt: Node*) {
 }
 
 function Parser.type_check_statement(stmt: Node*) {
-	if(stmt.type == AST_IF) {
+	if(stmt.type == NodeType::IF) {
 		this.type_check_if_statement(stmt);
 	}
-	else if(stmt.type == AST_WHILE) {
+	else if(stmt.type == NodeType::WHILE) {
 		this.type_check_while_statement(stmt);
 	}
-	else if(stmt.type == AST_FOR) {
+	else if(stmt.type == NodeType::FOR) {
 		this.type_check_for_statement(stmt);
 	}
-	else if(stmt.type == AST_WHEN) {
+	else if(stmt.type == NodeType::WHEN) {
 		this.type_check_when_statement(stmt);
 	}
-	else if(stmt.type == AST_RETURN) {
+	else if(stmt.type == NodeType::RETURN) {
 		var returnType: Type*;
 		if(stmt.unary != null) {
 			this.type_check_expr(stmt.unary);
@@ -1024,24 +1024,24 @@ function Parser.type_check_statement(stmt: Node*) {
 		}
 		this.currentBlock.block.hasReturned = true;
 	}
-	else if(stmt.type == AST_DEFINE_VAR) {
+	else if(stmt.type == NodeType::DEFINE_VAR) {
 		this.type_check_define_var(stmt);
 	}
-	else if(stmt.type == AST_EXPR_STMT) {
+	else if(stmt.type == NodeType::EXPR_STMT) {
 		this.type_check_expr(stmt.unary);
 	}
-	else if(stmt.type == AST_BLOCK) {
+	else if(stmt.type == NodeType::BLOCK) {
 		this.type_check_block(stmt);
 		this.currentBlock.block.hasReturned = stmt.block.hasReturned;
 	}
-	else if(stmt.type == AST_CONTINUE) {
+	else if(stmt.type == NodeType::CONTINUE) {
 		if(!tc_checkingLoop) {
 			stmt.print_position();
 			eputsln("Cannot use 'continue' outside of a loop");
 			exit(1);
 		}
 	}
-	else if(stmt.type == AST_BREAK) {
+	else if(stmt.type == NodeType::BREAK) {
 		if(!tc_checkingLoop) {
 			stmt.print_position();
 			eputsln("Cannot use 'break' outside of a loop");
@@ -1115,8 +1115,8 @@ function Parser.type_check_function(funktion: Node*) {
 
 	if(!funktion.funktion.body.block.hasReturned) {
 		if(funktion.funktion.returnType.is_void()) {
-			var tok = synthetic_token(TOKEN_RETURN, "return");
-			var implReturn = new_node(AST_RETURN, tok);
+			var tok = synthetic_token(TokenType::RETURN, "return");
+			var implReturn = new_node(NodeType::RETURN, tok);
 			funktion.funktion.body.add_child(implReturn);
 		}
 		else {
@@ -1141,13 +1141,13 @@ function Parser.type_check_global_var(stmt: Node*) {
 		exit(1);
 	}
 
-	if(declType.type == DATA_TYPE_VOID && stmt.variable.value == null) {
+	if(declType.type == DataType::VOID && stmt.variable.value == null) {
 		stmt.print_position();
 		eputsln("Cannot infer type to variable without initial value");
 		exit(1);
 	}
 
-	if(declType.type == DATA_TYPE_VOID) {
+	if(declType.type == DataType::VOID) {
 		this.type_check_expr(stmt.variable.value);
 		stmt.variable.type = tc_typeStack.pop();
 		declType = stmt.variable.type;
@@ -1156,7 +1156,7 @@ function Parser.type_check_global_var(stmt: Node*) {
 	resolve_type(stmt.variable.type);
 
 	if(stmt.variable.value != null) {
-		if(stmt.variable.value.type == AST_ARRAY_INIT) {
+		if(stmt.variable.value.type == NodeType::ARRAY_INIT) {
 			this.type_check_array_init(stmt.variable.value, stmt.variable.type);
 		}
 		else {
@@ -1185,7 +1185,7 @@ function add_offsets_to_union(unionType: Type*) {
 		var field: Node* = unionType.fields.at(i);
 		var type = field.variable.type;
 
-		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_UNION) && type.name.equals(&unionType.name) && type.indirection == 0) {
+		if((type.type == DataType::UNRESOLVED || type.type == DataType::UNION) && type.name.equals(&unionType.name) && type.indirection == 0) {
 			field.print_position();
 			eputsln("A union cannot contain a member of itself (use a pointer instead)");
 			exit(1);
@@ -1196,10 +1196,10 @@ function add_offsets_to_union(unionType: Type*) {
 		resolve_type(type);
 		resolve_type(field.variable.type);
 
-		if(type.type == DATA_TYPE_STRUCT) {
+		if(type.type == DataType::STRUCT) {
 			add_offsets_to_struct(type);
 		}
-		else if(type.type == DATA_TYPE_UNION) {
+		else if(type.type == DataType::UNION) {
 			add_offsets_to_union(type);
 		}
 	}
@@ -1215,7 +1215,7 @@ function add_offsets_to_struct(structType: Type*) {
 		var field: Node* = structType.fields.at(i);
 		var type = field.variable.type;
 
-		if((type.type == DATA_TYPE_UNRESOLVED || type.type == DATA_TYPE_STRUCT) && type.name.equals(&structType.name) && type.indirection == 0) {
+		if((type.type == DataType::UNRESOLVED || type.type == DataType::STRUCT) && type.name.equals(&structType.name) && type.indirection == 0) {
 			field.print_position();
 			eputsln("A struct cannot contain a member of itself (use a pointer instead)");
 			exit(1);
@@ -1229,10 +1229,10 @@ function add_offsets_to_struct(structType: Type*) {
 		if(!field.variable.unionField)
 			offset += field.variable.type.size_offset();
 
-		if(type.type == DATA_TYPE_STRUCT) {
+		if(type.type == DataType::STRUCT) {
 			add_offsets_to_struct(type);
 		}
-		else if(type.type == DATA_TYPE_UNION) {
+		else if(type.type == DataType::UNION) {
 			add_offsets_to_union(type);
 		}
 	}
@@ -1251,11 +1251,11 @@ function Parser.type_check_namespace(nameSpace: Node*) {
 }
 
 function Parser.type_check_top_level_declaration(node: Node*) {
-	var mainTok = synthetic_token(TOKEN_IDENTIFIER, "main");
+	var mainTok = synthetic_token(TokenType::IDENTIFIER, "main");
 	var mainName: Name;
 	this.bind_name(&mainName, mainTok);
 
-	if(node.type == AST_FUNCTION) {
+	if(node.type == NodeType::FUNCTION) {
 		if(!node.funktion.hasImplicitBody)
 			this.type_check_function(node);
 
@@ -1263,22 +1263,22 @@ function Parser.type_check_top_level_declaration(node: Node*) {
 			node.funktion.used = true;
 		}
 	}
-	else if(node.type == AST_DEFINE_GLOBAL_VAR) {
+	else if(node.type == NodeType::DEFINE_GLOBAL_VAR) {
 		this.type_check_global_var(node);
 	}
-	else if(node.type == AST_DEFINE_CONST) {
+	else if(node.type == NodeType::DEFINE_CONST) {
 		// Do nothing - parser verifies that this is an integer
 	}
-	else if(node.type == AST_ENUM) {
+	else if(node.type == NodeType::ENUM) {
 		// Do nothing - parser verifies that all fields are integers
 	}
-	else if(node.type == AST_STRUCT) {
+	else if(node.type == NodeType::STRUCT) {
 		add_offsets_to_struct(node.computedType);
 	}
-	else if(node.type == AST_UNION) {
+	else if(node.type == NodeType::UNION) {
 		add_offsets_to_union(node.computedType);
 	}
-	else if(node.type == AST_NAMESPACE) {
+	else if(node.type == NodeType::NAMESPACE) {
 		this.type_check_namespace(node);
 	}
 	else {

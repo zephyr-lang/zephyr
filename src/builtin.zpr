@@ -2,14 +2,14 @@ import "std/core.zpr";
 import "src/ast.zpr";
 
 function add_implicit_printu_function(): Node* {
-	var name = synthetic_token(TOKEN_IDENTIFIER, "printu");
-	var funktion = new_node(AST_FUNCTION, name);
+	var name = synthetic_token(TokenType::IDENTIFIER, "printu");
+	var funktion = new_node(NodeType::FUNCTION, name);
 	funktion.funktion.name.name = name;
 
 	funktion.funktion.arguments = new_vector();
 
-	var valTok = synthetic_token(TOKEN_IDENTIFIER, "value");
-	var val = new_node(AST_DEFINE_VAR, valTok);
+	var valTok = synthetic_token(TokenType::IDENTIFIER, "value");
+	var val = new_node(NodeType::DEFINE_VAR, valTok);
 	val.variable.name.name = valTok;
 	val.variable.type = INT_TYPE;
 	funktion.funktion.arguments.push(val);
@@ -22,21 +22,21 @@ function add_implicit_printu_function(): Node* {
 }
 
 function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
-	var name = synthetic_token(TOKEN_IDENTIFIER, sysName);
-	var funktion = new_node(AST_FUNCTION, name);
+	var name = synthetic_token(TokenType::IDENTIFIER, sysName);
+	var funktion = new_node(NodeType::FUNCTION, name);
 	funktion.funktion.name.name = name;
 	funktion.funktion.arguments = new_vector();
 
-	var nrTok = synthetic_token(TOKEN_IDENTIFIER, "nr");
-	var nr = new_node(AST_DEFINE_VAR, nrTok);
+	var nrTok = synthetic_token(TokenType::IDENTIFIER, "nr");
+	var nr = new_node(NodeType::DEFINE_VAR, nrTok);
 	nr.variable.name.name = nrTok;
 	nr.variable.type = INT_TYPE;
 	
 	funktion.funktion.arguments.push(nr);
 
 	for(var i = 0; i < argCount; ++i) {
-		var argTok = synthetic_token(TOKEN_IDENTIFIER, "arg");
-		var arg = new_node(AST_DEFINE_VAR, argTok);
+		var argTok = synthetic_token(TokenType::IDENTIFIER, "arg");
+		var arg = new_node(NodeType::DEFINE_VAR, argTok);
 		arg.variable.name.name = argTok;
 		arg.variable.type = ANY_TYPE;
 

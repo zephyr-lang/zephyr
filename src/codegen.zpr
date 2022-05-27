@@ -59,12 +59,12 @@ function Type.reserve(): i8* {
 
 function cmp_suffix(type: int): i8* {
 	when(type) {
-		OP_EQUAL -> return "e";
-		OP_NOT_EQUAL -> return "ne";
-		OP_LESS -> return "l";
-		OP_LESS_EQ -> return "le";
-		OP_GREATER -> return "g";
-		OP_GREATER_EQ -> return "ge";
+		NodeType::EQUAL -> return "e";
+		NodeType::NOT_EQUAL -> return "ne";
+		NodeType::LESS -> return "l";
+		NodeType::LESS_EQ -> return "le";
+		NodeType::GREATER -> return "g";
+		NodeType::GREATER_EQ -> return "ge";
 	}
 
 	eputs("Unsupported type in generate_unary_rax - "); eputs(node_type_to_string(type)); eputln();
@@ -74,13 +74,13 @@ function cmp_suffix(type: int): i8* {
 
 function generate_addrof_rax(expr: Node*, out: File*) {
 	when(expr.unary.lvalue) {
-		LVALUE_LOCAL -> {
+		LValue::LOCAL -> {
 			out.puts("    lea rax, [rbp-"); out.putd(expr.unary.variable.stackOffset); out.putsln("]");
 		}
-		LVALUE_GLOBAL -> {
+		LValue::GLOBAL -> {
 			out.puts("    lea rax, [_G"); out.put_name(&expr.unary.variable.name); out.putsln("]");
 		}
-		LVALUE_SUBSCRIPT -> {
+		LValue::SUBSCRIPT -> {
 			generate_expr_rax(expr.unary.binary.lhs, out);
 			out.putsln("    push rax");
 			generate_expr_rax(expr.unary.binary.rhs, out);
@@ -89,7 +89,7 @@ function generate_addrof_rax(expr: Node*, out: File*) {
 
 			out.puts("    lea rax, [rax+rcx*"); out.putd(expr.unary.computedType.size()); out.putsln("]");
 		}
-		LVALUE_MEMBER -> {
+		LValue::MEMBER -> {
 			generate_expr_rax(expr.unary.member.parent, out);
 			var field = expr.unary.member.memberRef;
 			out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
@@ -115,24 +115,24 @@ function generate_deref_rax(expr: Node*, out: File*) {
 
 function generate_unary_rax(expr: Node*, out: File*) {
 	when(expr.type) {
-		OP_BWNOT -> {
+		NodeType::BWNOT -> {
 			generate_expr_rax(expr.unary, out);
 			out.putsln("    not rax");
 		}
-		OP_NEG -> {
+		NodeType::NEG -> {
 			generate_expr_rax(expr.unary, out);
 			out.putsln("    neg rax");
 		}
-		OP_NOT -> {
+		NodeType::NOT -> {
 			generate_expr_rax(expr.unary, out);
 			out.putsln("    test rax, rax");
 			out.putsln("    sete al");
 			out.putsln("    movzx rax, al");
 		}
-		OP_ADDROF -> {
+		NodeType::ADDROF -> {
 			generate_addrof_rax(expr, out);
 		}
-		OP_DEREF -> {
+		NodeType::DEREF -> {
 			generate_deref_rax(expr, out);
 		}
 		else -> {
@@ -169,11 +169,11 @@ function generate_logical_and_rax(expr: Node*, out: File*) {
 }
 
 function generate_binary_rax(expr: Node*, out: File*) {
-	if(expr.type == OP_OR) {
+	if(expr.type == NodeType::OR) {
 		generate_logical_or_rax(expr, out);
 		return;
 	}
-	else if(expr.type == OP_AND) {
+	else if(expr.type == NodeType::AND) {
 		generate_logical_and_rax(expr, out);
 		return;
 	}
@@ -185,40 +185,40 @@ function generate_binary_rax(expr: Node*, out: File*) {
 	out.putsln("    pop rax");
 
 	when(expr.type) {
-		OP_ADD -> {
+		NodeType::ADD -> {
 			out.putsln("    add rax, rcx");
 		}
-		OP_SUB -> {
+		NodeType::SUB -> {
 			out.putsln("    sub rax, rcx");
 		}
-		OP_MUL -> {
+		NodeType::MUL -> {
 			out.putsln("    imul rax, rcx");
 		}
-		OP_DIV -> {
+		NodeType::DIV -> {
 			out.putsln("    cqo");
 			out.putsln("    idiv rcx");
 		}
-		OP_MOD -> {
+		NodeType::MOD -> {
 			out.putsln("    cqo");
 			out.putsln("    idiv rcx");
 			out.putsln("    mov rax, rdx");
 		}
-		OP_BWAND -> {
+		NodeType::BWAND -> {
 			out.putsln("    and rax, rcx");
 		}
-		OP_BWOR -> {
+		NodeType::BWOR -> {
 			out.putsln("    or rax, rcx");
 		}
-		OP_XOR -> {
+		NodeType::XOR -> {
 			out.putsln("    xor rax, rcx");
 		}
-		OP_LSH -> {
+		NodeType::LSH -> {
 			out.putsln("    sal rax, cl");
 		}
-		OP_RSH -> {
+		NodeType::RSH -> {
 			out.putsln("    sar rax, cl");
 		}
-		OP_EQUAL, OP_NOT_EQUAL, OP_LESS, OP_LESS_EQ, OP_GREATER, OP_GREATER_EQ -> {
+		NodeType::EQUAL, NodeType::NOT_EQUAL, NodeType::LESS, NodeType::LESS_EQ, NodeType::GREATER, NodeType::GREATER_EQ -> {
 			out.putsln("    cmp rax, rcx");
 			out.puts("    set"); out.puts(cmp_suffix(expr.type)); out.putsln(" al");
 			out.putsln("    movzx rax, al");
@@ -370,13 +370,13 @@ function generate_copy(fields: Vector*, parentOffset: int, out: File*) {
 
 function generate_lvalue_rax(expr: Node*, out: File*) {
 	when(expr.lvalue) {
-		LVALUE_LOCAL -> {
+		LValue::LOCAL -> {
 			out.puts("    lea rax, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
 		}
-		LVALUE_GLOBAL -> {
+		LValue::GLOBAL -> {
 			out.puts("    lea rax, [_G"); out.put_name(&expr.variable.name); out.putsln("]");
 		}
-		LVALUE_SUBSCRIPT -> {
+		LValue::SUBSCRIPT -> {
 			generate_expr_rax(expr.binary.lhs, out);
 			out.putsln("    push rax");
 			generate_expr_rax(expr.binary.rhs, out);
@@ -385,10 +385,10 @@ function generate_lvalue_rax(expr: Node*, out: File*) {
 
 			out.puts("    lea rax, [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
 		}
-		LVALUE_DEREF -> {
+		LValue::DEREF -> {
 			generate_expr_rax(expr.unary, out);
 		}
-		LVALUE_MEMBER -> {
+		LValue::MEMBER -> {
 			generate_expr_rax(expr.member.parent, out);
 			var field = expr.member.memberRef;
 			
@@ -405,8 +405,8 @@ function generate_lvalue_rax(expr: Node*, out: File*) {
 function generate_assign_rax(expr: Node*, out: File*) {
 	generate_lvalue_rax(expr.assignment.lhs, out);
 	out.putsln("    push rax");
-	if(expr.assignment.op.type != TOKEN_EQ) {
-		expr.assignment.rhs.binary.lhs.type = AST_RELATIVE;
+	if(expr.assignment.op.type != TokenType::EQ) {
+		expr.assignment.rhs.binary.lhs.type = NodeType::RELATIVE;
 	}
 	generate_expr_rax(expr.assignment.rhs, out);
 	out.putsln("    pop rcx");
@@ -465,58 +465,58 @@ function generate_expr_rax(expr: Node*, out: File*) {
 		return;
 	}
 	when(expr.type) {
-		AST_INT_LITERAL -> {
+		NodeType::INT_LITERAL -> {
 			out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
 		}
-		AST_CHAR_LITERAL -> {
+		NodeType::CHAR_LITERAL -> {
 			out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
 		}
-		AST_STRING -> {
+		NodeType::STRING -> {
 			out.puts("    lea rax, [_S"); out.putd(expr.literal.az.string.id); out.putsln("]");
 		}
-		AST_ACCESS_VAR -> {
+		NodeType::ACCESS_VAR -> {
 			generate_access_var(expr, out);
 		}
-		AST_ACCESS_GLOBAL_VAR -> {
+		NodeType::ACCESS_GLOBAL_VAR -> {
 			generate_access_global_var(expr, out);
 		}
-		AST_CALL -> {
+		NodeType::CALL -> {
 			generate_call_rax(expr, out);
 		}
-		AST_CALL_METHOD -> {
+		NodeType::CALL_METHOD -> {
 			generate_call_method_rax(expr, out);
 		}
-		OP_TERNARY -> {
+		NodeType::TERNARY -> {
 			generate_ternary_rax(expr, out);
 		}
-		OP_SIZEOF -> {
+		NodeType::SIZEOF -> {
 			out.puts("    mov rax, "); out.putd(expr.computedType.size_offset()); out.putln();
 		}
-		OP_ACCESS_SUBSCRIPT -> {
+		NodeType::ACCESS_SUBSCRIPT -> {
 			generate_access_subscript(expr, out);
 		}
-		AST_CAST -> {
+		NodeType::CAST -> {
 			generate_expr_rax(expr.unary, out);
 		}
-		OP_ACCESS_MEMBER -> {
+		NodeType::ACCESS_MEMBER -> {
 			generate_access_member(expr, out);
 		}
-		OP_ASSIGN -> {
+		NodeType::ASSIGN -> {
 			generate_assign_rax(expr, out);
 		}
-		AST_RELATIVE -> {
+		NodeType::RELATIVE -> {
 			out.putsln("    mov rax, [rax]");
 		}
-		OP_PRE_INCREMENT -> {
+		NodeType::PRE_INCREMENT -> {
 			generate_pre_increment(expr, out);
 		}
-		OP_PRE_DECREMENT -> {
+		NodeType::PRE_DECREMENT -> {
 			generate_pre_decrement(expr, out);
 		}
-		OP_POST_INCREMENT -> {
+		NodeType::POST_INCREMENT -> {
 			generate_post_increment(expr, out);
 		}
-		OP_POST_DECREMENT -> {
+		NodeType::POST_DECREMENT -> {
 			generate_post_decrement(expr, out);
 		}
 		else -> {
@@ -664,7 +664,7 @@ function generate_when_statement(stmt: Node*, out: File*) {
 
 function generate_define_var(stmt: Node*, out: File*) {
 	if(stmt.variable.value != null) {
-		if(stmt.variable.value.type == AST_ARRAY_INIT) {
+		if(stmt.variable.value.type == NodeType::ARRAY_INIT) {
 			var array = stmt.variable.value;
 			var itemType = copy_type(stmt.variable.type);
 			itemType.indirection = itemType.indirection - 1;
@@ -691,37 +691,37 @@ function generate_define_var(stmt: Node*, out: File*) {
 
 function generate_statement(stmt: Node*, out: File*) {
 	when(stmt.type) {
-		AST_IF -> {
+		NodeType::IF -> {
 			generate_if_statement(stmt, out);
 		}
-		AST_WHILE -> {
+		NodeType::WHILE -> {
 			generate_while_statement(stmt, out);
 		}
-		AST_FOR -> {
+		NodeType::FOR -> {
 			generate_for_statement(stmt, out);
 		}
-		AST_WHEN -> {
+		NodeType::WHEN -> {
 			generate_when_statement(stmt, out);
 		}
-		AST_RETURN -> {
+		NodeType::RETURN -> {
 			if(stmt.unary != null)
 				generate_expr_rax(stmt.unary, out);
 			out.putsln("    leave");
 			out.putsln("    ret");
 		}
-		AST_DEFINE_VAR -> {
+		NodeType::DEFINE_VAR -> {
 			generate_define_var(stmt, out);
 		}
-		AST_EXPR_STMT -> {
+		NodeType::EXPR_STMT -> {
 			generate_expr_rax(stmt.unary, out);
 		}
-		AST_BLOCK -> {
+		NodeType::BLOCK -> {
 			generate_block(stmt, out);
 		}
-		AST_CONTINUE -> {
+		NodeType::CONTINUE -> {
 			out.puts("    jmp .l"); out.putd(cg_continueLabel); out.putln();
 		}
-		AST_BREAK -> {
+		NodeType::BREAK -> {
 			out.puts("    jmp .l"); out.putd(cg_breakLabel); out.putln();
 		}
 		else -> {
@@ -779,20 +779,20 @@ function Parser.generate_namespace(node: Node*, out: File*) {
 
 function Parser.generate_top_level_declaration(node: Node*, out: File*) {
 	when(node.type) {
-		AST_FUNCTION -> {
+		NodeType::FUNCTION -> {
 			if(node.funktion.used)
 				generate_function(node, out);
 		}
-		AST_DEFINE_GLOBAL_VAR -> {
+		NodeType::DEFINE_GLOBAL_VAR -> {
 			// Handled below (generate_program)
 		}
-		AST_DEFINE_CONST -> {
+		NodeType::DEFINE_CONST -> {
 			// No code generated - expanded inline
 		}
-		AST_ENUM, AST_STRUCT, AST_UNION -> {
+		NodeType::ENUM, NodeType::STRUCT, NodeType::UNION -> {
 			// No code generated
 		}
-		AST_NAMESPACE -> {
+		NodeType::NAMESPACE -> {
 			this.generate_namespace(node, out);
 		}
 		else -> {
@@ -822,7 +822,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		var type = variable.variable.type;
 
 		if(variable.variable.value != null) {
-			if(variable.variable.value.type == AST_ARRAY_INIT) {
+			if(variable.variable.value.type == NodeType::ARRAY_INIT) {
 				var array = variable.variable.value;
 				var itemType = copy_type(type);
 				itemType.indirection = type.indirection - 1;

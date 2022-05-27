@@ -61,7 +61,7 @@ function Lexer.make_token(type: int): Token* {
 
 function Lexer.error_token(message: i8*): Token* {
 	var token: Token* = malloc(sizeof(Token));
-	token.type = TOKEN_ERROR;
+	token.type = TokenType::ERROR;
 	token.start = message;
 	token.length = strlen(message);
 	token.line = this.line;
@@ -85,33 +85,33 @@ function Lexer.match_keyword(keyword: i8*): int {
 }
 
 function Lexer.identifier_type(): int {
-	if(this.match_keyword("alias")) return TOKEN_ALIAS;
-	if(this.match_keyword("as")) return TOKEN_AS;
-	if(this.match_keyword("any")) return TOKEN_ANY;
-	if(this.match_keyword("break")) return TOKEN_BREAK;
-	if(this.match_keyword("const")) return TOKEN_CONST;
-	if(this.match_keyword("continue")) return TOKEN_CONTINUE;
-	if(this.match_keyword("else")) return TOKEN_ELSE;
-	if(this.match_keyword("enum")) return TOKEN_ENUM;
-	if(this.match_keyword("if")) return TOKEN_IF;
-	if(this.match_keyword("import")) return TOKEN_IMPORT;
-	if(this.match_keyword("int")) return TOKEN_INT;
-	if(this.match_keyword("i8")) return TOKEN_I8;
-	if(this.match_keyword("i16")) return TOKEN_I16;
-	if(this.match_keyword("i32")) return TOKEN_I32;
-	if(this.match_keyword("i64")) return TOKEN_I64;
-	if(this.match_keyword("for")) return TOKEN_FOR;
-	if(this.match_keyword("function")) return TOKEN_FUNCTION;
-	if(this.match_keyword("namespace")) return TOKEN_NAMESPACE;
-	if(this.match_keyword("return")) return TOKEN_RETURN;
-	if(this.match_keyword("sizeof")) return TOKEN_SIZEOF;
-	if(this.match_keyword("struct")) return TOKEN_STRUCT;
-	if(this.match_keyword("union")) return TOKEN_UNION;
-	if(this.match_keyword("var")) return TOKEN_VAR;
-	if(this.match_keyword("void")) return TOKEN_VOID;
-	if(this.match_keyword("when")) return TOKEN_WHEN;
-	if(this.match_keyword("while")) return TOKEN_WHILE;
-	return TOKEN_IDENTIFIER;
+	if(this.match_keyword("alias")) return TokenType::ALIAS;
+	if(this.match_keyword("as")) return TokenType::AS;
+	if(this.match_keyword("any")) return TokenType::ANY;
+	if(this.match_keyword("break")) return TokenType::BREAK;
+	if(this.match_keyword("const")) return TokenType::CONST;
+	if(this.match_keyword("continue")) return TokenType::CONTINUE;
+	if(this.match_keyword("else")) return TokenType::ELSE;
+	if(this.match_keyword("enum")) return TokenType::ENUM;
+	if(this.match_keyword("if")) return TokenType::IF;
+	if(this.match_keyword("import")) return TokenType::IMPORT;
+	if(this.match_keyword("int")) return TokenType::INT;
+	if(this.match_keyword("i8")) return TokenType::I8;
+	if(this.match_keyword("i16")) return TokenType::I16;
+	if(this.match_keyword("i32")) return TokenType::I32;
+	if(this.match_keyword("i64")) return TokenType::I64;
+	if(this.match_keyword("for")) return TokenType::FOR;
+	if(this.match_keyword("function")) return TokenType::FUNCTION;
+	if(this.match_keyword("namespace")) return TokenType::NAMESPACE;
+	if(this.match_keyword("return")) return TokenType::RETURN;
+	if(this.match_keyword("sizeof")) return TokenType::SIZEOF;
+	if(this.match_keyword("struct")) return TokenType::STRUCT;
+	if(this.match_keyword("union")) return TokenType::UNION;
+	if(this.match_keyword("var")) return TokenType::VAR;
+	if(this.match_keyword("void")) return TokenType::VOID;
+	if(this.match_keyword("when")) return TokenType::WHEN;
+	if(this.match_keyword("while")) return TokenType::WHILE;
+	return TokenType::IDENTIFIER;
 }
 
 function Lexer.skip_whitespace() {
@@ -139,7 +139,7 @@ function Lexer.skip_whitespace() {
 
 function Lexer.number(): Token* {
 	while(is_digit(this.peek())) this.advance();
-	return this.make_token(TOKEN_INT_LITERAL);
+	return this.make_token(TokenType::INT_LITERAL);
 }
 
 function Lexer.identifier(): Token* {
@@ -151,7 +151,7 @@ function Lexer.character(): Token* {
 	if(this.is_at_end()) return this.error_token("Expected character literal");
 	this.advance();
 	if(!this.match(39)) return this.error_token("Expected closing single quote");
-	return this.make_token(TOKEN_CHAR_LITERAL);
+	return this.make_token(TokenType::CHAR_LITERAL);
 }
 
 function Lexer.string(): Token* {
@@ -163,18 +163,18 @@ function Lexer.string(): Token* {
 		return this.error_token("Expected closing double quote");
 	}
 
-	return this.make_token(TOKEN_STRING);
+	return this.make_token(TokenType::STRING);
 }
 
 function Lexer.less_than(): int {
-	var type = TOKEN_LESS;
+	var type = TokenType::LESS;
 
-	if(this.match('=')) type = TOKEN_LEQ;
+	if(this.match('=')) type = TokenType::LEQ;
 	else if(this.match('<')) {
-		type = TOKEN_LSH;
+		type = TokenType::LSH;
 
 		if(this.match('=')) {
-			type = TOKEN_LSH_EQ;
+			type = TokenType::LSH_EQ;
 		}
 	}
 	
@@ -182,14 +182,14 @@ function Lexer.less_than(): int {
 }
 
 function Lexer.greater_than(): int {
-	var type = TOKEN_GREATER;
+	var type = TokenType::GREATER;
 
-	if(this.match('=')) type = TOKEN_GEQ;
+	if(this.match('=')) type = TokenType::GEQ;
 	else if(this.match('>')) {
-		type = TOKEN_RSH;
+		type = TokenType::RSH;
 
 		if(this.match('=')) {
-			type = TOKEN_RSH_EQ;
+			type = TokenType::RSH_EQ;
 		}
 	}
 	
@@ -197,38 +197,38 @@ function Lexer.greater_than(): int {
 }
 
 function Lexer.amp(): int {
-	var type = TOKEN_AMP;
+	var type = TokenType::AMP;
 
-	if(this.match('=')) type = TOKEN_AMP_EQ;
-	else if(this.match('&')) type = TOKEN_AMP_AMP;
+	if(this.match('=')) type = TokenType::AMP_EQ;
+	else if(this.match('&')) type = TokenType::AMP_AMP;
 	
 	return type;
 }
 
 function Lexer.bar(): int {
-	var type = TOKEN_BAR;
+	var type = TokenType::BAR;
 
-	if(this.match('=')) type = TOKEN_BAR_EQ;
-	else if(this.match('|')) type = TOKEN_BAR_BAR;
+	if(this.match('=')) type = TokenType::BAR_EQ;
+	else if(this.match('|')) type = TokenType::BAR_BAR;
 	
 	return type;
 }
 
 function Lexer.minus(): int {
-	var type = TOKEN_MINUS;
+	var type = TokenType::MINUS;
 
-	if(this.match('=')) type = TOKEN_MINUS_EQ;
-	else if(this.match('-')) type = TOKEN_DECREMENT;
-	else if(this.match('>')) type = TOKEN_ARROW;
+	if(this.match('=')) type = TokenType::MINUS_EQ;
+	else if(this.match('-')) type = TokenType::DECREMENT;
+	else if(this.match('>')) type = TokenType::ARROW;
 	
 	return type;
 }
 
 function Lexer.plus(): int {
-	var type = TOKEN_PLUS;
+	var type = TokenType::PLUS;
 
-	if(this.match('=')) type = TOKEN_PLUS_EQ;
-	else if(this.match('+')) type = TOKEN_INCREMENT;
+	if(this.match('=')) type = TokenType::PLUS_EQ;
+	else if(this.match('+')) type = TokenType::INCREMENT;
 	
 	return type;
 }
@@ -238,7 +238,7 @@ function Lexer.next(): Token* {
 
 	this.start = this.current;
 
-	if(this.is_at_end()) return this.make_token(TOKEN_EOF);
+	if(this.is_at_end()) return this.make_token(TokenType::EOF);
 	
 	var c = this.advance();
 
@@ -249,30 +249,30 @@ function Lexer.next(): Token* {
 	if(c == '"') return this.string();
 
 	when(c) {
-		'(' -> return this.make_token(TOKEN_LEFT_PAREN);
-		')' -> return this.make_token(TOKEN_RIGHT_PAREN);
-		'{' -> return this.make_token(TOKEN_LEFT_BRACE);
-		'}' -> return this.make_token(TOKEN_RIGHT_BRACE);
-		'[' -> return this.make_token(TOKEN_LEFT_SQBR);
-		']' -> return this.make_token(TOKEN_RIGHT_SQBR);
-		':' -> return this.make_token(this.match(':') ? TOKEN_COLON_COLON : TOKEN_COLON);
-		';' -> return this.make_token(TOKEN_SEMICOLON);
-		',' -> return this.make_token(TOKEN_COMMA);
-		'.' -> return this.make_token(TOKEN_DOT);
-		'?' -> return this.make_token(TOKEN_QUESTION);
-		'~' -> return this.make_token(TOKEN_TILDE);
+		'(' -> return this.make_token(TokenType::LEFT_PAREN);
+		')' -> return this.make_token(TokenType::RIGHT_PAREN);
+		'{' -> return this.make_token(TokenType::LEFT_BRACE);
+		'}' -> return this.make_token(TokenType::RIGHT_BRACE);
+		'[' -> return this.make_token(TokenType::LEFT_SQBR);
+		']' -> return this.make_token(TokenType::RIGHT_SQBR);
+		':' -> return this.make_token(this.match(':') ? TokenType::COLON_COLON : TokenType::COLON);
+		';' -> return this.make_token(TokenType::SEMICOLON);
+		',' -> return this.make_token(TokenType::COMMA);
+		'.' -> return this.make_token(TokenType::DOT);
+		'?' -> return this.make_token(TokenType::QUESTION);
+		'~' -> return this.make_token(TokenType::TILDE);
 		'-' -> return this.make_token(this.minus());
-		'!' -> return this.make_token(this.match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);
+		'!' -> return this.make_token(this.match('=') ? TokenType::BANG_EQ : TokenType::BANG);
 		'+' -> return this.make_token(this.plus());
-		'*' -> return this.make_token(this.match('=') ? TOKEN_STAR_EQ : TOKEN_STAR);
-		'/' -> return this.make_token(this.match('=') ? TOKEN_SLASH_EQ : TOKEN_SLASH);
-		'%' -> return this.make_token(this.match('=') ? TOKEN_PERCENT_EQ : TOKEN_PERCENT);
+		'*' -> return this.make_token(this.match('=') ? TokenType::STAR_EQ : TokenType::STAR);
+		'/' -> return this.make_token(this.match('=') ? TokenType::SLASH_EQ : TokenType::SLASH);
+		'%' -> return this.make_token(this.match('=') ? TokenType::PERCENT_EQ : TokenType::PERCENT);
 		'&' -> return this.make_token(this.amp());
 		'|' -> return this.make_token(this.bar());
-		'^' -> return this.make_token(this.match('=') ? TOKEN_XOR_EQ : TOKEN_XOR);
+		'^' -> return this.make_token(this.match('=') ? TokenType::XOR_EQ : TokenType::XOR);
 		'<' -> return this.make_token(this.less_than());
 		'>' -> return this.make_token(this.greater_than());
-		'=' -> return this.make_token(this.match('=') ? TOKEN_EQEQ : TOKEN_EQ);
+		'=' -> return this.make_token(this.match('=') ? TokenType::EQEQ : TokenType::EQ);
 	}
 
 	return this.error_token("Unexpected character");
