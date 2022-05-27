@@ -75,7 +75,7 @@ function Parser.bind_namespace(name: Name*) {
 	}
 }
 
-function Parser.bind_to_namespace(name: Name*, namespaceName: Namespace*) {
+function bind_to_namespace(name: Name*, namespaceName: Namespace*) {
 	name.namespaceName = namespaceName;
 }
 
@@ -103,16 +103,10 @@ function is_assignment(type: int): int {
 		   type == TOKEN_RSH_EQ;
 }
 
-//TODO: Remove duplicate code between parser and typechecker
 function Parser.lookup_type(name: Name*): Type* {
-	for(var i = 0; i < this.definedTypes.size; ++i) {
-		var type: Type* = this.definedTypes.at(i);
+	var type = lookup_type_defined(name, this.definedTypes, this.namespaceStack);
 
-		//TODO: Support namespaces
-		if(type.name.equals(name)) {
-			return type;
-		}
-	}
+	if(type != null) return type;
 
 	this.error("Unknown Type");
 
@@ -229,7 +223,7 @@ function Parser.parse_type(): Type* {
 		}
 
 		this.bind_name(&type.name, name);
-		if(nameSpace.parts.size > 0) this.bind_to_namespace(&type.name, nameSpace);
+		if(nameSpace.parts.size > 0) bind_to_namespace(&type.name, nameSpace);
 	}
 	else {
 		this.error("Expected type");
@@ -313,13 +307,13 @@ function Parser.parse_identifier(): Node* {
 
 	if(this.match(TOKEN_LEFT_PAREN)) {
 		var call = this.parse_call(name);
-		if(nameSpace.parts.size > 0) this.bind_to_namespace(&call.funktion.name, nameSpace);
+		if(nameSpace.parts.size > 0) bind_to_namespace(&call.funktion.name, nameSpace);
 		return call;
 	}
 
 	var access = new_node(AST_ACCESS_VAR, name);
 	this.bind_name(&access.variable.name, name);
-	if(nameSpace.parts.size > 0) this.bind_to_namespace(&access.variable.name, nameSpace);
+	if(nameSpace.parts.size > 0) bind_to_namespace(&access.variable.name, nameSpace);
 	access.lvalue = LVALUE_LOCAL;
 	return access;
 }
@@ -1023,7 +1017,7 @@ function Parser.parse_function(): Node* {
 	if(this.match(TOKEN_DOT)) {
 		var parentName: Name;
 		this.bind_name(&parentName, name);
-		if(nameSpace.parts.size > 0) this.bind_to_namespace(&parentName, nameSpace);
+		if(nameSpace.parts.size > 0) bind_to_namespace(&parentName, nameSpace);
 
 		var parent = this.lookup_type(&parentName);
 		if(parent == null) return null;
@@ -1036,7 +1030,7 @@ function Parser.parse_function(): Node* {
 		var type = new_type();
 		type.type = DATA_TYPE_UNRESOLVED;
 		this.bind_name(&type.name, name);
-		if(nameSpace.parts.size > 0) this.bind_to_namespace(&type.name, nameSpace);
+		if(nameSpace.parts.size > 0) bind_to_namespace(&type.name, nameSpace);
 
 		type.indirection = 1;
 

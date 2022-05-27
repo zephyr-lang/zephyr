@@ -4,6 +4,7 @@ import "std/math.zpr";
 
 var tc_typeStack = new_vector();
 var tc_definedTypes = new_vector();
+var tc_namespaces = new_vector();
 
 var tc_checkingLoop = false;
 
@@ -142,16 +143,39 @@ function Token.print_position() {
 	eputs(": ");
 }
 
-function lookup_type(name: Name*): Type* {
-	for(var i = 0; i < tc_definedTypes.size; ++i) {
-		var type: Type* = tc_definedTypes.at(i);
+function lookup_type_defined(name: Name*, definedTypes: Vector*, namespaces: Vector*): Type* {
+	if(name.namespaceName == null) {
+		for(var ni = namespaces.size - 1; ni >= 0; --ni) {
+			var nameSpace: Namespace* = namespaces.at(ni);
 
-		//TODO Support namespaces
+			for(var i = 0; i < definedTypes.size; ++i) {
+				var type: Type* = definedTypes.at(i);
+
+				bind_to_namespace(name, nameSpace);
+
+				if(type.name.equals(name)) {
+					return type;
+				}
+			}
+		}
+		name.namespaceName = null;
+	}
+	
+	for(var i = 0; i < definedTypes.size; ++i) {
+		var type: Type* = definedTypes.at(i);
 
 		if(type.name.equals(name)) {
 			return type;
 		}
 	}
+
+	return null;
+}
+
+function lookup_type(name: Name*): Type* {
+	var type = lookup_type_defined(name, tc_definedTypes, tc_namespaces);
+
+	if(type != null) return type;
 
 	name.print_position();
 	eputs("Unknown type '"); name.eput(); eputsln("'");
@@ -204,12 +228,24 @@ function Parser.lookup_variable(name: Name*): Node* {
 	var constant = this.lookup_constant(name);
 	if(constant != null) return constant;
 
-	for(var i = 0; i < this.globalVars.size; ++i) {
-		var variable: Node* = this.globalVars.at(i);
+	var global = this.lookup_global_variable(name);
+	if(global != null) return global;
 
-		if(variable.variable.name.equals(name)) {
-			return variable;
+	if(name.namespaceName == null) {
+		for(var ni = tc_namespaces.size - 1; ni >= 0; --ni) {
+			var nameSpace: Namespace* = tc_namespaces.at(ni);
+
+			for(var i = 0; i < this.functions.size; ++i) {
+				var func: Node* = this.functions.at(i);
+
+				bind_to_namespace(name, nameSpace);
+
+				if(func.funktion.name.equals(name) && !func.funktion.isMethod) {
+					return func;
+				}
+			}
 		}
+		name.namespaceName = null;
 	}
 
 	for(var i = 0; i < this.functions.size; ++i) {
@@ -223,7 +259,22 @@ function Parser.lookup_variable(name: Name*): Node* {
 }
 
 function Parser.lookup_constant(name: Name*): Node* {
-	// TODO Support namespaces
+	if(name.namespaceName == null) {
+		for(var ni = tc_namespaces.size - 1; ni >= 0; --ni) {
+			var nameSpace: Namespace* = tc_namespaces.at(ni);
+
+			for(var i = 0; i < this.constants.size; ++i) {
+				var constant: Node* = this.constants.at(i);
+
+				bind_to_namespace(name, nameSpace);
+
+				if(constant.constant.name.equals(name)) {
+					return constant;
+				}
+			}
+		}
+		name.namespaceName = null;
+	}
 
 	for(var i = 0; i < this.constants.size; ++i) {
 		var constant: Node* = this.constants.at(i);
@@ -251,6 +302,23 @@ function Parser.lookup_same_scope_variable(name: Name*): Node* {
 }
 
 function Parser.lookup_global_variable(name: Name*): Node* {
+	if(name.namespaceName == null) {
+		for(var ni = tc_namespaces.size - 1; ni >= 0; --ni) {
+			var nameSpace: Namespace* = tc_namespaces.at(ni);
+
+			for(var i = 0; i < this.globalVars.size; ++i) {
+				var variable: Node* = this.globalVars.at(i);
+
+				bind_to_namespace(name, nameSpace);
+
+				if(variable.variable.name.equals(name)) {
+					return variable;
+				}
+			}
+		}
+		name.namespaceName = null;
+	}
+
 	for(var i = 0; i < this.globalVars.size; ++i) {
 		var variable: Node* = this.globalVars.at(i);
 
@@ -1171,11 +1239,15 @@ function add_offsets_to_struct(structType: Type*) {
 }
 
 function Parser.type_check_namespace(nameSpace: Node*) {
+	tc_namespaces.push(nameSpace.nameSpace.name);
+
 	for(var i = 0; i < nameSpace.nameSpace.body.block.children.size; ++i) {
 		var node: Node* = nameSpace.nameSpace.body.block.children.at(i);
 
 		this.type_check_top_level_declaration(node);
 	}
+
+	tc_namespaces.pop();
 }
 
 function Parser.type_check_top_level_declaration(node: Node*) {
@@ -1217,6 +1289,7 @@ function Parser.type_check_top_level_declaration(node: Node*) {
 
 function Parser.type_check(program: Node*) {
 	tc_definedTypes = this.definedTypes;
+	tc_namespaces = new_vector();
 
 	for(var i = 0; i < program.block.children.size; ++i) {
 		var node: Node* = program.block.children.at(i);
