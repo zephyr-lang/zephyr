@@ -257,9 +257,20 @@ function Parser.parse_constant(): int {
 		return literal.start[1];
 	}
 	else if(this.match(TOKEN_IDENTIFIER)) {
-		var name: Name;
-		this.bind_name(&name, this.previous);
-		var constant = this.lookup_constant(&name);
+		var name = this.previous;
+
+		var nameSpace = new_namespace(null, null);
+		nameSpace.parts = new_vector();
+
+		while(this.match(TOKEN_COLON_COLON)) {
+			nameSpace.parts.push(name);
+			name = this.consume(TOKEN_IDENTIFIER, "Expected identifier");	
+		}
+
+		var wholeName: Name;
+		this.bind_name(&wholeName, name);
+		if(nameSpace.parts.size > 0) bind_to_namespace(&wholeName, nameSpace);
+		var constant = this.lookup_constant(&wholeName);
 		if(constant == null) {
 			this.error("Unknown compile-time constant");
 			return 0;
@@ -302,7 +313,7 @@ function Parser.parse_identifier(): Node* {
 
 	while(this.match(TOKEN_COLON_COLON)) {
 		nameSpace.parts.push(name);
-		name = this.consume(TOKEN_IDENTIFIER, "Expected identifier");	
+		name = this.consume(TOKEN_IDENTIFIER, "Expected identifier");
 	}
 
 	if(this.match(TOKEN_LEFT_PAREN)) {
