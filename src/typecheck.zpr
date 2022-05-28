@@ -209,8 +209,6 @@ function resolve_type(type: Type*): Type* {
 function Parser.lookup_variable(name: Name*): Node* {
 	var block = this.currentBlock;
 
-	//TODO Support namespaces
-
 	while(block != null) {
 		var variable = this.lookup_scope_variable(name, block);
 		if(variable != null) return variable;

@@ -285,6 +285,43 @@ function File.put_name(name: Name*) {
 	this.put_token_string(name.name);
 }
 
+function Name.to_string(): i8* {
+	var namespaceLength = 0;
+	var parts = new_vector();
+
+	if(this.namespaceName != null) {
+		for(var i = 0; i < this.namespaceName.parts.size; ++i) {
+			var part = (this.namespaceName.parts.at(i) as Token*).name_to_str();
+			parts.push(part);
+			namespaceLength += strlen(part);
+			namespaceLength += 2;
+		}
+	}
+
+	var str = malloc(namespaceLength + this.name.length + 1);
+	str[0] = 0;
+
+	for(var i = 0; i < parts.size; ++i) {
+		strcat(str, parts.at(i));
+		strcat(str, "::");
+	}
+
+	var length = strlen(str);
+
+	var name = this.name.name_to_str();
+	strcat(str, name);
+	free(name);
+
+	for(var i = 0; i < parts.size; ++i) {
+		var part = parts.at(i);
+		free(part);
+	}
+
+	free(parts);
+
+	return str;
+}
+
 function new_namespace(name: Token*, parent: Namespace*): Namespace* {
 	var namespaceName: Namespace* = malloc(sizeof(Namespace));
 	namespaceName.parts = new_vector();
@@ -342,11 +379,7 @@ function data_type_to_string(type: DataType): i8* {
 }
 
 function struct_name_string(strukt: Type*): i8* {
-	//TODO: Support namespaces
-	var str = malloc(strukt.name.name.length + 1);
-	memcpy(str, strukt.name.name.start, strukt.name.name.length);
-	str[strukt.name.name.length] = 0;
-	return str;
+	return strukt.name.to_string();
 }
 
 function __type_to_string(type: Type*, quoted: bool): i8* {
@@ -359,13 +392,12 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 		baseType = data_type_to_string(type.type);
 	}
 
-	var aliasName: Token*;
+	var aliasName: i8*;
 	var aliasLength = 0;
 	if(type.type != DataType::ALIAS && type.aliased != null) {
-		//TODO: Support namespaces
-		aliasName = type.aliased.name.name;
+		aliasName = type.aliased.name.to_string();
 		// " (alias of " ... ")"
-		aliasLength = 12 + aliasName.length;
+		aliasLength = 12 + strlen(aliasName);
 	}
 
 	var quotesLength = quoted ? 2 : 0;
@@ -385,9 +417,8 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 
 	if(aliasLength != 0) {
 		strcat(str, " (alias of ");
-		var name = aliasName.name_to_str();
-		strcat(str, name);
-		free(name);
+		strcat(str, aliasName);
+		free(aliasName);
 		strcat(str, ")");
 	}
 
