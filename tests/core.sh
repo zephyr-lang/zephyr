@@ -517,7 +517,7 @@ function main(): int {
 	z = y;
 	return 0;
 }
-"
+" SKIP
 
 assert_compilation_error "
 struct Foo {
@@ -1082,6 +1082,197 @@ function main(): int {
 
 	printu(y--);
 	printu(--y);
+
+	return 0;
+}
+"
+
+echo " Done"
+
+echo -n "Namespace: "
+
+assert_stdout "Hello, World!" "
+import \"std/io.zpr\";
+namespace hello {
+	namespace world {
+
+		var message = \"Hello, World!\";
+
+		function print() {
+			putsln(hello::world::message);
+		}
+	}
+}
+
+function main(): int {
+	hello::world::print();
+
+	return 0;
+}
+"
+
+assert_stdout "22" "
+import \"std/io.zpr\";
+
+namespace math {
+	struct Point {
+		x: int;
+		y: int;
+	}
+
+	function math::Point.sum(): int {
+		return this.x + this.y;
+	}
+}
+
+function main(): int {
+	var point: math::Point;
+	point.x = 10;
+	point.y = 12;
+
+	putd(point.sum()); putln();
+
+	return 0;
+}
+"
+
+assert_stdout "30" "
+import \"std/io.zpr\";
+
+namespace math {
+	struct Point {
+		x: int;
+		y: int;
+	}
+
+	function Point.sum(): int {
+		return this.x + this.y;
+	}
+}
+
+function main(): int {
+	var point: math::Point;
+	point.x = 14;
+	point.y = 16;
+
+	putd(point.sum()); putln();
+
+	return 0;
+}
+"
+
+assert_stdout "Hello, World!" "
+namespace hello {
+	var message = \"Hello, World!\";
+	namespace world {
+		function print() {
+			putsln(message);
+		}
+	}
+}
+"
+
+assert_stdout "10" "
+import \"std/io.zpr\";
+
+namespace hello {
+	const x = 10;
+	namespace world {
+		function print() {
+			putd(x);
+			putln();
+		}
+	}
+}
+
+function main(): int {
+	hello::world::print();
+
+	return 0;
+}
+"
+
+assert_stdout "42" "
+import \"std/io.zpr\";
+
+namespace hello {
+	function x(): int {
+		return 42;
+	}
+
+	namespace world {
+		function print() {
+			putd(x());
+			putln();
+		}
+	}
+}
+
+function main(): int {
+	hello::world::print();
+
+	return 0;
+}
+"
+
+assert_stdout "0
+0
+1" "
+import \"std/io.zpr\";
+
+enum Type {
+	A,
+	B
+}
+
+function main(): int {
+	var type: Type = Type::A;
+
+	putd(type);
+	putln();
+	putd(Type::A);
+	putln();
+	putd(Type::B);
+	putln();
+
+	return 0;
+}
+"
+
+assert_stdout "Y!" "
+import \"std/io.zpr\";
+
+namespace x {
+	const y = 10;
+}
+
+function main(): int {
+	var a = 10;
+
+	when(a) {
+		x::y -> putsln(\"Y!\");
+		else -> putsln(\"Not y\");
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "A" "
+import \"std/io.zpr\";
+
+enum Type {
+	A,
+	B
+}
+
+function main(): int {
+	var type: Type = Type::A;
+
+	when(type) {
+		Type::A -> putsln(\"A\");
+		Type::B -> putsln(\"B\");
+	}
 
 	return 0;
 }

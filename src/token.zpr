@@ -3,87 +3,89 @@ import "std/string.zpr";
 
 // Updating this list requires updating token_type_to_string
 enum TokenType {
-	TOKEN_LEFT_PAREN,
-	TOKEN_RIGHT_PAREN,
-	TOKEN_LEFT_BRACE,
-	TOKEN_RIGHT_BRACE,
-	TOKEN_LEFT_SQBR,
-	TOKEN_RIGHT_SQBR,
-	TOKEN_COLON,
-	TOKEN_SEMICOLON,
-	TOKEN_COMMA,
-	TOKEN_DOT,
-	TOKEN_QUESTION,
-	TOKEN_TILDE,
-	TOKEN_MINUS,
-	TOKEN_BANG,
-	TOKEN_PLUS,
-	TOKEN_STAR,
-	TOKEN_SLASH,
-	TOKEN_PERCENT,
-	TOKEN_AMP,
-	TOKEN_AMP_AMP,
-	TOKEN_BAR,
-	TOKEN_BAR_BAR,
-	TOKEN_XOR,
-	TOKEN_LESS,
-	TOKEN_LSH,
-	TOKEN_GREATER,
-	TOKEN_RSH,
-	TOKEN_EQ,
-	TOKEN_EQEQ,
-	TOKEN_BANG_EQ,
-	TOKEN_LEQ,
-	TOKEN_GEQ,
-	TOKEN_ARROW,
+	LEFT_PAREN,
+	RIGHT_PAREN,
+	LEFT_BRACE,
+	RIGHT_BRACE,
+	LEFT_SQBR,
+	RIGHT_SQBR,
+	COLON,
+	COLON_COLON,
+	SEMICOLON,
+	COMMA,
+	DOT,
+	QUESTION,
+	TILDE,
+	MINUS,
+	BANG,
+	PLUS,
+	STAR,
+	SLASH,
+	PERCENT,
+	AMP,
+	AMP_AMP,
+	BAR,
+	BAR_BAR,
+	XOR,
+	LESS,
+	LSH,
+	GREATER,
+	RSH,
+	EQ,
+	EQEQ,
+	BANG_EQ,
+	LEQ,
+	GEQ,
+	ARROW,
 	
-	TOKEN_INCREMENT,
-	TOKEN_DECREMENT,
+	INCREMENT,
+	DECREMENT,
 
-	TOKEN_MINUS_EQ,
-	TOKEN_PLUS_EQ,
-	TOKEN_STAR_EQ,
-	TOKEN_SLASH_EQ,
-	TOKEN_PERCENT_EQ,
-	TOKEN_AMP_EQ,
-	TOKEN_BAR_EQ,
-	TOKEN_XOR_EQ,
-	TOKEN_LSH_EQ,
-	TOKEN_RSH_EQ,
+	MINUS_EQ,
+	PLUS_EQ,
+	STAR_EQ,
+	SLASH_EQ,
+	PERCENT_EQ,
+	AMP_EQ,
+	BAR_EQ,
+	XOR_EQ,
+	LSH_EQ,
+	RSH_EQ,
 
-	TOKEN_INT_LITERAL,
-	TOKEN_CHAR_LITERAL,
-	TOKEN_STRING,
-	TOKEN_IDENTIFIER,
+	INT_LITERAL,
+	CHAR_LITERAL,
+	STRING,
+	IDENTIFIER,
 
-	TOKEN_ALIAS,
-	TOKEN_AS,
-	TOKEN_ANY,
-	TOKEN_BREAK,
-	TOKEN_CONST,
-	TOKEN_CONTINUE,
-	TOKEN_ELSE,
-	TOKEN_ENUM,
-	TOKEN_IF,
-	TOKEN_IMPORT,
-	TOKEN_INT,
-	TOKEN_I8,
-	TOKEN_I16,
-	TOKEN_I32,
-	TOKEN_I64,
-	TOKEN_FOR,
-	TOKEN_FUNCTION,
-	TOKEN_RETURN,
-	TOKEN_SIZEOF,
-	TOKEN_STRUCT,
-	TOKEN_UNION,
-	TOKEN_VAR,
-	TOKEN_VOID,
-	TOKEN_WHEN,
-	TOKEN_WHILE,
+	ALIAS,
+	AS,
+	ANY,
+	BREAK,
+	CONST,
+	CONTINUE,
+	ELSE,
+	ENUM,
+	IF,
+	IMPORT,
+	INT,
+	I8,
+	I16,
+	I32,
+	I64,
+	FOR,
+	FUNCTION,
+	NAMESPACE,
+	RETURN,
+	SIZEOF,
+	STRUCT,
+	UNION,
+	VAR,
+	VOID,
+	WHEN,
+	WHILE,
 
-	TOKEN_ERROR,
-	TOKEN_EOF
+	ERROR,
+	EOF
 }
 
 struct Token {
@@ -96,97 +98,101 @@ struct Token {
 
 function token_type_to_string(type: TokenType): i8* {
 	when(type) {
-		TOKEN_LEFT_PAREN -> return "left-paren";
-		TOKEN_RIGHT_PAREN -> return "right-paren";
-		TOKEN_LEFT_BRACE -> return "left-brace";
-		TOKEN_RIGHT_BRACE -> return "right-brace";
-		TOKEN_RIGHT_BRACE -> return "right-sqbr";
-		TOKEN_RIGHT_BRACE -> return "right-sqbr";
-		TOKEN_COLON -> return "colon";
-		TOKEN_SEMICOLON -> return "semicolon";
-		TOKEN_COMMA -> return "comma";
-		TOKEN_DOT -> return "dot";
-		TOKEN_QUESTION -> return "question";
-		TOKEN_TILDE -> return "tilde";
-		TOKEN_MINUS -> return "minus";
-		TOKEN_BANG -> return "bang";
-		TOKEN_PLUS -> return "plus";
-		TOKEN_STAR -> return "star";
-		TOKEN_SLASH -> return "slash";
-		TOKEN_PERCENT -> return "percent";
-		TOKEN_AMP -> return "amp";
-		TOKEN_AMP_AMP -> return "amp-amp";
-		TOKEN_BAR -> return "bar";
-		TOKEN_BAR_BAR -> return "bar-bar";
-		TOKEN_XOR -> return "xor";
-		TOKEN_LESS -> return "less";
-		TOKEN_LSH -> return "lsh";
-		TOKEN_GREATER -> return "greater";
-		TOKEN_RSH -> return "rsh";
-		TOKEN_EQ -> return "=";
-		TOKEN_EQEQ -> return "eq-eq";
-		TOKEN_BANG_EQ -> return "bang-eq";
-		TOKEN_LEQ -> return "leq";
-		TOKEN_GEQ -> return "geq";
-		TOKEN_ARROW -> return "arrow";
+		TokenType::LEFT_PAREN -> return "left-paren";
+		TokenType::RIGHT_PAREN -> return "right-paren";
+		TokenType::LEFT_BRACE -> return "left-brace";
+		TokenType::RIGHT_BRACE -> return "right-brace";
+		TokenType::RIGHT_BRACE -> return "right-sqbr";
+		TokenType::RIGHT_BRACE -> return "right-sqbr";
+		TokenType::COLON -> return "colon";
+		TokenType::COLON_COLON -> return "colon-colon";
+		TokenType::SEMICOLON -> return "semicolon";
+		TokenType::COMMA -> return "comma";
+		TokenType::DOT -> return "dot";
+		TokenType::QUESTION -> return "question";
+		TokenType::TILDE -> return "tilde";
+		TokenType::MINUS -> return "minus";
+		TokenType::BANG -> return "bang";
+		TokenType::PLUS -> return "plus";
+		TokenType::STAR -> return "star";
+		TokenType::SLASH -> return "slash";
+		TokenType::PERCENT -> return "percent";
+		TokenType::AMP -> return "amp";
+		TokenType::AMP_AMP -> return "amp-amp";
+		TokenType::BAR -> return "bar";
+		TokenType::BAR_BAR -> return "bar-bar";
+		TokenType::XOR -> return "xor";
+		TokenType::LESS -> return "less";
+		TokenType::LSH -> return "lsh";
+		TokenType::GREATER -> return "greater";
+		TokenType::RSH -> return "rsh";
+		TokenType::EQ -> return "=";
+		TokenType::EQEQ -> return "eq-eq";
+		TokenType::BANG_EQ -> return "bang-eq";
+		TokenType::LEQ -> return "leq";
+		TokenType::GEQ -> return "geq";
+		TokenType::ARROW -> return "arrow";
 
-		TOKEN_MINUS_EQ -> return "-=";
-		TOKEN_PLUS_EQ -> return "+=";
-		TOKEN_STAR_EQ -> return "*=";
-		TOKEN_SLASH_EQ -> return "/=";
-		TOKEN_PERCENT_EQ -> return "%=";
-		TOKEN_AMP_EQ -> return "&=";
-		TOKEN_BAR_EQ -> return "|=";
-		TOKEN_XOR_EQ -> return "^=";
-		TOKEN_LSH_EQ -> return "<<=";
-		TOKEN_RSH_EQ -> return ">>=";
+		TokenType::MINUS_EQ -> return "-=";
+		TokenType::PLUS_EQ -> return "+=";
+		TokenType::STAR_EQ -> return "*=";
+		TokenType::SLASH_EQ -> return "/=";
+		TokenType::PERCENT_EQ -> return "%=";
+		TokenType::AMP_EQ -> return "&=";
+		TokenType::BAR_EQ -> return "|=";
+		TokenType::XOR_EQ -> return "^=";
+		TokenType::LSH_EQ -> return "<<=";
+		TokenType::RSH_EQ -> return ">>=";
 
-		TOKEN_INT_LITERAL -> return "int-literal";
-		TOKEN_CHAR_LITERAL -> return "char-literal";
-		TOKEN_STRING -> return "string";
-		TOKEN_IDENTIFIER -> return "identifier";
+		TokenType::INT_LITERAL -> return "int-literal";
+		TokenType::CHAR_LITERAL -> return "char-literal";
+		TokenType::STRING -> return "string";
+		TokenType::IDENTIFIER -> return "identifier";
 
-		TOKEN_ALIAS -> return "alias";
-		TOKEN_AS -> return "as";
-		TOKEN_ANY -> return "any";
-		TOKEN_BREAK -> return "break";
-		TOKEN_CONST -> return "const";
-		TOKEN_CONTINUE -> return "continue";
-		TOKEN_ELSE -> return "else";
-		TOKEN_ELSE -> return "enum";
-		TOKEN_IF -> return "if";
-		TOKEN_IMPORT -> return "import";
-		TOKEN_INT -> return "int";
-		TOKEN_I8 -> return "i8";
-		TOKEN_I16 -> return "i16";
-		TOKEN_I32 -> return "i32";
-		TOKEN_I64 -> return "i64";
-		TOKEN_FOR -> return "for";
-		TOKEN_FUNCTION -> return "function";
-		TOKEN_RETURN -> return "return";
-		TOKEN_SIZEOF -> return "sizeof";
-		TOKEN_STRUCT -> return "struct";
-		TOKEN_UNION -> return "union";
-		TOKEN_VAR -> return "var";
-		TOKEN_VOID -> return "void";
-		TOKEN_WHEN -> return "when";
-		TOKEN_WHILE -> return "while";
+		TokenType::ALIAS -> return "alias";
+		TokenType::AS -> return "as";
+		TokenType::ANY -> return "any";
+		TokenType::BREAK -> return "break";
+		TokenType::CONST -> return "const";
+		TokenType::CONTINUE -> return "continue";
+		TokenType::ELSE -> return "else";
+		TokenType::ELSE -> return "enum";
+		TokenType::IF -> return "if";
+		TokenType::IMPORT -> return "import";
+		TokenType::INT -> return "int";
+		TokenType::I8 -> return "i8";
+		TokenType::I16 -> return "i16";
+		TokenType::I32 -> return "i32";
+		TokenType::I64 -> return "i64";
+		TokenType::FOR -> return "for";
+		TokenType::FUNCTION -> return "function";
+		TokenType::NAMESPACE -> return "namespace";
+		TokenType::RETURN -> return "return";
+		TokenType::SIZEOF -> return "sizeof";
+		TokenType::STRUCT -> return "struct";
+		TokenType::UNION -> return "union";
+		TokenType::VAR -> return "var";
+		TokenType::VOID -> return "void";
+		TokenType::WHEN -> return "when";
+		TokenType::WHILE -> return "while";
 
-		TOKEN_ERROR -> return "error";
-		TOKEN_EOF -> return "eof";
+		TokenType::ERROR -> return "error";
+		TokenType::EOF -> return "eof";
 	}
 
 	return "<unknown type>";
 }
 
 function put_token_string(token: Token*) {
-	// A bit of a hack
-	write(stdout, token.start, token.length);
+	fput_token_string(stdout, token);
 }
 
 function eput_token_string(token: Token*) {
-	// A bit of a hack
-	write(stderr, token.start, token.length);
+	fput_token_string(stderr, token);
+}
+
+function fput_token_string(fd: int, token: Token*) {
+	write(fd, token.start, token.length);
 }
 
 function File.put_token_string(token: Token*) {

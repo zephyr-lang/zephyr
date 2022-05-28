@@ -2,15 +2,15 @@ import "std/core.zpr";
 import "src/ast.zpr";
 
 function add_implicit_printu_function(): Node* {
-	var name = synthetic_token(TOKEN_IDENTIFIER, "printu");
-	var funktion = new_node(AST_FUNCTION, name);
-	funktion.funktion.name = name;
+	var name = synthetic_token(TokenType::IDENTIFIER, "printu");
+	var funktion = new_node(NodeType::FUNCTION, name);
+	funktion.funktion.name.name = name;
 
 	funktion.funktion.arguments = new_vector();
 
-	var valTok = synthetic_token(TOKEN_IDENTIFIER, "value");
-	var val = new_node(AST_DEFINE_VAR, valTok);
-	val.variable.name = valTok;
+	var valTok = synthetic_token(TokenType::IDENTIFIER, "value");
+	var val = new_node(NodeType::DEFINE_VAR, valTok);
+	val.variable.name.name = valTok;
 	val.variable.type = INT_TYPE;
 	funktion.funktion.arguments.push(val);
 
@@ -22,22 +22,22 @@ function add_implicit_printu_function(): Node* {
 }
 
 function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
-	var name = synthetic_token(TOKEN_IDENTIFIER, sysName);
-	var funktion = new_node(AST_FUNCTION, name);
-	funktion.funktion.name = name;
+	var name = synthetic_token(TokenType::IDENTIFIER, sysName);
+	var funktion = new_node(NodeType::FUNCTION, name);
+	funktion.funktion.name.name = name;
 	funktion.funktion.arguments = new_vector();
 
-	var nrTok = synthetic_token(TOKEN_IDENTIFIER, "nr");
-	var nr = new_node(AST_DEFINE_VAR, nrTok);
-	nr.variable.name = nrTok;
+	var nrTok = synthetic_token(TokenType::IDENTIFIER, "nr");
+	var nr = new_node(NodeType::DEFINE_VAR, nrTok);
+	nr.variable.name.name = nrTok;
 	nr.variable.type = INT_TYPE;
 	
 	funktion.funktion.arguments.push(nr);
 
 	for(var i = 0; i < argCount; ++i) {
-		var argTok = synthetic_token(TOKEN_IDENTIFIER, "arg");
-		var arg = new_node(AST_DEFINE_VAR, argTok);
-		arg.variable.name = argTok;
+		var argTok = synthetic_token(TokenType::IDENTIFIER, "arg");
+		var arg = new_node(NodeType::DEFINE_VAR, argTok);
+		arg.variable.name.name = argTok;
 		arg.variable.type = ANY_TYPE;
 
 		funktion.funktion.arguments.push(arg);
@@ -65,7 +65,7 @@ function parser_builtin_functions(): Vector* {
 }
 
 function generate_implicit_printu_impl(out: File*) {
-	out.putsln("_f_printu:");
+	out.putsln("_FZprintu:");
 	out.putsln("		sub     rsp, 40");
 	out.putsln("		mov     eax, 10");
 	out.putsln("		mov     esi, 19");
@@ -106,7 +106,7 @@ function generate_builtin_functions(out: File*) {
 	var SYS_REGISTERS: i8*[6] = [ "rax", "rdi", "rsi", "rdx", "r10", "r8" ];
 
 	for(var i = 0; i <= 5; ++i) {
-		out.puts("_f_syscall"); out.putd(i); out.putsln(":");
+		out.puts("_FZsyscall"); out.putd(i); out.putsln(":");
 
 		for(var arg = 0; arg <= i; arg = arg + 1) {
 			out.puts("    mov "); out.puts(SYS_REGISTERS[arg]); out.puts(", "); out.putsln(ARG_REGISTERS[arg]);

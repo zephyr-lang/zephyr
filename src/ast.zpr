@@ -2,83 +2,84 @@ import "std/vector.zpr";
 
 // Updating this list requires updating node_type_to_string and print_ast_depth
 enum NodeType {
-	OP_BWNOT,
-	OP_NEG,
-	OP_NOT,
-	OP_ADD,
-	OP_SUB,
-	OP_MUL,
-	OP_DIV,
-	OP_MOD,
-	OP_BWAND,
-	OP_BWOR,
-	OP_XOR,
-	OP_LSH,
-	OP_RSH,
-	OP_EQUAL,
-	OP_NOT_EQUAL,
-	OP_LESS,
-	OP_LESS_EQ,
-	OP_GREATER,
-	OP_GREATER_EQ,
-	OP_AND,
-	OP_OR,
-	OP_TERNARY,
-	OP_ADDROF,
-	OP_DEREF,
-	OP_SIZEOF,
-	OP_ACCESS_SUBSCRIPT,
-	OP_ACCESS_MEMBER,
-	OP_ASSIGN,
-	OP_PRE_INCREMENT,
-	OP_PRE_DECREMENT,
-	OP_POST_INCREMENT,
-	OP_POST_DECREMENT,
+	BWNOT,
+	NEG,
+	NOT,
+	ADD,
+	SUB,
+	MUL,
+	DIV,
+	MOD,
+	BWAND,
+	BWOR,
+	XOR,
+	LSH,
+	RSH,
+	EQUAL,
+	NOT_EQUAL,
+	LESS,
+	LESS_EQ,
+	GREATER,
+	GREATER_EQ,
+	AND,
+	OR,
+	TERNARY,
+	ADDROF,
+	DEREF,
+	SIZEOF,
+	ACCESS_SUBSCRIPT,
+	ACCESS_MEMBER,
+	ASSIGN,
+	PRE_INCREMENT,
+	PRE_DECREMENT,
+	POST_INCREMENT,
+	POST_DECREMENT,
 
-	AST_RELATIVE,
-	AST_INT_LITERAL,
-	AST_CHAR_LITERAL,
-	AST_STRING,
-	AST_CALL,
-	AST_CALL_METHOD,
-	AST_DEFINE_CONST,
-	AST_DEFINE_VAR,
-	AST_ACCESS_VAR,
-	AST_DEFINE_GLOBAL_VAR,
-	AST_ACCESS_GLOBAL_VAR,
-	AST_ARRAY_INIT,
-	AST_EXPR_STMT,
-	AST_IF,
-	AST_WHILE,
-	AST_FOR,
-	AST_WHEN,
-	AST_BRANCH,
-	AST_CAST,
-	AST_STRUCT,
-	AST_UNION,
-	AST_ENUM,
-	AST_MEMBER,
-	AST_CONTINUE,
-	AST_BREAK,
-	AST_RETURN,
-	AST_FUNCTION,
-	AST_BLOCK,
-	AST_PROGRAM
+	RELATIVE,
+	INT_LITERAL,
+	CHAR_LITERAL,
+	STRING,
+	CALL,
+	CALL_METHOD,
+	DEFINE_CONST,
+	DEFINE_VAR,
+	ACCESS_VAR,
+	DEFINE_GLOBAL_VAR,
+	ACCESS_GLOBAL_VAR,
+	ARRAY_INIT,
+	EXPR_STMT,
+	IF,
+	WHILE,
+	FOR,
+	WHEN,
+	BRANCH,
+	CAST,
+	STRUCT,
+	UNION,
+	ENUM,
+	MEMBER,
+	CONTINUE,
+	BREAK,
+	RETURN,
+	FUNCTION,
+	NAMESPACE,
+	BLOCK,
+	PROGRAM
 }
 
 // Updating this list requires updating data_type_to_string
 enum DataType {
-	DATA_TYPE_VOID,
-	DATA_TYPE_INT,
-	DATA_TYPE_I8,
-	DATA_TYPE_I16,
-	DATA_TYPE_I32,
-	DATA_TYPE_I64,
-	DATA_TYPE_ANY,
-	DATA_TYPE_STRUCT,
-	DATA_TYPE_UNION,
-	DATA_TYPE_ALIAS,
-	DATA_TYPE_UNRESOLVED
+	VOID,
+	INT,
+	I8,
+	I16,
+	I32,
+	I64,
+	ANY,
+	STRUCT,
+	UNION,
+	ALIAS,
+	UNRESOLVED
 }
 
 struct Type {
@@ -87,7 +88,7 @@ struct Type {
 	isArray: bool;
 	arrayLength: int;
 
-	name: Token*;
+	name: Name;
 	fields: Vector*;
 	methods: Vector*;
 	aliased: Type*;
@@ -96,12 +97,12 @@ struct Type {
 }
 
 enum LValue {
-	LVALUE_NONE,
-	LVALUE_LOCAL,
-	LVALUE_GLOBAL,
-	LVALUE_SUBSCRIPT,
-	LVALUE_DEREF,
-	LVALUE_MEMBER
+	NONE,
+	LOCAL,
+	GLOBAL,
+	SUBSCRIPT,
+	DEREF,
+	MEMBER
 }
 
 struct Node {
@@ -138,7 +139,7 @@ struct Node {
 		};
 
 		funktion: struct {
-			name: Token*;
+			name: Name;
 			returnType: Type*;
 			body: Node*;
 			hasImplicitBody: int;
@@ -178,7 +179,7 @@ struct Node {
 		};
 
 		variable: struct {
-			name: Token*;
+			name: Name;
 			type: Type*;
 			value: Node*;
 
@@ -187,7 +188,7 @@ struct Node {
 		};
 
 		constant: struct {
-			name: Token*;
+			name: Name;
 			value: int;
 		};
 
@@ -214,19 +215,161 @@ struct Node {
 			values: Vector*;
 			body: Node*;
 		};
+
+		nameSpace: struct {
+			name: Namespace*;
+			body: Node*;
+		};
 	};
+}
+
+struct Namespace {
+	parts: Vector*; // Vector*<Token*>
+}
+
+struct Name {
+	namespaceName: Namespace*;
+	name: Token*;
+}
+
+function Name.init(namespaceName: Namespace*, name: Token*) {
+	this.namespaceName = namespaceName;
+	this.name = name;
+}
+
+function Name.fput(fd: int) {
+	if(this.namespaceName != null) {
+		this.namespaceName.fput(fd);
+		fputs(fd, "::");
+	}
+	fput_token_string(fd, this.name);
+}
+
+function Name.eput() {
+	this.fput(stderr);
+}
+
+function Name.put() {
+	this.fput(stdout);
+}
+
+function Name.print_position() {
+	this.name.print_position();
+}
+
+function Name.equals(other: Name*): bool {
+	if(!this.name.equals(other.name)) return false;
+
+	if(this.namespaceName == null || other.namespaceName == null) {
+		return (this.namespaceName == null && other.namespaceName == null);
+	}
+
+	if(this.namespaceName.parts.size != other.namespaceName.parts.size) return false;
+
+	for(var i = 0; i < this.namespaceName.parts.size; ++i) {
+		var thisPart: Token* = this.namespaceName.parts.at(i);
+		var otherPart: Token* = other.namespaceName.parts.at(i);
+
+		if(!thisPart.equals(otherPart)) return false;
+	}
+
+	return true;
+}
+
+function File.put_name(name: Name*) {
+	if(name.namespaceName != null) { 
+		this.put_namespace_name(name.namespaceName);
+		this.puts("_");
+	}
+	this.puts("Z");
+	this.put_token_string(name.name);
+}
+
+function Name.to_string(): i8* {
+	var namespaceLength = 0;
+	var parts = new_vector();
+
+	if(this.namespaceName != null) {
+		for(var i = 0; i < this.namespaceName.parts.size; ++i) {
+			var part = (this.namespaceName.parts.at(i) as Token*).name_to_str();
+			parts.push(part);
+			namespaceLength += strlen(part);
+			namespaceLength += 2;
+		}
+	}
+
+	var str = malloc(namespaceLength + this.name.length + 1);
+	str[0] = 0;
+
+	for(var i = 0; i < parts.size; ++i) {
+		strcat(str, parts.at(i));
+		strcat(str, "::");
+	}
+
+	var length = strlen(str);
+
+	var name = this.name.name_to_str();
+	strcat(str, name);
+	free(name);
+
+	for(var i = 0; i < parts.size; ++i) {
+		var part = parts.at(i);
+		free(part);
+	}
+
+	free(parts);
+
+	return str;
+}
+
+function new_namespace(name: Token*, parent: Namespace*): Namespace* {
+	var namespaceName: Namespace* = malloc(sizeof(Namespace));
+	namespaceName.parts = new_vector();
+
+	if(parent != null) {
+		for(var i = 0; i < parent.parts.size; ++i) {
+			namespaceName.parts.push(parent.parts.at(i));
+		}
+	}
+
+	if(name != null) namespaceName.parts.push(name);
+
+	return namespaceName;
+}
+
+function Namespace.fput(fd: int) {
+	for(var i = 0; i < this.parts.size; ++i) {
+		fput_token_string(fd, this.parts.at(i));
+		if(i != this.parts.size - 1) fputs(fd, "::");
+	}
+}
+
+function Namespace.put() {
+	this.fput(stdout);
+}
+
+function Namespace.eput() {
+	this.fput(stderr);
+}
+
+function File.put_namespace_name(namespaceName: Namespace*) {
+	this.puts("N");
+	for(var i = 0; i < namespaceName.parts.size; ++i) {
+		this.put_token_string(namespaceName.parts.at(i));
+		if(i != namespaceName.parts.size - 1) this.puts("_");
+	}
 }
 
 function data_type_to_string(type: DataType): i8* {
 	when(type) {
-		DATA_TYPE_VOID -> return "void";
-		DATA_TYPE_INT -> return "int";
-		DATA_TYPE_I8 -> return "i8";
-		DATA_TYPE_I16 -> return "i16";
-		DATA_TYPE_I32 -> return "i32";
-		DATA_TYPE_I64 -> return "i64";
-		DATA_TYPE_ANY -> return "any";
-		DATA_TYPE_ALIAS, DATA_TYPE_UNRESOLVED, DATA_TYPE_STRUCT, DATA_TYPE_UNION -> {
+		DataType::VOID -> return "void";
+		DataType::INT -> return "int";
+		DataType::I8 -> return "i8";
+		DataType::I16 -> return "i16";
+		DataType::I32 -> return "i32";
+		DataType::I64 -> return "i64";
+		DataType::ANY -> return "any";
+		DataType::ALIAS, DataType::UNRESOLVED, DataType::STRUCT, DataType::UNION -> {
 			eputsln("Unreachable - data_type_to_string");
 			return null;
 		}
@@ -236,28 +379,25 @@ function data_type_to_string(type: DataType): i8* {
 }
 
 function struct_name_string(strukt: Type*): i8* {
-	var str = malloc(strukt.name.length + 1);
-	memcpy(str, strukt.name.start, strukt.name.length);
-	str[strukt.name.length] = 0;
-	return str;
+	return strukt.name.to_string();
 }
 
 function __type_to_string(type: Type*, quoted: bool): i8* {
 	var baseType: i8*;
 
-	if(type.type == DATA_TYPE_STRUCT || type.type == DATA_TYPE_UNION || type.type == DATA_TYPE_UNRESOLVED) {
+	if(type.type == DataType::STRUCT || type.type == DataType::UNION || type.type == DataType::UNRESOLVED) {
 		baseType = struct_name_string(type);
 	}
 	else {
 		baseType = data_type_to_string(type.type);
 	}
 
-	var aliasName: Token*;
+	var aliasName: i8*;
 	var aliasLength = 0;
-	if(type.type != DATA_TYPE_ALIAS && type.aliased != null) {
-		aliasName = type.aliased.name;
+	if(type.type != DataType::ALIAS && type.aliased != null) {
+		aliasName = type.aliased.name.to_string();
 		// " (alias of " ... ")"
-		aliasLength = 12 + aliasName.length;
+		aliasLength = 12 + strlen(aliasName);
 	}
 
 	var quotesLength = quoted ? 2 : 0;
@@ -277,9 +417,8 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 
 	if(aliasLength != 0) {
 		strcat(str, " (alias of ");
-		var name = aliasName.name_to_str();
-		strcat(str, name);
-		free(name);
+		strcat(str, aliasName);
+		free(aliasName);
 		strcat(str, ")");
 	}
 
@@ -297,64 +436,65 @@ function uq_type_to_string(type: Type*): i8* {
 
 function node_type_to_string(type: NodeType): i8* {
 	when(type) {
-		OP_BWNOT -> return "~";
-		OP_NEG -> return "-";
-		OP_NOT -> return "!";
-		OP_ADD -> return "+";
-		OP_SUB -> return "-";
-		OP_MUL -> return "*";
-		OP_DIV -> return "/";
-		OP_MOD -> return "%";
-		OP_BWAND -> return "&";
-		OP_BWOR -> return "|";
-		OP_XOR -> return "^";
-		OP_LSH -> return "<<";
-		OP_RSH -> return ">>";
-		OP_EQUAL -> return "==";
-		OP_NOT_EQUAL -> return "!=";
-		OP_LESS -> return "<";
-		OP_LESS_EQ -> return "<=";
-		OP_GREATER -> return ">";
-		OP_GREATER_EQ -> return ">=";
-		OP_AND -> return "&&";
-		OP_OR -> return "||";
-		OP_TERNARY -> return "?";
-		OP_ADDROF -> return "&";
-		OP_DEREF -> return "*";
-		OP_SIZEOF -> return "sizeof";
-		OP_ACCESS_SUBSCRIPT -> return "[";
-		OP_PRE_INCREMENT -> return "++";
-		OP_PRE_DECREMENT -> return "--";
-		OP_POST_INCREMENT -> return "++";
-		OP_POST_DECREMENT -> return "--";
-		AST_INT_LITERAL -> return "int literal";
-		AST_CHAR_LITERAL -> return "char literal";
-		AST_STRING -> return "string";
-		AST_CALL -> return "call";
-		AST_CALL_METHOD -> return "call method";
-		AST_DEFINE_CONST -> return "define const";
-		AST_DEFINE_VAR -> return "define var";
-		AST_ACCESS_VAR -> return "access var";
-		AST_DEFINE_GLOBAL_VAR -> return "define gvar";
-		AST_ACCESS_GLOBAL_VAR -> return "access gvar";
-		AST_ARRAY_INIT -> return "init array";
-		AST_EXPR_STMT -> return "expr stmt";
-		AST_IF -> return "if";
-		AST_WHILE -> return "while";
-		AST_FOR -> return "for";
-		AST_WHEN -> return "when";
-		AST_BRANCH -> return "branch";
-		AST_CAST -> return "cast";
-		AST_STRUCT -> return "struct";
-		AST_UNION -> return "union";
-		AST_ENUM -> return "enum";
-		AST_MEMBER -> return "member";
-		AST_CONTINUE -> return "continue";
-		AST_BREAK -> return "break";
-		AST_RETURN -> return "return";
-		AST_FUNCTION -> return "function";
-		AST_BLOCK -> return "block";
-		AST_PROGRAM -> return "program";
+		NodeType::BWNOT -> return "~";
+		NodeType::NEG -> return "-";
+		NodeType::NOT -> return "!";
+		NodeType::ADD -> return "+";
+		NodeType::SUB -> return "-";
+		NodeType::MUL -> return "*";
+		NodeType::DIV -> return "/";
+		NodeType::MOD -> return "%";
+		NodeType::BWAND -> return "&";
+		NodeType::BWOR -> return "|";
+		NodeType::XOR -> return "^";
+		NodeType::LSH -> return "<<";
+		NodeType::RSH -> return ">>";
+		NodeType::EQUAL -> return "==";
+		NodeType::NOT_EQUAL -> return "!=";
+		NodeType::LESS -> return "<";
+		NodeType::LESS_EQ -> return "<=";
+		NodeType::GREATER -> return ">";
+		NodeType::GREATER_EQ -> return ">=";
+		NodeType::AND -> return "&&";
+		NodeType::OR -> return "||";
+		NodeType::TERNARY -> return "?";
+		NodeType::ADDROF -> return "&";
+		NodeType::DEREF -> return "*";
+		NodeType::SIZEOF -> return "sizeof";
+		NodeType::ACCESS_SUBSCRIPT -> return "[";
+		NodeType::PRE_INCREMENT -> return "++";
+		NodeType::PRE_DECREMENT -> return "--";
+		NodeType::POST_INCREMENT -> return "++";
+		NodeType::POST_DECREMENT -> return "--";
+		NodeType::INT_LITERAL -> return "int literal";
+		NodeType::CHAR_LITERAL -> return "char literal";
+		NodeType::STRING -> return "string";
+		NodeType::CALL -> return "call";
+		NodeType::CALL_METHOD -> return "call method";
+		NodeType::DEFINE_CONST -> return "define const";
+		NodeType::DEFINE_VAR -> return "define var";
+		NodeType::ACCESS_VAR -> return "access var";
+		NodeType::DEFINE_GLOBAL_VAR -> return "define gvar";
+		NodeType::ACCESS_GLOBAL_VAR -> return "access gvar";
+		NodeType::ARRAY_INIT -> return "init array";
+		NodeType::EXPR_STMT -> return "expr stmt";
+		NodeType::IF -> return "if";
+		NodeType::WHILE -> return "while";
+		NodeType::FOR -> return "for";
+		NodeType::WHEN -> return "when";
+		NodeType::BRANCH -> return "branch";
+		NodeType::CAST -> return "cast";
+		NodeType::STRUCT -> return "struct";
+		NodeType::UNION -> return "union";
+		NodeType::ENUM -> return "enum";
+		NodeType::MEMBER -> return "member";
+		NodeType::CONTINUE -> return "continue";
+		NodeType::BREAK -> return "break";
+		NodeType::RETURN -> return "return";
+		NodeType::FUNCTION -> return "function";
+		NodeType::NAMESPACE -> return "namespace";
+		NodeType::BLOCK -> return "block";
+		NodeType::PROGRAM -> return "program";
 	}
 
 	return "<unknown node type>";
@@ -362,34 +502,34 @@ function node_type_to_string(type: NodeType): i8* {
 
 function is_unary_op(type: NodeType): bool {
 	return (
-		type == OP_BWNOT ||
-		type == OP_NEG ||
-		type == OP_NOT ||
-		type == OP_ADDROF ||
-		type == OP_DEREF
+		type == NodeType::BWNOT ||
+		type == NodeType::NEG ||
+		type == NodeType::NOT ||
+		type == NodeType::ADDROF ||
+		type == NodeType::DEREF
 	);
 }
 
 function is_binary_op(type: NodeType): bool {
 	return (
-		type == OP_ADD ||
-		type == OP_SUB ||
-		type == OP_MUL ||
-		type == OP_DIV ||
-		type == OP_MOD ||
-		type == OP_BWAND ||
-		type == OP_BWOR ||
-		type == OP_XOR ||
-		type == OP_LSH ||
-		type == OP_RSH ||
-		type == OP_EQUAL ||
-		type == OP_NOT_EQUAL ||
-		type == OP_LESS ||
-		type == OP_LESS_EQ ||
-		type == OP_GREATER ||
-		type == OP_GREATER_EQ ||
-		type == OP_OR ||
-		type == OP_AND
+		type == NodeType::ADD ||
+		type == NodeType::SUB ||
+		type == NodeType::MUL ||
+		type == NodeType::DIV ||
+		type == NodeType::MOD ||
+		type == NodeType::BWAND ||
+		type == NodeType::BWOR ||
+		type == NodeType::XOR ||
+		type == NodeType::LSH ||
+		type == NodeType::RSH ||
+		type == NodeType::EQUAL ||
+		type == NodeType::NOT_EQUAL ||
+		type == NodeType::LESS ||
+		type == NodeType::LESS_EQ ||
+		type == NodeType::GREATER ||
+		type == NodeType::GREATER_EQ ||
+		type == NodeType::OR ||
+		type == NodeType::AND
 	);
 }
 
@@ -409,53 +549,54 @@ function print_ast_depth(node: Node*, depth: int) {
 		return;
 	}
 	when(node.type) {
-		AST_PROGRAM -> {
+		NodeType::PROGRAM -> {
 			for(var i = 0; i < node.block.children.size; ++i)
 				print_ast_depth(node.block.children.at(i), depth);
 		}
-		AST_BLOCK -> {
+		NodeType::BLOCK -> {
 			putsln("{");
 			for(var i = 0; i < node.block.children.size; ++i)
 				print_ast_depth(node.block.children.at(i), depth + 1);
 			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("}");
 		}
-		AST_FUNCTION -> {
-			puts("function "); put_token_string(node.funktion.name); puts(": "); putsln(uq_type_to_string(node.funktion.returnType));
+		NodeType::FUNCTION -> {
+			puts("function "); node.funktion.name.put(); puts(": "); putsln(uq_type_to_string(node.funktion.returnType));
 			for(var i = 0; i < node.funktion.arguments.size; ++i) {
 				var arg: Node* = node.funktion.arguments.at(i);
-				puts("("); put_token_string(arg.variable.name); puts(": "); puts(uq_type_to_string(arg.variable.type)); puts(") ");
+				puts("("); arg.variable.name.put(); puts(": "); puts(uq_type_to_string(arg.variable.type)); puts(") ");
 			}
 			if(node.funktion.arguments.size > 0) putln();
 			if(!node.funktion.hasImplicitBody)
 				print_ast_depth(node.funktion.body, depth);
 		}
-		AST_CALL -> {
-			puts("call "); put_token_string(node.funktion.name); putln();
+		NodeType::CALL -> {
+			puts("call "); node.funktion.name.put(); putln();
 			for(var i = 0; i < node.funktion.arguments.size; ++i) {
 				var arg: Node* = node.funktion.arguments.at(i);
 				print_ast_depth(arg, depth + 1);
 				if(i != node.funktion.arguments.size -1 ) putln();
 			}
 		}
-		AST_CALL_METHOD -> {
-			puts("call "); put_token_string(node.funktion.name); putln();
+		NodeType::CALL_METHOD -> {
+			puts("call "); node.funktion.name.put(); putln();
 			for(var i = 0; i < node.funktion.arguments.size; ++i) {
 				var arg: Node* = node.funktion.arguments.at(i);
 				print_ast_depth(arg, depth + 1);
 				if(i != node.funktion.arguments.size -1 ) putln();
 			}
 
+			putln();
 			for(var i = 0; i < depth; ++i) puts("  ");
 			putsln("of");
 			print_ast_depth(node.funktion.parent, depth + 1);
 		}
-		AST_EXPR_STMT -> {
+		NodeType::EXPR_STMT -> {
 			putsln("pop");
 			print_ast_depth(node.unary, depth + 1);
 			putln();
 		}
-		AST_IF -> {
+		NodeType::IF -> {
 			putsln("if");
 			print_ast_depth(node.conditional.condition, depth + 1);
 			putln();
@@ -469,14 +610,14 @@ function print_ast_depth(node: Node*, depth: int) {
 				putln();
 			}
 		}
-		AST_WHILE -> {
+		NodeType::WHILE -> {
 			putsln("while");
 			print_ast_depth(node.conditional.condition, depth + 1);
 			putln();
 			print_ast_depth(node.conditional.doTrue, depth + 1);
 			putln();
 		}
-		AST_FOR -> {
+		NodeType::FOR -> {
 			putsln("for");
 			if(node.loop.initial != null)
 				print_ast_depth(node.loop.initial, depth + 1);
@@ -504,7 +645,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.loop.body, depth + 1);
 			putln();
 		}
-		AST_RETURN -> {
+		NodeType::RETURN -> {
 			putsln("return");
 			if(node.unary != null) {
 				print_ast_depth(node.unary, depth + 1);
@@ -515,29 +656,29 @@ function print_ast_depth(node: Node*, depth: int) {
 			}
 			putln();
 		}
-		AST_DEFINE_CONST -> {
-			puts("const "); put_token_string(node.constant.name); puts(" = "); putd(node.constant.value); putln();
+		NodeType::DEFINE_CONST -> {
+			puts("const "); node.constant.name.put(); puts(" = "); putd(node.constant.value); putln();
 		}
-		AST_DEFINE_VAR,AST_DEFINE_GLOBAL_VAR -> {
-			puts("var "); put_token_string(node.variable.name); puts(": "); putsln(uq_type_to_string(node.variable.type));
+		NodeType::DEFINE_VAR, NodeType::DEFINE_GLOBAL_VAR -> {
+			puts("var "); node.variable.name.put(); puts(": "); putsln(uq_type_to_string(node.variable.type));
 			if(node.variable.value != null) {
 				print_ast_depth(node.variable.value, depth + 1);
 				putln();
 			}
 		}
-		AST_ACCESS_VAR,AST_ACCESS_GLOBAL_VAR -> {
-			puts("(var "); put_token_string(node.variable.name); puts(")");
+		NodeType::ACCESS_VAR,NodeType::ACCESS_GLOBAL_VAR -> {
+			puts("(var "); node.variable.name.put(); puts(")");
 		}
-		AST_INT_LITERAL -> {
+		NodeType::INT_LITERAL -> {
 			puts("(literal "); putd(node.literal.az.integer); puts(")");
 		}
-		AST_CHAR_LITERAL -> {
+		NodeType::CHAR_LITERAL -> {
 			puts("(literal "); putc(node.literal.az.integer); puts(")");
 		}
-		AST_STRING -> {
+		NodeType::STRING -> {
 			puts("(literal "); puts(node.literal.az.string.chars); puts(")");
 		}
-		OP_TERNARY -> {
+		NodeType::TERNARY -> {
 			putsln("?");
 			print_ast_depth(node.conditional.condition, depth + 1);
 			putln();
@@ -545,10 +686,10 @@ function print_ast_depth(node: Node*, depth: int) {
 			putsln(":");
 			print_ast_depth(node.conditional.doFalse, depth + 1);
 		}
-		OP_SIZEOF -> {
+		NodeType::SIZEOF -> {
 			puts("sizeof("); puts(uq_type_to_string(node.computedType)); puts(")");
 		}
-		OP_ACCESS_SUBSCRIPT -> {
+		NodeType::ACCESS_SUBSCRIPT -> {
 			putsln("subscript [");
 			print_ast_depth(node.binary.lhs, depth + 1);
 			putln();
@@ -557,7 +698,7 @@ function print_ast_depth(node: Node*, depth: int) {
 			for(var i = 0; i < depth; ++i) puts("  ");
 			puts("]");
 		}
-		AST_ARRAY_INIT -> {
+		NodeType::ARRAY_INIT -> {
 			putsln("[");
 			for(var i = 0; i < node.block.children.size; ++i) {
 				print_ast_depth(node.block.children.at(i), depth + 1);
@@ -566,70 +707,71 @@ function print_ast_depth(node: Node*, depth: int) {
 			for(var i = 0; i < depth; ++i) puts("  ");
 			puts("]");
 		}
-		OP_DEREF -> {
+		NodeType::DEREF -> {
 			putsln("*");
 			print_ast_depth(node.unary, depth + 1);
 		}
-		AST_CAST -> {
+		NodeType::CAST -> {
 			putsln("cast");
 			print_ast_depth(node.unary, depth + 1);
 			putln();
 			for(var i = 0; i < depth; ++i) puts("  ");
 			puts("as "); puts(uq_type_to_string(node.computedType));
 		}
-		AST_STRUCT -> {
-			puts("struct "); put_token_string(node.variable.name); putln();
+		NodeType::STRUCT -> {
+			puts("struct "); node.variable.name.put(); putln();
 			for(var i = 0; i < node.computedType.fields.size; ++i) {
 				print_ast_depth(node.computedType.fields.at(i), depth + 1);
 			}
 		}
-		AST_UNION -> {
-			puts("union "); put_token_string(node.variable.name); putln();
+		NodeType::UNION -> {
+			puts("union "); node.variable.name.put(); putln();
 			for(var i = 0; i < node.computedType.fields.size; ++i) {
 				print_ast_depth(node.computedType.fields.at(i), depth + 1);
 			}
 		}
-		AST_ENUM -> {
+		NodeType::ENUM -> {
 			putsln("enum");
 			for(var i = 0; i < node.block.children.size; ++i) {
 				print_ast_depth(node.block.children.at(i), depth + 1);
 			}
 		}
-		AST_MEMBER -> {
-			put_token_string(node.variable.name); puts(": "); putsln(uq_type_to_string(node.variable.type));
+		NodeType::MEMBER -> {
+			node.variable.name.put(); puts(": "); putsln(uq_type_to_string(node.variable.type));
 		}
-		OP_ACCESS_MEMBER -> {
+		NodeType::ACCESS_MEMBER -> {
 			puts("."); put_token_string(node.member.name); putln();
 			print_ast_depth(node.member.parent, depth + 1);
 		}
-		AST_CONTINUE -> {
+		NodeType::CONTINUE -> {
 			putsln("continue");
 		}
-		AST_BREAK -> {
+		NodeType::BREAK -> {
 			putsln("break");
 		}
-		OP_ASSIGN -> {
+		NodeType::ASSIGN -> {
 			putsln(token_type_to_string(node.assignment.op.type));
 			print_ast_depth(node.assignment.lhs, depth);
+			putln();
 			print_ast_depth(node.assignment.rhs, depth + 1);
 		}
-		OP_PRE_INCREMENT -> {
+		NodeType::PRE_INCREMENT -> {
 			putsln("pre++");
 			print_ast_depth(node.unary, depth + 1);
 		}
-		OP_PRE_DECREMENT -> {
+		NodeType::PRE_DECREMENT -> {
 			putsln("pre--");
 			print_ast_depth(node.unary, depth + 1);
 		}
-		OP_POST_INCREMENT -> {
+		NodeType::POST_INCREMENT -> {
 			putsln("post++");
 			print_ast_depth(node.unary, depth + 1);
 		}
-		OP_POST_DECREMENT -> {
+		NodeType::POST_DECREMENT -> {
 			putsln("post--");
 			print_ast_depth(node.unary, depth + 1);
 		}
-		AST_WHEN -> {
+		NodeType::WHEN -> {
 			putsln("when");
 			print_ast_depth(node.vhen.match, depth + 1);
 			for(var i = 0; i < node.vhen.branches.size; i = i + 1) {
@@ -641,13 +783,19 @@ function print_ast_depth(node: Node*, depth: int) {
 				print_ast_depth(node.vhen.default, depth + 1);
 			}
 		}
-		AST_BRANCH -> {
+		NodeType::BRANCH -> {
 			for(var i = 0; i < node.branch.values.size; ++i) {
 				putd(node.branch.values.at(i) as int);
 				if(i != node.branch.values.size - 1) putsln(", ");
 				else putln();
 			}
 			print_ast_depth(node.branch.body, depth + 1);
+		}
+		NodeType::NAMESPACE -> {
+			puts("namespace "); node.nameSpace.name.put(); putln();
+			for(var i = 0; i < node.nameSpace.body.block.children.size; ++i) {
+				print_ast_depth(node.nameSpace.body.block.children.at(i), depth + 1);
+			}
 		}
 		else -> {
 			eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));
