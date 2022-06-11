@@ -72,6 +72,7 @@ enum TokenType {
 	I16,
 	I32,
 	I64,
+	F64,
 	FOR,
 	FUNCTION,
 	NAMESPACE,
@@ -164,6 +165,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::I16 -> return "i16";
 		TokenType::I32 -> return "i32";
 		TokenType::I64 -> return "i64";
+		TokenType::F64 -> return "f64";
 		TokenType::FOR -> return "for";
 		TokenType::FUNCTION -> return "function";
 		TokenType::NAMESPACE -> return "namespace";

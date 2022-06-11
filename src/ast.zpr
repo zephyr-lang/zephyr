@@ -34,6 +34,8 @@ enum NodeType {
 	PRE_DECREMENT,
 	POST_INCREMENT,
 	POST_DECREMENT,
+	INT_TO_FLOAT,
+	FLOAT_TO_INT,
 
 	RELATIVE,
 	INT_LITERAL,
@@ -75,6 +77,7 @@ enum DataType {
 	I16,
 	I32,
 	I64,
+	F64,
 	ANY,
 	STRUCT,
 	UNION,
@@ -368,6 +371,7 @@ function data_type_to_string(type: DataType): i8* {
 		DataType::I16 -> return "i16";
 		DataType::I32 -> return "i32";
 		DataType::I64 -> return "i64";
+		DataType::F64 -> return "f64";
 		DataType::ANY -> return "any";
 		DataType::ALIAS, DataType::UNRESOLVED, DataType::STRUCT, DataType::UNION -> {
 			eputsln("Unreachable - data_type_to_string");
@@ -466,6 +470,8 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::PRE_DECREMENT -> return "--";
 		NodeType::POST_INCREMENT -> return "++";
 		NodeType::POST_DECREMENT -> return "--";
+		NodeType::INT_TO_FLOAT -> return "int to float";
+		NodeType::FLOAT_TO_INT -> return "float to int";
 		NodeType::INT_LITERAL -> return "int literal";
 		NodeType::CHAR_LITERAL -> return "char literal";
 		NodeType::STRING -> return "string";

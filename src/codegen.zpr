@@ -67,7 +67,7 @@ function cmp_suffix(type: int): i8* {
 		NodeType::GREATER_EQ -> return "ge";
 	}
 
-	eputs("Unsupported type in generate_unary_rax - "); eputs(node_type_to_string(type)); eputln();
+	eputs("Unsupported type in cmp_suffix - "); eputs(node_type_to_string(type)); eputln();
 	exit(1);
 	return null;
 }
@@ -312,6 +312,10 @@ function generate_access_var(expr: Node*, out: File*) {
 		out.puts("    lea rax, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
 		return;
 	}
+	else if(expr.variable.type.is_float()) {
+		out.puts("    movsd xmm0, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
+		return;
+	}
 
 	out.puts("    "); out.puts(expr.variable.type.movzx()); out.puts(" "); out.puts(expr.variable.type.movzx_rax_subregister()); out.puts(", ");
 	out.puts(expr.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
@@ -403,6 +407,7 @@ function generate_lvalue_rax(expr: Node*, out: File*) {
 }
 
 function generate_assign_rax(expr: Node*, out: File*) {
+	//TODO: F64
 	generate_lvalue_rax(expr.assignment.lhs, out);
 	out.putsln("    push rax");
 	if(expr.assignment.op.type != TokenType::EQ) {
@@ -518,6 +523,14 @@ function generate_expr_rax(expr: Node*, out: File*) {
 		}
 		NodeType::POST_DECREMENT -> {
 			generate_post_decrement(expr, out);
+		}
+		NodeType::INT_TO_FLOAT -> {
+			generate_expr_rax(expr.unary, out);
+			out.putsln("    cvtsi2sd xmm0, rax");
+		}
+		NodeType::FLOAT_TO_INT -> {
+			generate_expr_rax(expr.unary, out);
+			out.putsln("    cvtsd2si rax, xmm0");
 		}
 		else -> {
 			eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
@@ -681,6 +694,9 @@ function generate_define_var(stmt: Node*, out: File*) {
 		if(stmt.variable.type.is_structural()) {
 			out.puts("lea rcx, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
 			generate_copy(stmt.variable.type.fields, 0, out);
+		}
+		else if(stmt.variable.type.is_float()) {
+			out.puts("    movsd [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("], xmm0");
 		}
 		else {
 			out.puts("    mov "); out.puts(stmt.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.variable.stackOffset);

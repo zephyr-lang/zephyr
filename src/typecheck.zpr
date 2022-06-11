@@ -18,6 +18,10 @@ function Type.is_integral(): bool {
 	);
 }
 
+function Type.is_float(): bool {
+	return this.indirection == 0 && this.type == DataType::F64;
+}
+
 function Type.is_void(): bool {
 	return this.indirection == 0 && this.type == DataType::VOID;
 }
@@ -82,6 +86,7 @@ function Type.size(): int {
 	if(this.type == DataType::I16) return 2;
 	if(this.type == DataType::I32) return 4;
 	if(this.type == DataType::I64) return 8;
+	if(this.type == DataType::F64) return 8;
 	if(this.type == DataType::ANY) return 8;
 	if(this.type == DataType::STRUCT) {
 		var size = 0;
@@ -791,6 +796,22 @@ function Parser.type_check_expr(expr: Node*) {
 		//       or requires a warning in some cases is to be decided.
 		this.type_check_expr(expr.unary);
 		resolve_type(expr.computedType);
+
+		var unaryType: Type* = tc_typeStack.pop();
+
+		if(unaryType.is_integral() && expr.computedType.is_float()) {
+			expr.type = NodeType::INT_TO_FLOAT;
+		}
+		else if(unaryType.is_float() && expr.computedType.is_integral()) {
+			expr.type = NodeType::FLOAT_TO_INT;
+		}
+
+		tc_typeStack.push(expr.computedType);
+	}
+	else if(expr.type == NodeType::INT_TO_FLOAT) {
+		tc_typeStack.push(F64_TYPE);
+	}
+	else if(expr.type == NodeType::FLOAT_TO_INT) {
 		tc_typeStack.push(expr.computedType);
 	}
 	else if(expr.type == NodeType::ACCESS_MEMBER) {

@@ -208,6 +208,7 @@ function Parser.parse_type(): Type* {
 	else if(this.previous.type == TokenType::I16) type.type = DataType::I16;
 	else if(this.previous.type == TokenType::I32) type.type = DataType::I32;
 	else if(this.previous.type == TokenType::I64) type.type = DataType::I64;
+	else if(this.previous.type == TokenType::F64) type.type = DataType::F64;
 	else if(this.previous.type == TokenType::ANY) type.type = DataType::ANY;
 	else if(this.previous.type == TokenType::IDENTIFIER) {
 		type.type = DataType::UNRESOLVED;
