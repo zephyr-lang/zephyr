@@ -567,6 +567,7 @@ function Parser.type_check_call(expr: Node*) {
 		}
 	}
 
+	expr.computedType = funktion.funktion.returnType;
 	tc_typeStack.push(funktion.funktion.returnType);
 }
 
@@ -631,6 +632,7 @@ function Parser.type_check_method_call(expr: Node*) {
 		}
 	}
 
+	expr.computedType = funktion.funktion.returnType;
 	tc_typeStack.push(funktion.funktion.returnType);
 }
 
@@ -656,6 +658,7 @@ function Parser.type_check_ternary_expr(expr: Node*) {
 		exit(1);
 	}
 
+	expr.computedType = doTrue;
 	tc_typeStack.push(doTrue);
 }
 
@@ -783,12 +786,15 @@ function Parser.type_check_expr(expr: Node*) {
 		this.type_check_binary(expr);
 	}
 	else if(expr.type == NodeType::INT_LITERAL) {
+		expr.computedType = INT_TYPE;
 		tc_typeStack.push(INT_TYPE);
 	}
 	else if(expr.type == NodeType::CHAR_LITERAL) {
+		expr.computedType = I8_TYPE;
 		tc_typeStack.push(I8_TYPE);
 	}
 	else if(expr.type == NodeType::STRING) {
+		expr.computedType = STR_TYPE;
 		tc_typeStack.push(STR_TYPE);
 	}
 	else if(expr.type == NodeType::ACCESS_VAR || expr.type == NodeType::ACCESS_GLOBAL_VAR) {
