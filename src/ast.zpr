@@ -539,6 +539,13 @@ function is_binary_op(type: NodeType): bool {
 	);
 }
 
+function is_float_arithmetic(type: NodeType): bool {
+	when(type) {
+		NodeType::ADD, NodeType::SUB, NodeType::MUL, NodeType::DIV -> return true;
+	}
+	return false;
+}
+
 function print_ast_depth(node: Node*, depth: int) {
 	for(var i = 0; i < depth; ++i) puts("  ");
 

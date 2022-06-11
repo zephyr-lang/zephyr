@@ -121,7 +121,14 @@ function generate_unary_rax(expr: Node*, out: File*) {
 		}
 		NodeType::NEG -> {
 			generate_expr_rax(expr.unary, out);
-			out.putsln("    neg rax");
+			if(expr.computedType.is_float()) {
+				out.putsln("    xorps xmm1, xmm1");
+				out.putsln("    subps xmm1, xmm0");
+				out.putsln("    movsd xmm0, xmm1");
+			}
+			else {
+				out.putsln("    neg rax");
+			}
 		}
 		NodeType::NOT -> {
 			generate_expr_rax(expr.unary, out);
@@ -168,6 +175,37 @@ function generate_logical_and_rax(expr: Node*, out: File*) {
 	out.puts(".l"); out.putd(label); out.putsln(":");
 }
 
+function generate_binary_float_arith(expr: Node*, out: File*) {
+	generate_expr_rax(expr.binary.lhs, out);
+	out.putsln("    sub rsp, 8");
+	out.putsln("    movsd [rsp], xmm0");
+	generate_expr_rax(expr.binary.rhs, out);
+	out.putsln("    movsd xmm1, [rsp]");
+	out.putsln("    add rsp, 8");
+
+	var op: i8*;
+	when(expr.type) {
+		NodeType::ADD -> {
+			op = "addsd";
+		}
+		NodeType::SUB -> {
+			op = "subsd";
+		}
+		NodeType::MUL -> {
+			op = "mulsd";
+		}
+		NodeType::DIV -> {
+			op = "divsd";
+		}
+		else -> {
+			eputsln("Unreachable - generate_binary_float_arith");
+			exit(1);
+		}
+	}
+
+	out.puts("    "); out.puts(op); out.putsln(" xmm0, xmm1");
+}
+
 function generate_binary_rax(expr: Node*, out: File*) {
 	if(expr.type == NodeType::OR) {
 		generate_logical_or_rax(expr, out);
@@ -175,6 +213,13 @@ function generate_binary_rax(expr: Node*, out: File*) {
 	}
 	else if(expr.type == NodeType::AND) {
 		generate_logical_and_rax(expr, out);
+		return;
+	}
+
+	if(expr.computedType.is_float()) {
+		assert(is_float_arithmetic(expr.type), "Invalid floating point operation in generate_binary");
+
+		generate_binary_float_arith(expr, out);
 		return;
 	}
 
@@ -419,6 +464,9 @@ function generate_assign_rax(expr: Node*, out: File*) {
 	if(expr.computedType.is_structural()) {
 		generate_copy(expr.computedType.fields, 0, out);
 	}
+	else if(expr.computedType.is_float()) {
+		out.putsln("    movsd [rcx], xmm0");
+	}
 	else {
 		out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
 	}
@@ -510,7 +558,12 @@ function generate_expr_rax(expr: Node*, out: File*) {
 			generate_assign_rax(expr, out);
 		}
 		NodeType::RELATIVE -> {
-			out.putsln("    mov rax, [rax]");
+			if(expr.computedType.is_float()) {
+				out.putsln("    movsd xmm0, [rax]");
+			}
+			else {
+				out.putsln("    mov rax, [rax]");
+			}
 		}
 		NodeType::PRE_INCREMENT -> {
 			generate_pre_increment(expr, out);
