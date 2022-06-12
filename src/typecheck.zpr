@@ -466,7 +466,6 @@ function Parser.type_check_binary(expr: Node*) {
 		return;
 	}
 
-	//TODO: float + int and int + float should be valid
 	if(left.assignable(INT_TYPE) && right.assignable(INT_TYPE)) {
 		// Valid
 	}
@@ -477,6 +476,30 @@ function Parser.type_check_binary(expr: Node*) {
 		expr.computedType = INT_TYPE;
 		tc_typeStack.push(INT_TYPE);
 		return;
+	}
+	// With int <-> float, float always takes priority
+	else if((left.assignable(F64_TYPE) && right.assignable(INT_TYPE)) || (left.assignable(INT_TYPE) && right.assignable(F64_TYPE))) {
+		if(left.assignable(INT_TYPE)) {
+			var cast = new_node(NodeType::INT_TO_FLOAT, expr.binary.lhs.position);
+			cast.computedType = F64_TYPE;
+			cast.unary = expr.binary.lhs;
+			expr.binary.lhs = cast;
+			left = F64_TYPE;
+		}
+		// Right is an integer
+		else {
+			var cast = new_node(NodeType::INT_TO_FLOAT, expr.binary.rhs.position);
+			cast.computedType = F64_TYPE;
+			cast.unary = expr.binary.rhs;
+			expr.binary.rhs = cast;
+			right = F64_TYPE;
+		}
+
+		if(is_comparison(expr.type)) {
+			expr.computedType = INT_TYPE;
+			tc_typeStack.push(INT_TYPE);
+			return;
+		}
 	}
 	else {
 		expr.print_position();
@@ -747,7 +770,19 @@ function Parser.type_check_assign(expr: Node*) {
 	var rhs: Type* = tc_typeStack.pop();
 	resolve_type(rhs);
 
-	if(!rhs.assignable(lhs)) {
+	if(lhs.is_integral() && rhs.is_float()) {
+		var cast = new_node(NodeType::FLOAT_TO_INT, expr.assignment.lhs.position);
+		cast.computedType = INT_TYPE;
+		cast.unary = expr.assignment.rhs;
+		expr.assignment.rhs = cast;
+	}
+	else if(lhs.is_float() && rhs.is_integral()) {
+		var cast = new_node(NodeType::INT_TO_FLOAT, expr.assignment.lhs.position);
+		cast.computedType = INT_TYPE;
+		cast.unary = expr.assignment.rhs;
+		expr.assignment.rhs = cast;
+	}
+	else if(!rhs.assignable(lhs)) {
 		expr.print_position();
 		eputs("Cannot assign type "); eputs(type_to_string(rhs)); eputs(" to type "); eputs(type_to_string(lhs));
 		eputln();
@@ -933,7 +968,19 @@ function Parser.type_check_define_var(stmt: Node*) {
 		var valueType: Type* = tc_typeStack.pop();
 		resolve_type(valueType);
 
-		if(!valueType.assignable(declType)) {
+		if(declType.is_integral() && valueType.is_float()) {
+			var cast = new_node(NodeType::FLOAT_TO_INT, stmt.position);
+			cast.computedType = INT_TYPE;
+			cast.unary = stmt.variable.value;
+			stmt.variable.value = cast;
+		}
+		else if(declType.is_float() && valueType.is_integral()) {
+			var cast = new_node(NodeType::INT_TO_FLOAT, stmt.position);
+			cast.computedType = INT_TYPE;
+			cast.unary = stmt.variable.value;
+			stmt.variable.value = cast;
+		}
+		else if(!valueType.assignable(declType)) {
 			stmt.print_position();
 			eputs("Cannot assign type "); eputs(type_to_string(valueType)); eputs(" to variable expecting "); eputs(type_to_string(declType));
 			eputln();
@@ -1218,7 +1265,19 @@ function Parser.type_check_global_var(stmt: Node*) {
 		var valueType: Type* = tc_typeStack.pop();
 		resolve_type(valueType);
 
-		if(!valueType.assignable(declType)) {
+		if(declType.is_integral() && valueType.is_float()) {
+			var cast = new_node(NodeType::FLOAT_TO_INT, stmt.position);
+			cast.computedType = INT_TYPE;
+			cast.unary = stmt.variable.value;
+			stmt.variable.value = cast;
+		}
+		else if(declType.is_float() && valueType.is_integral()) {
+			var cast = new_node(NodeType::INT_TO_FLOAT, stmt.position);
+			cast.computedType = INT_TYPE;
+			cast.unary = stmt.variable.value;
+			stmt.variable.value = cast;
+		}
+		else if(!valueType.assignable(declType)) {
 			stmt.print_position();
 			eputs("Cannot assign type "); eputs(type_to_string(valueType)); eputs(" to variable expecting "); eputs(type_to_string(declType));
 			eputln();
