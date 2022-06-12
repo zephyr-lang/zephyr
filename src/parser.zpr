@@ -106,7 +106,7 @@ function is_assignment(type: int): int {
 }
 
 function Parser.lookup_type(name: Name*): Type* {
-	var type = lookup_type_defined(name, this.definedTypes, this.namespaceStack);
+	var type = Typecheck::lookup_type_defined(name, this.definedTypes, this.namespaceStack);
 
 	if(type != null) return type;
 

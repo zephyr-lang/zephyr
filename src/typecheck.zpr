@@ -2,11 +2,13 @@ import "std/core.zpr";
 import "std/vector.zpr";
 import "std/math.zpr";
 
-var tc_typeStack = new_vector();
-var tc_definedTypes = new_vector();
-var tc_namespaces = new_vector();
+namespace Typecheck {
 
-var tc_checkingLoop = false;
+var typeStack = new_vector();
+var definedTypes = new_vector();
+var namespaces = new_vector();
+
+var checkingLoop = false;
 
 function Type.is_integral(): bool {
 	return this.indirection == 0 && (
@@ -178,7 +180,7 @@ function lookup_type_defined(name: Name*, definedTypes: Vector*, namespaces: Vec
 }
 
 function lookup_type(name: Name*): Type* {
-	var type = lookup_type_defined(name, tc_definedTypes, tc_namespaces);
+	var type = lookup_type_defined(name, definedTypes, namespaces);
 
 	if(type != null) return type;
 
@@ -235,8 +237,8 @@ function Parser.lookup_variable(name: Name*): Node* {
 	if(global != null) return global;
 
 	if(name.namespaceName == null) {
-		for(var ni = tc_namespaces.size - 1; ni >= 0; --ni) {
-			var nameSpace: Namespace* = tc_namespaces.at(ni);
+		for(var ni = namespaces.size - 1; ni >= 0; --ni) {
+			var nameSpace: Namespace* = namespaces.at(ni);
 
 			for(var i = 0; i < this.functions.size; ++i) {
 				var func: Node* = this.functions.at(i);
@@ -263,8 +265,8 @@ function Parser.lookup_variable(name: Name*): Node* {
 
 function Parser.lookup_constant(name: Name*): Node* {
 	if(name.namespaceName == null) {
-		for(var ni = tc_namespaces.size - 1; ni >= 0; --ni) {
-			var nameSpace: Namespace* = tc_namespaces.at(ni);
+		for(var ni = namespaces.size - 1; ni >= 0; --ni) {
+			var nameSpace: Namespace* = namespaces.at(ni);
 
 			for(var i = 0; i < this.constants.size; ++i) {
 				var constant: Node* = this.constants.at(i);
@@ -306,8 +308,8 @@ function Parser.lookup_same_scope_variable(name: Name*): Node* {
 
 function Parser.lookup_global_variable(name: Name*): Node* {
 	if(name.namespaceName == null) {
-		for(var ni = tc_namespaces.size - 1; ni >= 0; --ni) {
-			var nameSpace: Namespace* = tc_namespaces.at(ni);
+		for(var ni = namespaces.size - 1; ni >= 0; --ni) {
+			var nameSpace: Namespace* = namespaces.at(ni);
 
 			for(var i = 0; i < this.globalVars.size; ++i) {
 				var variable: Node* = this.globalVars.at(i);
@@ -400,17 +402,17 @@ function Parser.type_check_addrof(expr: Node*) {
 	}
 
 	this.type_check_expr(expr.unary);
-	var type: Type* = tc_typeStack.pop();
+	var type: Type* = typeStack.pop();
 
 	var addrType = copy_type(type);
 	addrType.indirection = addrType.indirection + 1;
 
-	tc_typeStack.push(addrType);
+	typeStack.push(addrType);
 }
 
 function Parser.type_check_deref(expr: Node*) {
 	this.type_check_expr(expr.unary);
-	var type: Type* = tc_typeStack.pop();
+	var type: Type* = typeStack.pop();
 	resolve_type(type);
 
 	if(type.indirection == 0) {
@@ -423,7 +425,7 @@ function Parser.type_check_deref(expr: Node*) {
 	derefType.indirection = derefType.indirection - 1;
 
 	expr.computedType = derefType;
-	tc_typeStack.push(derefType);
+	typeStack.push(derefType);
 }
 
 function Parser.type_check_unary(expr: Node*) {
@@ -438,7 +440,7 @@ function Parser.type_check_unary(expr: Node*) {
 
 	this.type_check_expr(expr.unary);
 
-	var type: Type* = tc_typeStack.top();
+	var type: Type* = typeStack.top();
 
 	expr.computedType = type;
 
@@ -455,13 +457,13 @@ function Parser.type_check_unary(expr: Node*) {
 
 function Parser.type_check_binary(expr: Node*) {
 	this.type_check_expr(expr.binary.lhs);
-	var left: Type* = tc_typeStack.pop();
+	var left: Type* = typeStack.pop();
 
 	this.type_check_expr(expr.binary.rhs);
-	var right: Type* = tc_typeStack.pop();
+	var right: Type* = typeStack.pop();
 
 	if((expr.type == NodeType::EQUAL || expr.type == NodeType::NOT_EQUAL) && left.indirection > 0 && right.indirection > 0 && left.assignable(right)) {
-		tc_typeStack.push(INT_TYPE);
+		typeStack.push(INT_TYPE);
 		expr.computedType = INT_TYPE;
 		return;
 	}
@@ -474,7 +476,7 @@ function Parser.type_check_binary(expr: Node*) {
 	}
 	else if(left.assignable(F64_TYPE) && right.assignable(F64_TYPE) && is_comparison(expr.type)) {
 		expr.computedType = INT_TYPE;
-		tc_typeStack.push(INT_TYPE);
+		typeStack.push(INT_TYPE);
 		return;
 	}
 	// With int <-> float, float always takes priority
@@ -497,7 +499,7 @@ function Parser.type_check_binary(expr: Node*) {
 
 		if(is_comparison(expr.type)) {
 			expr.computedType = INT_TYPE;
-			tc_typeStack.push(INT_TYPE);
+			typeStack.push(INT_TYPE);
 			return;
 		}
 	}
@@ -509,7 +511,7 @@ function Parser.type_check_binary(expr: Node*) {
 	}
 
 	expr.computedType = left;
-	tc_typeStack.push(left);
+	typeStack.push(left);
 }
 
 function Parser.type_check_access_var(expr: Node*) {
@@ -528,7 +530,7 @@ function Parser.type_check_access_var(expr: Node*) {
 		var decay = copy_type(expr.variable.type);
 
 		expr.computedType = decay;
-		tc_typeStack.push(decay);
+		typeStack.push(decay);
 	}
 	else if(variable.type == NodeType::DEFINE_GLOBAL_VAR) {
 		expr.variable.type = variable.variable.type;
@@ -536,7 +538,7 @@ function Parser.type_check_access_var(expr: Node*) {
 		expr.lvalue = LValue::GLOBAL;
 
 		expr.computedType = expr.variable.type;
-		tc_typeStack.push(expr.variable.type);
+		typeStack.push(expr.variable.type);
 	}
 	else if(variable.type == NodeType::DEFINE_CONST) {
 		var value = variable.constant.value;
@@ -546,7 +548,7 @@ function Parser.type_check_access_var(expr: Node*) {
 		expr.literal.az.integer = value;
 
 		expr.computedType = INT_TYPE;
-		tc_typeStack.push(INT_TYPE);
+		typeStack.push(INT_TYPE);
 	}
 	else {
 		expr.print_position();
@@ -582,7 +584,7 @@ function Parser.type_check_call(expr: Node*) {
 		var arg: Node* = expr.funktion.arguments.at(i);
 		this.type_check_expr(arg);
 
-		var argType: Type* = tc_typeStack.pop();
+		var argType: Type* = typeStack.pop();
 		
 		var param: Node* = funktion.funktion.arguments.at(i);
 		var paramType = param.variable.type;
@@ -596,13 +598,13 @@ function Parser.type_check_call(expr: Node*) {
 	}
 
 	expr.computedType = funktion.funktion.returnType;
-	tc_typeStack.push(funktion.funktion.returnType);
+	typeStack.push(funktion.funktion.returnType);
 }
 
 function Parser.type_check_method_call(expr: Node*) {
 	this.type_check_expr(expr.funktion.parent);
 
-	var parentType: Type* = tc_typeStack.pop();
+	var parentType: Type* = typeStack.pop();
 	resolve_type(parentType);
 
 	var name = expr.funktion.name;
@@ -649,7 +651,7 @@ function Parser.type_check_method_call(expr: Node*) {
 		var arg: Node* = expr.funktion.arguments.at(i - 1);
 		this.type_check_expr(arg);
 
-		var argType: Type* = tc_typeStack.pop();
+		var argType: Type* = typeStack.pop();
 		var paramType = (funktion.funktion.arguments.at(i) as Node*).variable.type;
 
 		if(!argType.assignable(paramType)) {
@@ -661,12 +663,12 @@ function Parser.type_check_method_call(expr: Node*) {
 	}
 
 	expr.computedType = funktion.funktion.returnType;
-	tc_typeStack.push(funktion.funktion.returnType);
+	typeStack.push(funktion.funktion.returnType);
 }
 
 function Parser.type_check_ternary_expr(expr: Node*) {
 	this.type_check_expr(expr.conditional.condition);
-	var condition: Type* = tc_typeStack.pop();
+	var condition: Type* = typeStack.pop();
 
 	if(!condition.assignable(INT_TYPE)) {
 		expr.print_position();
@@ -675,10 +677,10 @@ function Parser.type_check_ternary_expr(expr: Node*) {
 	}
 
 	this.type_check_expr(expr.conditional.doTrue);
-	var doTrue: Type* = tc_typeStack.pop();
+	var doTrue: Type* = typeStack.pop();
 
 	this.type_check_expr(expr.conditional.doFalse);
-	var doFalse: Type* = tc_typeStack.pop();
+	var doFalse: Type* = typeStack.pop();
 
 	if(!doTrue.assignable(doFalse)) {
 		expr.print_position();
@@ -687,12 +689,12 @@ function Parser.type_check_ternary_expr(expr: Node*) {
 	}
 
 	expr.computedType = doTrue;
-	tc_typeStack.push(doTrue);
+	typeStack.push(doTrue);
 }
 
 function Parser.type_check_access_subscript(expr: Node*) {
 	this.type_check_expr(expr.binary.lhs);
-	var lhs: Type* = tc_typeStack.pop();
+	var lhs: Type* = typeStack.pop();
 
 	if(lhs.indirection == 0) {
 		expr.print_position();
@@ -701,7 +703,7 @@ function Parser.type_check_access_subscript(expr: Node*) {
 	}
 
 	this.type_check_expr(expr.binary.rhs);
-	var rhs: Type* = tc_typeStack.pop();
+	var rhs: Type* = typeStack.pop();
 
 	if(!rhs.assignable(INT_TYPE)) {
 		expr.print_position();
@@ -714,13 +716,13 @@ function Parser.type_check_access_subscript(expr: Node*) {
 
 	expr.computedType = itemType;
 
-	tc_typeStack.push(itemType);
+	typeStack.push(itemType);
 }
 
 function Parser.type_check_access_member(expr: Node*) {
 	this.type_check_expr(expr.member.parent);
 
-	var parentType: Type* = tc_typeStack.pop();
+	var parentType: Type* = typeStack.pop();
 	resolve_type(parentType);
 
 	var name = expr.member.name;
@@ -742,7 +744,7 @@ function Parser.type_check_access_member(expr: Node*) {
 
 	expr.member.memberRef = field;
 	expr.computedType = field.variable.type;
-	tc_typeStack.push(field.variable.type);
+	typeStack.push(field.variable.type);
 }
 
 function Parser.type_check_assign(expr: Node*) {
@@ -754,7 +756,7 @@ function Parser.type_check_assign(expr: Node*) {
 		exit(1);
 	}
 
-	var lhs: Type* = tc_typeStack.pop();
+	var lhs: Type* = typeStack.pop();
 	resolve_type(lhs);
 
 	if(expr.assignment.op.type != TokenType::EQ) {
@@ -767,7 +769,7 @@ function Parser.type_check_assign(expr: Node*) {
 
 	this.type_check_expr(expr.assignment.rhs);
 
-	var rhs: Type* = tc_typeStack.pop();
+	var rhs: Type* = typeStack.pop();
 	resolve_type(rhs);
 
 	if(lhs.is_integral() && rhs.is_float()) {
@@ -791,7 +793,7 @@ function Parser.type_check_assign(expr: Node*) {
 
 	expr.computedType = lhs;
 
-	tc_typeStack.push(lhs);
+	typeStack.push(lhs);
 }
 
 function Parser.type_check_inc_decrement(expr: Node*) {
@@ -803,7 +805,7 @@ function Parser.type_check_inc_decrement(expr: Node*) {
 
 	this.type_check_expr(expr.unary);
 
-	var type: Type* = tc_typeStack.pop();
+	var type: Type* = typeStack.pop();
 	resolve_type(type);
 
 	expr.computedType = type;
@@ -815,7 +817,7 @@ function Parser.type_check_inc_decrement(expr: Node*) {
 		exit(1);
 	}
 
-	tc_typeStack.push(type);
+	typeStack.push(type);
 }
 
 function Parser.type_check_expr(expr: Node*) {
@@ -827,19 +829,19 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == NodeType::INT_LITERAL) {
 		expr.computedType = INT_TYPE;
-		tc_typeStack.push(INT_TYPE);
+		typeStack.push(INT_TYPE);
 	}
 	else if(expr.type == NodeType::CHAR_LITERAL) {
 		expr.computedType = I8_TYPE;
-		tc_typeStack.push(I8_TYPE);
+		typeStack.push(I8_TYPE);
 	}
 	else if(expr.type == NodeType::FLOAT_LITERAL) {
 		expr.computedType = F64_TYPE;
-		tc_typeStack.push(F64_TYPE);
+		typeStack.push(F64_TYPE);
 	}
 	else if(expr.type == NodeType::STRING) {
 		expr.computedType = STR_TYPE;
-		tc_typeStack.push(STR_TYPE);
+		typeStack.push(STR_TYPE);
 	}
 	else if(expr.type == NodeType::ACCESS_VAR || expr.type == NodeType::ACCESS_GLOBAL_VAR) {
 		this.type_check_access_var(expr);
@@ -854,7 +856,7 @@ function Parser.type_check_expr(expr: Node*) {
 		this.type_check_ternary_expr(expr);
 	}
 	else if(expr.type == NodeType::SIZEOF) {
-		tc_typeStack.push(INT_TYPE);
+		typeStack.push(INT_TYPE);
 	}
 	else if(expr.type == NodeType::ACCESS_SUBSCRIPT) {
 		this.type_check_access_subscript(expr);
@@ -865,7 +867,7 @@ function Parser.type_check_expr(expr: Node*) {
 		this.type_check_expr(expr.unary);
 		resolve_type(expr.computedType);
 
-		var unaryType: Type* = tc_typeStack.pop();
+		var unaryType: Type* = typeStack.pop();
 
 		if(unaryType.is_integral() && expr.computedType.is_float()) {
 			expr.type = NodeType::INT_TO_FLOAT;
@@ -874,13 +876,13 @@ function Parser.type_check_expr(expr: Node*) {
 			expr.type = NodeType::FLOAT_TO_INT;
 		}
 
-		tc_typeStack.push(expr.computedType);
+		typeStack.push(expr.computedType);
 	}
 	else if(expr.type == NodeType::INT_TO_FLOAT) {
-		tc_typeStack.push(F64_TYPE);
+		typeStack.push(F64_TYPE);
 	}
 	else if(expr.type == NodeType::FLOAT_TO_INT) {
-		tc_typeStack.push(expr.computedType);
+		typeStack.push(expr.computedType);
 	}
 	else if(expr.type == NodeType::ACCESS_MEMBER) {
 		this.type_check_access_member(expr);
@@ -911,7 +913,7 @@ function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
 	for(var i = 0; i < array.block.children.size; ++i) {
 		this.type_check_expr(array.block.children.at(i));
 
-		var item: Type* = tc_typeStack.pop();
+		var item: Type* = typeStack.pop();
 
 		if(!item.assignable(declItemType)) {
 			(array.block.children.at(i) as Node*).print_position();
@@ -920,7 +922,7 @@ function Parser.type_check_array_init(array: Node*, arrayType: Type*) {
 			exit(1);
 		}
 	}
-	tc_typeStack.push(arrayType);
+	typeStack.push(arrayType);
 }
 
 function Parser.type_check_define_var(stmt: Node*) {
@@ -945,7 +947,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 
 	if(declType.type == DataType::VOID) {
 		this.type_check_expr(stmt.variable.value);
-		stmt.variable.type = tc_typeStack.pop();
+		stmt.variable.type = typeStack.pop();
 		declType = stmt.variable.type;
 	}
 
@@ -965,7 +967,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 			this.type_check_expr(stmt.variable.value);
 		}
 
-		var valueType: Type* = tc_typeStack.pop();
+		var valueType: Type* = typeStack.pop();
 		resolve_type(valueType);
 
 		if(declType.is_integral() && valueType.is_float()) {
@@ -994,7 +996,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 function Parser.type_check_if_statement(stmt: Node*) {
 	this.type_check_expr(stmt.conditional.condition);
 
-	var conditionType: Type* = tc_typeStack.pop();
+	var conditionType: Type* = typeStack.pop();
 
 	if(!conditionType.assignable(INT_TYPE)) {
 		stmt.print_position();
@@ -1016,12 +1018,12 @@ function Parser.type_check_if_statement(stmt: Node*) {
 }
 
 function Parser.type_check_while_statement(stmt: Node*) {
-	var wasCheckingLoop = tc_checkingLoop;
-	tc_checkingLoop = true;
+	var wasCheckingLoop = checkingLoop;
+	checkingLoop = true;
 
 	this.type_check_expr(stmt.conditional.condition);
 
-	var conditionType: Type* = tc_typeStack.pop();
+	var conditionType: Type* = typeStack.pop();
 
 	if(!conditionType.assignable(INT_TYPE)) {
 		stmt.print_position();
@@ -1031,17 +1033,17 @@ function Parser.type_check_while_statement(stmt: Node*) {
 
 	this.type_check_statement(stmt.conditional.doTrue);
 
-	tc_checkingLoop = wasCheckingLoop;
+	checkingLoop = wasCheckingLoop;
 }
 
 function Parser.type_check_for_statement(stmt: Node*) {
-	var wasCheckingLoop = tc_checkingLoop;
-	tc_checkingLoop = true;
+	var wasCheckingLoop = checkingLoop;
+	checkingLoop = true;
 
 	if(stmt.loop.initial != null) this.type_check_statement(stmt.loop.initial);
 	if(stmt.loop.condition != null) {
 		this.type_check_expr(stmt.loop.condition);
-		var conditionType: Type* = tc_typeStack.pop();
+		var conditionType: Type* = typeStack.pop();
 
 		if(!conditionType.assignable(INT_TYPE)) {
 			stmt.print_position();
@@ -1051,17 +1053,17 @@ function Parser.type_check_for_statement(stmt: Node*) {
 	}
 	if(stmt.loop.iteration != null) {
 		this.type_check_expr(stmt.loop.iteration);
-		tc_typeStack.pop();
+		typeStack.pop();
 	}
 
 	this.type_check_statement(stmt.loop.body);
 
-	tc_checkingLoop = wasCheckingLoop;
+	checkingLoop = wasCheckingLoop;
 }
 
 function Parser.type_check_when_statement(stmt: Node*) {
 	this.type_check_expr(stmt.vhen.match);
-	var match: Type* = tc_typeStack.pop();
+	var match: Type* = typeStack.pop();
 	resolve_type(match);
 
 	if(!match.assignable(INT_TYPE)) {
@@ -1108,7 +1110,7 @@ function Parser.type_check_statement(stmt: Node*) {
 		var returnType: Type*;
 		if(stmt.unary != null) {
 			this.type_check_expr(stmt.unary);
-			returnType = tc_typeStack.pop();
+			returnType = typeStack.pop();
 		}
 		else {
 			returnType = VOID_TYPE;
@@ -1134,14 +1136,14 @@ function Parser.type_check_statement(stmt: Node*) {
 		this.currentBlock.block.hasReturned = stmt.block.hasReturned;
 	}
 	else if(stmt.type == NodeType::CONTINUE) {
-		if(!tc_checkingLoop) {
+		if(!checkingLoop) {
 			stmt.print_position();
 			eputsln("Cannot use 'continue' outside of a loop");
 			exit(1);
 		}
 	}
 	else if(stmt.type == NodeType::BREAK) {
-		if(!tc_checkingLoop) {
+		if(!checkingLoop) {
 			stmt.print_position();
 			eputsln("Cannot use 'break' outside of a loop");
 			exit(1);
@@ -1248,7 +1250,7 @@ function Parser.type_check_global_var(stmt: Node*) {
 
 	if(declType.type == DataType::VOID) {
 		this.type_check_expr(stmt.variable.value);
-		stmt.variable.type = tc_typeStack.pop();
+		stmt.variable.type = typeStack.pop();
 		declType = stmt.variable.type;
 	}
 
@@ -1262,7 +1264,7 @@ function Parser.type_check_global_var(stmt: Node*) {
 			this.type_check_expr(stmt.variable.value);
 		}
 
-		var valueType: Type* = tc_typeStack.pop();
+		var valueType: Type* = typeStack.pop();
 		resolve_type(valueType);
 
 		if(declType.is_integral() && valueType.is_float()) {
@@ -1350,7 +1352,7 @@ function add_offsets_to_struct(structType: Type*) {
 }
 
 function Parser.type_check_namespace(nameSpace: Node*) {
-	tc_namespaces.push(nameSpace.nameSpace.name);
+	namespaces.push(nameSpace.nameSpace.name);
 
 	for(var i = 0; i < nameSpace.nameSpace.body.block.children.size; ++i) {
 		var node: Node* = nameSpace.nameSpace.body.block.children.at(i);
@@ -1358,7 +1360,7 @@ function Parser.type_check_namespace(nameSpace: Node*) {
 		this.type_check_top_level_declaration(node);
 	}
 
-	tc_namespaces.pop();
+	namespaces.pop();
 }
 
 function Parser.type_check_top_level_declaration(node: Node*) {
@@ -1399,12 +1401,14 @@ function Parser.type_check_top_level_declaration(node: Node*) {
 }
 
 function Parser.type_check(program: Node*) {
-	tc_definedTypes = this.definedTypes;
-	tc_namespaces = new_vector();
+	definedTypes = this.definedTypes;
+	namespaces = new_vector();
 
 	for(var i = 0; i < program.block.children.size; ++i) {
 		var node: Node* = program.block.children.at(i);
 
 		this.type_check_top_level_declaration(node);
 	}
+}
+
 }

@@ -3,15 +3,17 @@ import "std/io.zpr";
 import "std/math.zpr";
 import "src/ast.zpr";
 
+namespace Codegen {
+
 const INT_ARG_COUNT = 6;
 const FLOAT_ARG_COUNT = 6;
-var cg_INT_ARG_REGISTERS: i8*[INT_ARG_COUNT] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
-var cg_FLOAT_ARG_REGISTERS: i8*[FLOAT_ARG_COUNT] = [ "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7" ];
-var cg_lableCount = 0;
-var cg_intRegistersInUse = 0;
-var cg_floatRegistersInUse = 0;
-var cg_continueLabel = 0;
-var cg_breakLabel = 0;
+var INT_ARG_REGISTERS: i8*[Codegen::INT_ARG_COUNT] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
+var FLOAT_ARG_REGISTERS: i8*[Codegen::FLOAT_ARG_COUNT] = [ "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7" ];
+var labelCount = 0;
+var intRegistersInUse = 0;
+var floatRegistersInUse = 0;
+var continueLabel = 0;
+var breakLabel = 0;
 
 function Type.qualifier(): i8* {
 	when(this.size()) {
@@ -181,7 +183,7 @@ function generate_unary_rax(expr: Node*, out: File*) {
 }
 
 function generate_logical_or_rax(expr: Node*, out: File*) {
-	var label = cg_lableCount = cg_lableCount + 1;
+	var label = labelCount = labelCount + 1;
 	generate_expr_rax(expr.binary.lhs, out);
 	out.putsln("    mov rcx, rax");
 	out.putsln("    mov rax, 1");
@@ -195,7 +197,7 @@ function generate_logical_or_rax(expr: Node*, out: File*) {
 }
 
 function generate_logical_and_rax(expr: Node*, out: File*) {
-	var label = cg_lableCount = cg_lableCount + 1;
+	var label = labelCount = labelCount + 1;
 	generate_expr_rax(expr.binary.lhs, out);
 	out.putsln("    test rax, rax");
 	out.puts("    je .l"); out.putd(label); out.putln();
@@ -328,12 +330,12 @@ function generate_binary_rax(expr: Node*, out: File*) {
 }
 
 function generate_call_rax(expr: Node*, out: File*) {
-	for(var i = 0; i < cg_intRegistersInUse; ++i) {
-		out.puts("    push "); out.putsln(cg_INT_ARG_REGISTERS[i]);
+	for(var i = 0; i < intRegistersInUse; ++i) {
+		out.puts("    push "); out.putsln(INT_ARG_REGISTERS[i]);
 	}
-	for(var i = 0; i < cg_floatRegistersInUse; ++i) {
+	for(var i = 0; i < floatRegistersInUse; ++i) {
 		out.putsln("    sub rsp, 8");
-		out.puts("    movsd [rsp], "); out.putsln(cg_FLOAT_ARG_REGISTERS[i]);
+		out.puts("    movsd [rsp], "); out.putsln(FLOAT_ARG_REGISTERS[i]);
 	}
 
 	var localIntRegUse = 0;
@@ -345,8 +347,8 @@ function generate_call_rax(expr: Node*, out: File*) {
 		if(arg.expr_type().is_float()) {
 			if(localFloatRegUse < FLOAT_ARG_COUNT) {
 				generate_expr_rax(arg, out);
-				out.puts("    movsd "); out.puts(cg_FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
-				++cg_floatRegistersInUse;
+				out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
+				++floatRegistersInUse;
 				++localFloatRegUse;
 			}
 			else {
@@ -358,8 +360,8 @@ function generate_call_rax(expr: Node*, out: File*) {
 		else {
 			if(localIntRegUse < INT_ARG_COUNT) {
 				generate_expr_rax(arg, out);
-				out.puts("    mov "); out.puts(cg_INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
-				++cg_intRegistersInUse;
+				out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
+				++intRegistersInUse;
 				++localIntRegUse;
 			}
 			else {
@@ -369,33 +371,33 @@ function generate_call_rax(expr: Node*, out: File*) {
 		}
 	}
 
-	cg_intRegistersInUse -= localIntRegUse;
-	cg_floatRegistersInUse -= localFloatRegUse;
+	intRegistersInUse -= localIntRegUse;
+	floatRegistersInUse -= localFloatRegUse;
 
 	out.puts("    call _F"); out.put_name(&expr.funktion.name); out.putln();
 
-	for(var i = 0; i < cg_intRegistersInUse; ++i) {
-		out.puts("    pop "); out.putsln(cg_INT_ARG_REGISTERS[cg_intRegistersInUse - i - 1]);
+	for(var i = 0; i < intRegistersInUse; ++i) {
+		out.puts("    pop "); out.putsln(INT_ARG_REGISTERS[intRegistersInUse - i - 1]);
 	}
 
-	for(var i = 0; i < cg_floatRegistersInUse; ++i) {
-		out.puts("    movsd "); out.puts(cg_FLOAT_ARG_REGISTERS[cg_floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
+	for(var i = 0; i < floatRegistersInUse; ++i) {
+		out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
 		out.putsln("    add rsp, 8");
 	}
 }
 
 function generate_call_method_rax(expr: Node*, out: File*) {
-	for(var i = 0; i < cg_intRegistersInUse; ++i) {
-		out.puts("    push "); out.putsln(cg_INT_ARG_REGISTERS[i]);
+	for(var i = 0; i < intRegistersInUse; ++i) {
+		out.puts("    push "); out.putsln(INT_ARG_REGISTERS[i]);
 	}
-	for(var i = 0; i < cg_floatRegistersInUse; ++i) {
+	for(var i = 0; i < floatRegistersInUse; ++i) {
 		out.putsln("    sub rsp, 8");
-		out.puts("    movsd [rsp], "); out.putsln(cg_FLOAT_ARG_REGISTERS[i]);
+		out.puts("    movsd [rsp], "); out.putsln(FLOAT_ARG_REGISTERS[i]);
 	}
 
 	var localIntRegUse = 1;
 	var localFloatRegUse = 0;
-	++cg_intRegistersInUse;
+	++intRegistersInUse;
 	
 	generate_expr_rax(expr.funktion.parent, out);
 	out.putsln("    mov rdi, rax");
@@ -406,8 +408,8 @@ function generate_call_method_rax(expr: Node*, out: File*) {
 		if(arg.expr_type().is_float()) {
 			if(localFloatRegUse < FLOAT_ARG_COUNT) {
 				generate_expr_rax(arg, out);
-				out.puts("    movsd "); out.puts(cg_FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
-				++cg_floatRegistersInUse;
+				out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
+				++floatRegistersInUse;
 				++localFloatRegUse;
 			}
 			else {
@@ -419,8 +421,8 @@ function generate_call_method_rax(expr: Node*, out: File*) {
 		else {
 			if(localIntRegUse < INT_ARG_COUNT) {
 				generate_expr_rax(arg, out);
-				out.puts("    mov "); out.puts(cg_INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
-				++cg_intRegistersInUse;
+				out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
+				++intRegistersInUse;
 				++localIntRegUse;
 			}
 			else {
@@ -430,18 +432,18 @@ function generate_call_method_rax(expr: Node*, out: File*) {
 		}
 	}
 
-	cg_intRegistersInUse -= localIntRegUse;
-	cg_floatRegistersInUse -= localFloatRegUse;
+	intRegistersInUse -= localIntRegUse;
+	floatRegistersInUse -= localFloatRegUse;
 
 	out.puts("    call _M"); out.put_name(&expr.funktion.parentType.name); out.puts("_"); out.put_name(&expr.funktion.name);
 	out.putln();
 
-	for(var i = 0; i < cg_intRegistersInUse; ++i) {
-		out.puts("    pop "); out.putsln(cg_INT_ARG_REGISTERS[cg_intRegistersInUse - i - 1]);
+	for(var i = 0; i < intRegistersInUse; ++i) {
+		out.puts("    pop "); out.putsln(INT_ARG_REGISTERS[intRegistersInUse - i - 1]);
 	}
 
-	for(var i = 0; i < cg_floatRegistersInUse; ++i) {
-		out.puts("    movsd "); out.puts(cg_FLOAT_ARG_REGISTERS[cg_floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
+	for(var i = 0; i < floatRegistersInUse; ++i) {
+		out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
 		out.putsln("    add rsp, 8");
 	}
 }
@@ -449,8 +451,8 @@ function generate_call_method_rax(expr: Node*, out: File*) {
 function generate_ternary_rax(expr: Node*, out: File*) {
 	generate_expr_rax(expr.conditional.condition, out);
 	out.putsln("    test rax, rax");
-	var falseLabel = cg_lableCount = cg_lableCount + 1;
-	var endLabel = cg_lableCount = cg_lableCount + 1;
+	var falseLabel = labelCount = labelCount + 1;
+	var endLabel = labelCount = labelCount + 1;
 
 	out.puts("    je .l"); out.putd(falseLabel); out.putln();
 	generate_expr_rax(expr.conditional.doTrue, out);
@@ -715,8 +717,8 @@ function generate_expr_rax(expr: Node*, out: File*) {
 function generate_if_statement(ifStmt: Node*, out: File*) {
 	generate_expr_rax(ifStmt.conditional.condition, out);
 	out.putsln("    test rax, rax");
-	var falseLabel = cg_lableCount = cg_lableCount + 1;
-	var endLabel = cg_lableCount = cg_lableCount + 1;
+	var falseLabel = labelCount = labelCount + 1;
+	var endLabel = labelCount = labelCount + 1;
 
 	out.puts("    je .l"); out.putd(falseLabel); out.putln();
 
@@ -735,14 +737,14 @@ function generate_if_statement(ifStmt: Node*, out: File*) {
 }
 
 function generate_while_statement(whileStmt: Node*, out: File*) {
-	var condLabel = cg_lableCount = cg_lableCount + 1;
-	var bodyLabel = cg_lableCount = cg_lableCount + 1;
-	var endLabel = cg_lableCount = cg_lableCount + 1;
+	var condLabel = labelCount = labelCount + 1;
+	var bodyLabel = labelCount = labelCount + 1;
+	var endLabel = labelCount = labelCount + 1;
 
-	var prevContinueLabel = cg_continueLabel;
-	var prevBreakLabel = cg_breakLabel;
-	cg_continueLabel = condLabel;
-	cg_breakLabel = endLabel;
+	var prevContinueLabel = continueLabel;
+	var prevBreakLabel = breakLabel;
+	continueLabel = condLabel;
+	breakLabel = endLabel;
 
 	out.puts("    jmp .l"); out.putd(condLabel); out.putln();
 	out.puts(".l"); out.putd(bodyLabel); out.putsln(":");
@@ -755,8 +757,8 @@ function generate_while_statement(whileStmt: Node*, out: File*) {
 	out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
 
 	out.puts(".l"); out.putd(endLabel); out.putsln(":");
-	cg_breakLabel = prevBreakLabel;
-	cg_continueLabel = prevContinueLabel;
+	breakLabel = prevBreakLabel;
+	continueLabel = prevContinueLabel;
 }
 
 function generate_for_statement(forStmt: Node*, out: File*) {
@@ -764,19 +766,19 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 		generate_statement(forStmt.loop.initial, out);
 
 	var hasCondition = forStmt.loop.condition != null;
-	var condLabel = cg_lableCount = cg_lableCount + 1;
-	var bodyLabel = cg_lableCount = cg_lableCount + 1;
-	var endLabel = cg_lableCount = cg_lableCount + 1;
+	var condLabel = labelCount = labelCount + 1;
+	var bodyLabel = labelCount = labelCount + 1;
+	var endLabel = labelCount = labelCount + 1;
 	var iterationLabel: int;
 
-	var prevContinueLabel = cg_continueLabel;
-	var prevBreakLabel = cg_breakLabel;
-	cg_continueLabel = condLabel;
-	cg_breakLabel = endLabel;
+	var prevContinueLabel = continueLabel;
+	var prevBreakLabel = breakLabel;
+	continueLabel = condLabel;
+	breakLabel = endLabel;
 
 	if(forStmt.loop.iteration != null) {
-		iterationLabel = cg_lableCount = cg_lableCount + 1;
-		cg_continueLabel = iterationLabel;
+		iterationLabel = labelCount = labelCount + 1;
+		continueLabel = iterationLabel;
 	}
 
 	if(hasCondition) {
@@ -803,19 +805,19 @@ function generate_for_statement(forStmt: Node*, out: File*) {
 	}
 
 	out.puts(".l"); out.putd(endLabel); out.putsln(":");
-	cg_breakLabel = prevBreakLabel;
-	cg_continueLabel = prevContinueLabel;
+	breakLabel = prevBreakLabel;
+	continueLabel = prevContinueLabel;
 }
 
 function generate_when_statement(stmt: Node*, out: File*) {
 	generate_expr_rax(stmt.vhen.match, out);
 
-	var label = ++cg_lableCount;
+	var label = ++labelCount;
 	var defaultLabel: int;
-	cg_lableCount += stmt.vhen.branches.size;
-	defaultLabel = ++cg_lableCount;
+	labelCount += stmt.vhen.branches.size;
+	defaultLabel = ++labelCount;
 	var endLabel = defaultLabel;
-	if(stmt.vhen.default != null) endLabel = ++cg_lableCount;
+	if(stmt.vhen.default != null) endLabel = ++labelCount;
 
 	for(var i = 0; i < stmt.vhen.branches.size; ++i) {
 		var case: Node* = stmt.vhen.branches.at(i);
@@ -914,10 +916,10 @@ function generate_statement(stmt: Node*, out: File*) {
 			generate_block(stmt, out);
 		}
 		NodeType::CONTINUE -> {
-			out.puts("    jmp .l"); out.putd(cg_continueLabel); out.putln();
+			out.puts("    jmp .l"); out.putd(continueLabel); out.putln();
 		}
 		NodeType::BREAK -> {
-			out.puts("    jmp .l"); out.putd(cg_breakLabel); out.putln();
+			out.puts("    jmp .l"); out.putd(breakLabel); out.putln();
 		}
 		else -> {
 			eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();
@@ -962,7 +964,7 @@ function generate_function(funktion: Node*, out: File*) {
 
 		if(arg.variable.type.is_float()) {
 			if(floatRegUse < FLOAT_ARG_COUNT) {
-				out.puts("    movsd [rbp-"); out.putd(arg.variable.stackOffset); out.puts("], "); out.putsln(cg_FLOAT_ARG_REGISTERS[floatRegUse]);
+				out.puts("    movsd [rbp-"); out.putd(arg.variable.stackOffset); out.puts("], "); out.putsln(FLOAT_ARG_REGISTERS[floatRegUse]);
 				++floatRegUse;
 			}
 			else {
@@ -973,7 +975,7 @@ function generate_function(funktion: Node*, out: File*) {
 		}
 		else {
 			if(intRegUse < INT_ARG_COUNT) {
-				out.puts("    mov QWORD [rbp-"); out.putd(arg.variable.stackOffset); out.puts("], "); out.putsln(cg_INT_ARG_REGISTERS[intRegUse]);
+				out.puts("    mov QWORD [rbp-"); out.putd(arg.variable.stackOffset); out.puts("], "); out.putsln(INT_ARG_REGISTERS[intRegUse]);
 				++intRegUse;
 			}
 			else {
@@ -1118,4 +1120,6 @@ function Parser.generate_program(ast: Node*, out: File*) {
 			out.puts("_D"); out.putd(float.literal.az.float.id); out.puts(": dq "); out.putsln(float.literal.az.float.str);
 		}
 	}
+}
+
 }
