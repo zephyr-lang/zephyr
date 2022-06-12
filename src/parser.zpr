@@ -17,6 +17,7 @@ struct Parser {
 	globalVars: Vector*;
 
 	strings: Vector*;
+	floats: Vector*;
 
 	definedTypes: Vector*;
 
@@ -38,6 +39,7 @@ function new_parser(lexer: Lexer*): Parser* {
 	parser.functions = new_vector();
 	parser.globalVars = new_vector();
 	parser.strings = new_vector();
+	parser.floats = new_vector();
 	parser.definedTypes = new_vector();
 	parser.lexerStack = new_vector();
 	parser.openedFiles = new_vector();
@@ -208,6 +210,7 @@ function Parser.parse_type(): Type* {
 	else if(this.previous.type == TokenType::I16) type.type = DataType::I16;
 	else if(this.previous.type == TokenType::I32) type.type = DataType::I32;
 	else if(this.previous.type == TokenType::I64) type.type = DataType::I64;
+	else if(this.previous.type == TokenType::F64) type.type = DataType::F64;
 	else if(this.previous.type == TokenType::ANY) type.type = DataType::ANY;
 	else if(this.previous.type == TokenType::IDENTIFIER) {
 		type.type = DataType::UNRESOLVED;
@@ -348,6 +351,23 @@ function Parser.parse_value(): Node* {
 		literalNode.literal.type = I8_TYPE;
 		literalNode.literal.az.integer = literal.start[1];
 
+		return literalNode;
+	}
+	else if(this.match(TokenType::FLOAT_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return null;
+
+		var literalNode = new_node(NodeType::FLOAT_LITERAL, literal);
+		literalNode.literal.type = F64_TYPE;
+
+		var str = malloc(literal.length + 1);
+		memcpy(str, literal.start, literal.length);
+		str[literal.length] = 0;
+
+		literalNode.literal.az.float.str = str;
+		literalNode.literal.az.float.id = this.floats.size;
+
+		this.floats.push(literalNode);
 		return literalNode;
 	}
 	else if(this.match(TokenType::STRING)) {

@@ -3,6 +3,7 @@ import "src/ast.zpr";
 var INT_TYPE: Type*;
 var I8_TYPE: Type*;
 var STR_TYPE: Type*;
+var F64_TYPE: Type*;
 var VOID_TYPE: Type*;
 var ANY_TYPE: Type*;
 
@@ -32,6 +33,9 @@ function build_types() {
 	STR_TYPE = new_type();
 	STR_TYPE.type = DataType::I8;
 	STR_TYPE.indirection = 1;
+
+	F64_TYPE = new_type();
+	F64_TYPE.type = DataType::F64;
 
 	VOID_TYPE = new_type();
 	VOID_TYPE.type = DataType::VOID;

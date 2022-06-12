@@ -18,6 +18,10 @@ function Type.is_integral(): bool {
 	);
 }
 
+function Type.is_float(): bool {
+	return this.indirection == 0 && this.type == DataType::F64;
+}
+
 function Type.is_void(): bool {
 	return this.indirection == 0 && this.type == DataType::VOID;
 }
@@ -82,6 +86,7 @@ function Type.size(): int {
 	if(this.type == DataType::I16) return 2;
 	if(this.type == DataType::I32) return 4;
 	if(this.type == DataType::I64) return 8;
+	if(this.type == DataType::F64) return 8;
 	if(this.type == DataType::ANY) return 8;
 	if(this.type == DataType::STRUCT) {
 		var size = 0;
@@ -435,6 +440,12 @@ function Parser.type_check_unary(expr: Node*) {
 
 	var type: Type* = tc_typeStack.top();
 
+	expr.computedType = type;
+
+	if(type.is_float() && expr.type == NodeType::NEG) {
+		return;
+	}
+
 	if(!type.assignable(INT_TYPE)) {
 		expr.print_position();
 		eputs("Cannot perform operation '"); eputs(node_type_to_string(expr.type)); eputs("' on type "); eputs(type_to_string(type)); eputln();
@@ -451,16 +462,53 @@ function Parser.type_check_binary(expr: Node*) {
 
 	if((expr.type == NodeType::EQUAL || expr.type == NodeType::NOT_EQUAL) && left.indirection > 0 && right.indirection > 0 && left.assignable(right)) {
 		tc_typeStack.push(INT_TYPE);
+		expr.computedType = INT_TYPE;
 		return;
 	}
 
-	if(!left.assignable(INT_TYPE) || !right.assignable(INT_TYPE)) {
+	if(left.assignable(INT_TYPE) && right.assignable(INT_TYPE)) {
+		// Valid
+	}
+	else if(left.assignable(F64_TYPE) && right.assignable(F64_TYPE) && is_float_arithmetic(expr.type)) {
+		// Valid
+	}
+	else if(left.assignable(F64_TYPE) && right.assignable(F64_TYPE) && is_comparison(expr.type)) {
+		expr.computedType = INT_TYPE;
+		tc_typeStack.push(INT_TYPE);
+		return;
+	}
+	// With int <-> float, float always takes priority
+	else if((left.assignable(F64_TYPE) && right.assignable(INT_TYPE)) || (left.assignable(INT_TYPE) && right.assignable(F64_TYPE))) {
+		if(left.assignable(INT_TYPE)) {
+			var cast = new_node(NodeType::INT_TO_FLOAT, expr.binary.lhs.position);
+			cast.computedType = F64_TYPE;
+			cast.unary = expr.binary.lhs;
+			expr.binary.lhs = cast;
+			left = F64_TYPE;
+		}
+		// Right is an integer
+		else {
+			var cast = new_node(NodeType::INT_TO_FLOAT, expr.binary.rhs.position);
+			cast.computedType = F64_TYPE;
+			cast.unary = expr.binary.rhs;
+			expr.binary.rhs = cast;
+			right = F64_TYPE;
+		}
+
+		if(is_comparison(expr.type)) {
+			expr.computedType = INT_TYPE;
+			tc_typeStack.push(INT_TYPE);
+			return;
+		}
+	}
+	else {
 		expr.print_position();
 		eputs("Cannot perform operation '"); eputs(node_type_to_string(expr.type)); eputs("' on types "); eputs(type_to_string(left));
 		eputs(" and "); eputs(type_to_string(right)); eputln();
 		exit(1);
 	}
 
+	expr.computedType = left;
 	tc_typeStack.push(left);
 }
 
@@ -479,6 +527,7 @@ function Parser.type_check_access_var(expr: Node*) {
 
 		var decay = copy_type(expr.variable.type);
 
+		expr.computedType = decay;
 		tc_typeStack.push(decay);
 	}
 	else if(variable.type == NodeType::DEFINE_GLOBAL_VAR) {
@@ -486,6 +535,7 @@ function Parser.type_check_access_var(expr: Node*) {
 		expr.type = NodeType::ACCESS_GLOBAL_VAR;
 		expr.lvalue = LValue::GLOBAL;
 
+		expr.computedType = expr.variable.type;
 		tc_typeStack.push(expr.variable.type);
 	}
 	else if(variable.type == NodeType::DEFINE_CONST) {
@@ -495,6 +545,7 @@ function Parser.type_check_access_var(expr: Node*) {
 		expr.literal.type = INT_TYPE;
 		expr.literal.az.integer = value;
 
+		expr.computedType = INT_TYPE;
 		tc_typeStack.push(INT_TYPE);
 	}
 	else {
@@ -544,6 +595,7 @@ function Parser.type_check_call(expr: Node*) {
 		}
 	}
 
+	expr.computedType = funktion.funktion.returnType;
 	tc_typeStack.push(funktion.funktion.returnType);
 }
 
@@ -608,6 +660,7 @@ function Parser.type_check_method_call(expr: Node*) {
 		}
 	}
 
+	expr.computedType = funktion.funktion.returnType;
 	tc_typeStack.push(funktion.funktion.returnType);
 }
 
@@ -633,6 +686,7 @@ function Parser.type_check_ternary_expr(expr: Node*) {
 		exit(1);
 	}
 
+	expr.computedType = doTrue;
 	tc_typeStack.push(doTrue);
 }
 
@@ -687,7 +741,7 @@ function Parser.type_check_access_member(expr: Node*) {
 	}
 
 	expr.member.memberRef = field;
-
+	expr.computedType = field.variable.type;
 	tc_typeStack.push(field.variable.type);
 }
 
@@ -716,7 +770,19 @@ function Parser.type_check_assign(expr: Node*) {
 	var rhs: Type* = tc_typeStack.pop();
 	resolve_type(rhs);
 
-	if(!rhs.assignable(lhs)) {
+	if(lhs.is_integral() && rhs.is_float()) {
+		var cast = new_node(NodeType::FLOAT_TO_INT, expr.assignment.lhs.position);
+		cast.computedType = INT_TYPE;
+		cast.unary = expr.assignment.rhs;
+		expr.assignment.rhs = cast;
+	}
+	else if(lhs.is_float() && rhs.is_integral()) {
+		var cast = new_node(NodeType::INT_TO_FLOAT, expr.assignment.lhs.position);
+		cast.computedType = INT_TYPE;
+		cast.unary = expr.assignment.rhs;
+		expr.assignment.rhs = cast;
+	}
+	else if(!rhs.assignable(lhs)) {
 		expr.print_position();
 		eputs("Cannot assign type "); eputs(type_to_string(rhs)); eputs(" to type "); eputs(type_to_string(lhs));
 		eputln();
@@ -760,12 +826,19 @@ function Parser.type_check_expr(expr: Node*) {
 		this.type_check_binary(expr);
 	}
 	else if(expr.type == NodeType::INT_LITERAL) {
+		expr.computedType = INT_TYPE;
 		tc_typeStack.push(INT_TYPE);
 	}
 	else if(expr.type == NodeType::CHAR_LITERAL) {
+		expr.computedType = I8_TYPE;
 		tc_typeStack.push(I8_TYPE);
 	}
+	else if(expr.type == NodeType::FLOAT_LITERAL) {
+		expr.computedType = F64_TYPE;
+		tc_typeStack.push(F64_TYPE);
+	}
 	else if(expr.type == NodeType::STRING) {
+		expr.computedType = STR_TYPE;
 		tc_typeStack.push(STR_TYPE);
 	}
 	else if(expr.type == NodeType::ACCESS_VAR || expr.type == NodeType::ACCESS_GLOBAL_VAR) {
@@ -791,6 +864,22 @@ function Parser.type_check_expr(expr: Node*) {
 		//       or requires a warning in some cases is to be decided.
 		this.type_check_expr(expr.unary);
 		resolve_type(expr.computedType);
+
+		var unaryType: Type* = tc_typeStack.pop();
+
+		if(unaryType.is_integral() && expr.computedType.is_float()) {
+			expr.type = NodeType::INT_TO_FLOAT;
+		}
+		else if(unaryType.is_float() && expr.computedType.is_integral()) {
+			expr.type = NodeType::FLOAT_TO_INT;
+		}
+
+		tc_typeStack.push(expr.computedType);
+	}
+	else if(expr.type == NodeType::INT_TO_FLOAT) {
+		tc_typeStack.push(F64_TYPE);
+	}
+	else if(expr.type == NodeType::FLOAT_TO_INT) {
 		tc_typeStack.push(expr.computedType);
 	}
 	else if(expr.type == NodeType::ACCESS_MEMBER) {
@@ -879,7 +968,19 @@ function Parser.type_check_define_var(stmt: Node*) {
 		var valueType: Type* = tc_typeStack.pop();
 		resolve_type(valueType);
 
-		if(!valueType.assignable(declType)) {
+		if(declType.is_integral() && valueType.is_float()) {
+			var cast = new_node(NodeType::FLOAT_TO_INT, stmt.position);
+			cast.computedType = INT_TYPE;
+			cast.unary = stmt.variable.value;
+			stmt.variable.value = cast;
+		}
+		else if(declType.is_float() && valueType.is_integral()) {
+			var cast = new_node(NodeType::INT_TO_FLOAT, stmt.position);
+			cast.computedType = INT_TYPE;
+			cast.unary = stmt.variable.value;
+			stmt.variable.value = cast;
+		}
+		else if(!valueType.assignable(declType)) {
 			stmt.print_position();
 			eputs("Cannot assign type "); eputs(type_to_string(valueType)); eputs(" to variable expecting "); eputs(type_to_string(declType));
 			eputln();
@@ -1164,7 +1265,19 @@ function Parser.type_check_global_var(stmt: Node*) {
 		var valueType: Type* = tc_typeStack.pop();
 		resolve_type(valueType);
 
-		if(!valueType.assignable(declType)) {
+		if(declType.is_integral() && valueType.is_float()) {
+			var cast = new_node(NodeType::FLOAT_TO_INT, stmt.position);
+			cast.computedType = INT_TYPE;
+			cast.unary = stmt.variable.value;
+			stmt.variable.value = cast;
+		}
+		else if(declType.is_float() && valueType.is_integral()) {
+			var cast = new_node(NodeType::INT_TO_FLOAT, stmt.position);
+			cast.computedType = INT_TYPE;
+			cast.unary = stmt.variable.value;
+			stmt.variable.value = cast;
+		}
+		else if(!valueType.assignable(declType)) {
 			stmt.print_position();
 			eputs("Cannot assign type "); eputs(type_to_string(valueType)); eputs(" to variable expecting "); eputs(type_to_string(declType));
 			eputln();

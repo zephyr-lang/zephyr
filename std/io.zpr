@@ -5,6 +5,17 @@ const stdin = 0;
 const stdout = 1;
 const stderr = 2;
 
+const __FLOAT_PUT_PRECISION = 7;
+const __FLOAT_PUT_BUF_LENGTH = 8; //TODO: Inline as __FLOAT_PUT_PRECISION + 1
+
+//TODO: Make a built-in
+function assert(condition: bool, message: i8*) {
+	if(!condition) {
+		eputsln(message);
+		exit(1);
+	}
+}
+
 // ========== fput family ==========
 
 function fputln(fd: int) {
@@ -40,6 +51,43 @@ function fputd(fd: int, val: int) {
 	fputs(fd, buffer);
 }
 
+function fputft(fd: int, val: f64) {
+	var ipart: i64 = val;
+	var frac = val - ipart;
+	
+	if(ipart < 0) {
+		fputc(fd, '-');
+		ipart = -ipart;
+		frac = -frac;
+	}
+
+	fputu(fd, ipart);
+	fputc(fd, '.');
+
+	var buf: i8[__FLOAT_PUT_BUF_LENGTH];
+
+	if(frac == 0) {
+		buf[0] = '0';
+		buf[1] = 0;
+	}
+	else {
+		for(var i = 0; i < __FLOAT_PUT_PRECISION; ++i) {
+			var dig: i8 = (frac * 10.0);
+			buf[i] = '0' + dig;
+			frac = frac * 10.0 - dig;
+		}
+
+		for(var i = __FLOAT_PUT_PRECISION - 1; i >= 0; --i) {
+			var n = buf[i] - '0';
+			if(n != 0) {
+				buf[i + 1] = 0;
+				break;
+			}
+		}
+	}
+	fputs(fd, buf);
+}
+
 // ========== put family ==========
 
 function putln() {
@@ -66,6 +114,10 @@ function putd(val: int) {
 	fputd(stdout, val);
 }
 
+function putft(val: f64) {
+	fputft(stdout, val);
+}
+
 // ========== eput family ==========
 
 function eputln() {
@@ -90,6 +142,10 @@ function eputu(val: int) {
 
 function eputd(val: int) {
 	fputd(stderr, val);
+}
+
+function eputft(val: f64) {
+	fputft(stderr, val);
 }
 
 // ========== Files ==========
@@ -171,6 +227,43 @@ function File.putd(val: int) {
 	itoa(val, buffer, 10);
 
 	this.write(buffer, strlen(buffer));
+}
+
+function File.putft(val: f64) {
+	var ipart: i64 = val;
+	var frac = val - ipart;
+	
+	if(ipart < 0) {
+		this.putc('-');
+		ipart = -ipart;
+		frac = -frac;
+	}
+
+	this.putu(ipart);
+	this.putc('.');
+
+	var buf: i8[__FLOAT_PUT_BUF_LENGTH];
+
+	if(frac == 0) {
+		buf[0] = '0';
+		buf[1] = 0;
+	}
+	else {
+		for(var i = 0; i < __FLOAT_PUT_PRECISION; ++i) {
+			var dig: i8 = (frac * 10.0);
+			buf[i] = '0' + dig;
+			frac = frac * 10.0 - dig;
+		}
+
+		for(var i = __FLOAT_PUT_PRECISION - 1; i >= 0; --i) {
+			var n = buf[i] - '0';
+			if(n != 0) {
+				buf[i + 1] = 0;
+				break;
+			}
+		}
+	}
+	this.puts(buf);
 }
 
 // ===== Reading =====

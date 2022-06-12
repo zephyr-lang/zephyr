@@ -54,6 +54,7 @@ enum TokenType {
 
 	INT_LITERAL,
 	CHAR_LITERAL,
+	FLOAT_LITERAL,
 	STRING,
 	IDENTIFIER,
 
@@ -72,6 +73,7 @@ enum TokenType {
 	I16,
 	I32,
 	I64,
+	F64,
 	FOR,
 	FUNCTION,
 	NAMESPACE,
@@ -146,6 +148,7 @@ function token_type_to_string(type: TokenType): i8* {
 
 		TokenType::INT_LITERAL -> return "int-literal";
 		TokenType::CHAR_LITERAL -> return "char-literal";
+		TokenType::FLOAT_LITERAL -> return "float-literal";
 		TokenType::STRING -> return "string";
 		TokenType::IDENTIFIER -> return "identifier";
 
@@ -164,6 +167,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::I16 -> return "i16";
 		TokenType::I32 -> return "i32";
 		TokenType::I64 -> return "i64";
+		TokenType::F64 -> return "f64";
 		TokenType::FOR -> return "for";
 		TokenType::FUNCTION -> return "function";
 		TokenType::NAMESPACE -> return "namespace";

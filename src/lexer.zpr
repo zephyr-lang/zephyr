@@ -100,6 +100,7 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("i16")) return TokenType::I16;
 	if(this.match_keyword("i32")) return TokenType::I32;
 	if(this.match_keyword("i64")) return TokenType::I64;
+	if(this.match_keyword("f64")) return TokenType::F64;
 	if(this.match_keyword("for")) return TokenType::FOR;
 	if(this.match_keyword("function")) return TokenType::FUNCTION;
 	if(this.match_keyword("namespace")) return TokenType::NAMESPACE;
@@ -139,6 +140,12 @@ function Lexer.skip_whitespace() {
 
 function Lexer.number(): Token* {
 	while(is_digit(this.peek())) this.advance();
+
+	if(this.match('.')) {
+		while(is_digit(this.peek())) this.advance();
+		return this.make_token(TokenType::FLOAT_LITERAL);
+	}
+
 	return this.make_token(TokenType::INT_LITERAL);
 }
 

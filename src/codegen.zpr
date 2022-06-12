@@ -3,9 +3,13 @@ import "std/io.zpr";
 import "std/math.zpr";
 import "src/ast.zpr";
 
-var cg_ARG_REGISTERS: i8*[6] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
+const INT_ARG_COUNT = 6;
+const FLOAT_ARG_COUNT = 6;
+var cg_INT_ARG_REGISTERS: i8*[INT_ARG_COUNT] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
+var cg_FLOAT_ARG_REGISTERS: i8*[FLOAT_ARG_COUNT] = [ "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7" ];
 var cg_lableCount = 0;
-var cg_registersInUse = 0;
+var cg_intRegistersInUse = 0;
+var cg_floatRegistersInUse = 0;
 var cg_continueLabel = 0;
 var cg_breakLabel = 0;
 
@@ -57,6 +61,18 @@ function Type.reserve(): i8* {
 	return "resq";
 }
 
+function Node.expr_type(): Type* {
+	if(this.type == NodeType::SIZEOF) {
+		return INT_TYPE;
+	}
+	else if(this.type == NodeType::ADDROF) {
+		var indr = copy_type(this.unary.computedType);
+		indr.indirection++;
+		return indr;
+	}
+	return this.computedType;
+}
+
 function cmp_suffix(type: int): i8* {
 	when(type) {
 		NodeType::EQUAL -> return "e";
@@ -67,7 +83,22 @@ function cmp_suffix(type: int): i8* {
 		NodeType::GREATER_EQ -> return "ge";
 	}
 
-	eputs("Unsupported type in generate_unary_rax - "); eputs(node_type_to_string(type)); eputln();
+	eputs("Unsupported type in cmp_suffix - "); eputs(node_type_to_string(type)); eputln();
+	exit(1);
+	return null;
+}
+
+function ucmp_suffix(type: int): i8* {
+	when(type) {
+		NodeType::EQUAL -> return "e";
+		NodeType::NOT_EQUAL -> return "ne";
+		NodeType::LESS -> return "b";
+		NodeType::LESS_EQ -> return "na";
+		NodeType::GREATER -> return "a";
+		NodeType::GREATER_EQ -> return "nb";
+	}
+
+	eputs("Unsupported type in ucmp_suffix - "); eputs(node_type_to_string(type)); eputln();
 	exit(1);
 	return null;
 }
@@ -121,7 +152,14 @@ function generate_unary_rax(expr: Node*, out: File*) {
 		}
 		NodeType::NEG -> {
 			generate_expr_rax(expr.unary, out);
-			out.putsln("    neg rax");
+			if(expr.computedType.is_float()) {
+				out.putsln("    xorps xmm1, xmm1");
+				out.putsln("    subps xmm1, xmm0");
+				out.putsln("    movsd xmm0, xmm1");
+			}
+			else {
+				out.putsln("    neg rax");
+			}
 		}
 		NodeType::NOT -> {
 			generate_expr_rax(expr.unary, out);
@@ -168,6 +206,49 @@ function generate_logical_and_rax(expr: Node*, out: File*) {
 	out.puts(".l"); out.putd(label); out.putsln(":");
 }
 
+function generate_binary_float_arith(expr: Node*, out: File*) {
+	generate_expr_rax(expr.binary.lhs, out);
+	out.putsln("    sub rsp, 8");
+	out.putsln("    movsd [rsp], xmm0");
+	generate_expr_rax(expr.binary.rhs, out);
+	out.putsln("    movsd xmm1, [rsp]");
+	out.putsln("    add rsp, 8");
+
+	var op: i8*;
+	when(expr.type) {
+		NodeType::ADD -> {
+			op = "addsd";
+		}
+		NodeType::SUB -> {
+			op = "subsd";
+		}
+		NodeType::MUL -> {
+			op = "mulsd";
+		}
+		NodeType::DIV -> {
+			op = "divsd";
+		}
+		else -> {
+			eputsln("Unreachable - generate_binary_float_arith");
+			exit(1);
+		}
+	}
+
+	out.puts("    "); out.puts(op); out.putsln(" xmm1, xmm0");
+	out.putsln("    movsd xmm0, xmm1");
+}
+
+function generate_float_comparison(expr: Node*, out: File*) {
+	generate_expr_rax(expr.binary.lhs, out);
+	out.putsln("    sub rsp, 8");
+	out.putsln("    movsd [rsp], xmm0");
+	generate_expr_rax(expr.binary.rhs, out);
+	out.putsln("    movsd xmm1, xmm0");
+	out.putsln("    movsd xmm0, [rsp]");
+	out.putsln("    add rsp, 8");
+	out.putsln("    ucomisd xmm0, xmm1");
+}
+
 function generate_binary_rax(expr: Node*, out: File*) {
 	if(expr.type == NodeType::OR) {
 		generate_logical_or_rax(expr, out);
@@ -175,6 +256,22 @@ function generate_binary_rax(expr: Node*, out: File*) {
 	}
 	else if(expr.type == NodeType::AND) {
 		generate_logical_and_rax(expr, out);
+		return;
+	}
+
+	if(expr.computedType.is_float()) {
+		assert(is_float_arithmetic(expr.type), "Invalid floating point operation in generate_binary");
+
+		generate_binary_float_arith(expr, out);
+		return;
+	}
+
+	if(is_comparison(expr.type) && expr.binary.lhs.computedType.is_float()) {
+		assert(expr.binary.rhs.computedType.is_float(), "Both sides of float operation must be floats - generate_binary");
+
+		generate_float_comparison(expr, out);
+		out.puts("    set"); out.puts(ucmp_suffix(expr.type)); out.putsln(" al");
+		out.putsln("    movzx rax, al");
 		return;
 	}
 
@@ -231,63 +328,121 @@ function generate_binary_rax(expr: Node*, out: File*) {
 }
 
 function generate_call_rax(expr: Node*, out: File*) {
-	for(var i = 0; i < cg_registersInUse; ++i) {
-		out.puts("    push "); out.putsln(cg_ARG_REGISTERS[i]);
+	for(var i = 0; i < cg_intRegistersInUse; ++i) {
+		out.puts("    push "); out.putsln(cg_INT_ARG_REGISTERS[i]);
+	}
+	for(var i = 0; i < cg_floatRegistersInUse; ++i) {
+		out.putsln("    sub rsp, 8");
+		out.puts("    movsd [rsp], "); out.putsln(cg_FLOAT_ARG_REGISTERS[i]);
 	}
 
-	var localRegUse = 0;
+	var localIntRegUse = 0;
+	var localFloatRegUse = 0;
 
-	for(var i = 0; i < min(expr.funktion.arguments.size, 6); ++i) {
-		generate_expr_rax(expr.funktion.arguments.at(i), out);
-		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i]); out.putsln(", rax");
-		cg_registersInUse = cg_registersInUse + 1;
-		localRegUse = localRegUse + 1;
+	for(var i = 0; i < expr.funktion.arguments.size; ++i) {
+		var arg: Node* = expr.funktion.arguments.at(i);
+
+		if(arg.expr_type().is_float()) {
+			if(localFloatRegUse < FLOAT_ARG_COUNT) {
+				generate_expr_rax(arg, out);
+				out.puts("    movsd "); out.puts(cg_FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
+				++cg_floatRegistersInUse;
+				++localFloatRegUse;
+			}
+			else {
+				generate_expr_rax(arg, out);
+				out.putsln("    sub rsp, 8");
+				out.putsln("    movsd [rsp], xmm0");
+			}
+		}
+		else {
+			if(localIntRegUse < INT_ARG_COUNT) {
+				generate_expr_rax(arg, out);
+				out.puts("    mov "); out.puts(cg_INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
+				++cg_intRegistersInUse;
+				++localIntRegUse;
+			}
+			else {
+				generate_expr_rax(arg, out);
+				out.putsln("    push rax");
+			}
+		}
 	}
 
-	for(var i = 0; i < expr.funktion.arguments.size - 6; ++i) {
-		generate_expr_rax(expr.funktion.arguments.at(i + 6), out);
-		out.putsln("    push rax");
-	}
-
-	cg_registersInUse = cg_registersInUse - localRegUse;
+	cg_intRegistersInUse -= localIntRegUse;
+	cg_floatRegistersInUse -= localFloatRegUse;
 
 	out.puts("    call _F"); out.put_name(&expr.funktion.name); out.putln();
 
-	for(var i = 0; i < cg_registersInUse; ++i) {
-		out.puts("    pop "); out.putsln(cg_ARG_REGISTERS[cg_registersInUse - i - 1]);
+	for(var i = 0; i < cg_intRegistersInUse; ++i) {
+		out.puts("    pop "); out.putsln(cg_INT_ARG_REGISTERS[cg_intRegistersInUse - i - 1]);
+	}
+
+	for(var i = 0; i < cg_floatRegistersInUse; ++i) {
+		out.puts("    movsd "); out.puts(cg_FLOAT_ARG_REGISTERS[cg_floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
+		out.putsln("    add rsp, 8");
 	}
 }
 
 function generate_call_method_rax(expr: Node*, out: File*) {
-	for(var i = 0; i < cg_registersInUse; ++i) {
-		out.puts("    push "); out.putsln(cg_ARG_REGISTERS[i]);
+	for(var i = 0; i < cg_intRegistersInUse; ++i) {
+		out.puts("    push "); out.putsln(cg_INT_ARG_REGISTERS[i]);
+	}
+	for(var i = 0; i < cg_floatRegistersInUse; ++i) {
+		out.putsln("    sub rsp, 8");
+		out.puts("    movsd [rsp], "); out.putsln(cg_FLOAT_ARG_REGISTERS[i]);
 	}
 
-	var localRegUse = 1;
-	cg_registersInUse = cg_registersInUse + 1;
+	var localIntRegUse = 1;
+	var localFloatRegUse = 0;
+	++cg_intRegistersInUse;
 	
 	generate_expr_rax(expr.funktion.parent, out);
 	out.putsln("    mov rdi, rax");
 
-	for(var i = 0; i < min(expr.funktion.arguments.size, 5); ++i) {
-		generate_expr_rax(expr.funktion.arguments.at(i), out);
-		out.puts("    mov "); out.puts(cg_ARG_REGISTERS[i + 1]); out.putsln(", rax");
-		cg_registersInUse = cg_registersInUse + 1;
-		localRegUse = localRegUse + 1;
+	for(var i = 0; i < expr.funktion.arguments.size; ++i) {
+		var arg: Node* = expr.funktion.arguments.at(i);
+
+		if(arg.expr_type().is_float()) {
+			if(localFloatRegUse < FLOAT_ARG_COUNT) {
+				generate_expr_rax(arg, out);
+				out.puts("    movsd "); out.puts(cg_FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
+				++cg_floatRegistersInUse;
+				++localFloatRegUse;
+			}
+			else {
+				generate_expr_rax(arg, out);
+				out.putsln("    sub rsp, 8");
+				out.putsln("    movsd [rsp], xmm0");
+			}
+		}
+		else {
+			if(localIntRegUse < INT_ARG_COUNT) {
+				generate_expr_rax(arg, out);
+				out.puts("    mov "); out.puts(cg_INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
+				++cg_intRegistersInUse;
+				++localIntRegUse;
+			}
+			else {
+				generate_expr_rax(arg, out);
+				out.putsln("    push rax");
+			}
+		}
 	}
 
-	for(var i = 0; i < expr.funktion.arguments.size - 5; ++i) {
-		generate_expr_rax(expr.funktion.arguments.at(i + 5), out);
-		out.putsln("    push rax");
-	}
-
-	cg_registersInUse = cg_registersInUse - localRegUse;
+	cg_intRegistersInUse -= localIntRegUse;
+	cg_floatRegistersInUse -= localFloatRegUse;
 
 	out.puts("    call _M"); out.put_name(&expr.funktion.parentType.name); out.puts("_"); out.put_name(&expr.funktion.name);
 	out.putln();
 
-	for(var i = 0; i < cg_registersInUse; ++i) {
-		out.puts("    pop "); out.putsln(cg_ARG_REGISTERS[cg_registersInUse - i - 1]);
+	for(var i = 0; i < cg_intRegistersInUse; ++i) {
+		out.puts("    pop "); out.putsln(cg_INT_ARG_REGISTERS[cg_intRegistersInUse - i - 1]);
+	}
+
+	for(var i = 0; i < cg_floatRegistersInUse; ++i) {
+		out.puts("    movsd "); out.puts(cg_FLOAT_ARG_REGISTERS[cg_floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
+		out.putsln("    add rsp, 8");
 	}
 }
 
@@ -312,6 +467,10 @@ function generate_access_var(expr: Node*, out: File*) {
 		out.puts("    lea rax, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
 		return;
 	}
+	else if(expr.variable.type.is_float()) {
+		out.puts("    movsd xmm0, [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
+		return;
+	}
 
 	out.puts("    "); out.puts(expr.variable.type.movzx()); out.puts(" "); out.puts(expr.variable.type.movzx_rax_subregister()); out.puts(", ");
 	out.puts(expr.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(expr.variable.stackOffset); out.putsln("]");
@@ -334,8 +493,13 @@ function generate_access_subscript(expr: Node*, out: File*) {
 	out.putsln("    mov rcx, rax");
 	out.putsln("    pop rax");
 
-	out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister());
-	out.puts(", "); out.puts(expr.computedType.qualifier()); out.puts(" [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+	if(expr.computedType.is_float()) {
+		out.putsln("    movsd xmm0, [rax+rcx*8]");
+	}
+	else {
+		out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister());
+		out.puts(", "); out.puts(expr.computedType.qualifier()); out.puts(" [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+	}
 }
 
 function generate_access_member(expr: Node*, out: File*) {
@@ -344,6 +508,9 @@ function generate_access_member(expr: Node*, out: File*) {
 	
 	if(field.variable.type.isArray || field.variable.type.is_structural()) {
 		out.puts("    lea rax, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
+	}
+	else if(field.variable.type.is_float()) {
+		out.puts("    movsd xmm0, [rax+"); out.putd(field.variable.stackOffset); out.putsln("]");
 	}
 	else {
 		out.puts("    "); out.puts(field.variable.type.movzx()); out.puts(" "); out.puts(field.variable.type.movzx_rax_subregister());
@@ -414,6 +581,9 @@ function generate_assign_rax(expr: Node*, out: File*) {
 	if(expr.computedType.is_structural()) {
 		generate_copy(expr.computedType.fields, 0, out);
 	}
+	else if(expr.computedType.is_float()) {
+		out.putsln("    movsd [rcx], xmm0");
+	}
 	else {
 		out.puts("    mov "); out.puts(expr.computedType.qualifier()); out.puts(" [rcx], "); out.putsln(expr.computedType.rax_subregister());
 	}
@@ -471,6 +641,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 		NodeType::CHAR_LITERAL -> {
 			out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
 		}
+		NodeType::FLOAT_LITERAL -> {
+			out.puts("    movsd xmm0, [_D"); out.putd(expr.literal.az.float.id); out.putsln("]");
+		}
 		NodeType::STRING -> {
 			out.puts("    lea rax, [_S"); out.putd(expr.literal.az.string.id); out.putsln("]");
 		}
@@ -505,7 +678,12 @@ function generate_expr_rax(expr: Node*, out: File*) {
 			generate_assign_rax(expr, out);
 		}
 		NodeType::RELATIVE -> {
-			out.putsln("    mov rax, [rax]");
+			if(expr.computedType.is_float()) {
+				out.putsln("    movsd xmm0, [rax]");
+			}
+			else {
+				out.putsln("    mov rax, [rax]");
+			}
 		}
 		NodeType::PRE_INCREMENT -> {
 			generate_pre_increment(expr, out);
@@ -518,6 +696,14 @@ function generate_expr_rax(expr: Node*, out: File*) {
 		}
 		NodeType::POST_DECREMENT -> {
 			generate_post_decrement(expr, out);
+		}
+		NodeType::INT_TO_FLOAT -> {
+			generate_expr_rax(expr.unary, out);
+			out.putsln("    cvtsi2sd xmm0, rax");
+		}
+		NodeType::FLOAT_TO_INT -> {
+			generate_expr_rax(expr.unary, out);
+			out.putsln("    cvttsd2si rax, xmm0");
 		}
 		else -> {
 			eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
@@ -670,8 +856,14 @@ function generate_define_var(stmt: Node*, out: File*) {
 			itemType.indirection = itemType.indirection - 1;
 			for(var i = 0; i < array.block.children.size; ++i) {
 				generate_expr_rax(array.block.children.at(i), out);
-				out.puts("    mov "); out.puts(itemType.qualifier()); out.puts(" [rbp-"); out.putd(stmt.variable.stackOffset - (i * itemType.size()));
-				out.puts("], "); out.putsln(itemType.rax_subregister());
+				
+				if(itemType.is_float()) {
+					out.puts("    movsd [rbp-"); out.putd(stmt.variable.stackOffset - (i * 8)); out.putsln("], xmm0");
+				}
+				else {
+					out.puts("    mov "); out.puts(itemType.qualifier()); out.puts(" [rbp-"); out.putd(stmt.variable.stackOffset - (i * itemType.size()));
+					out.puts("], "); out.putsln(itemType.rax_subregister());
+				}
 			}
 			return;
 		}
@@ -681,6 +873,9 @@ function generate_define_var(stmt: Node*, out: File*) {
 		if(stmt.variable.type.is_structural()) {
 			out.puts("lea rcx, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
 			generate_copy(stmt.variable.type.fields, 0, out);
+		}
+		else if(stmt.variable.type.is_float()) {
+			out.puts("    movsd [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("], xmm0");
 		}
 		else {
 			out.puts("    mov "); out.puts(stmt.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.variable.stackOffset);
@@ -758,13 +953,35 @@ function generate_function(funktion: Node*, out: File*) {
 		out.puts("    sub rsp, "); out.putd(stackDepth); out.putln();
 	}
 
-	for(var i = 0; i < min(funktion.funktion.arguments.size, 6); ++i) {
-		out.puts("    mov QWORD [rbp-"); out.putd((funktion.funktion.arguments.at(i) as Node*).variable.stackOffset); out.puts("], "); out.putsln(cg_ARG_REGISTERS[i]);
-	}
+	var intRegUse = 0;
+	var floatRegUse = 0;
+	var stackUse = 0;
 
-	for(var i = 0; i < funktion.funktion.arguments.size - 6; ++i) {
-		out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.funktion.arguments.size - 6 - i))); out.putsln("]");
-		out.puts("    mov QWORD [rbp-"); out.putd((funktion.funktion.arguments.at(i + 6) as Node*).variable.stackOffset); out.putsln("], rax");
+	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
+		var arg: Node* = funktion.funktion.arguments.at(i);
+
+		if(arg.variable.type.is_float()) {
+			if(floatRegUse < FLOAT_ARG_COUNT) {
+				out.puts("    movsd [rbp-"); out.putd(arg.variable.stackOffset); out.puts("], "); out.putsln(cg_FLOAT_ARG_REGISTERS[floatRegUse]);
+				++floatRegUse;
+			}
+			else {
+				out.puts("    movsd xmm0, [rbp+"); out.putd(8 + (8 * (funktion.funktion.arguments.size - (intRegUse + floatRegUse) - stackUse))); out.putsln("]");
+				out.puts("    movsd [rbp-"); out.putd(arg.variable.stackOffset); out.putsln("], xmm0");
+				++stackUse;
+			}
+		}
+		else {
+			if(intRegUse < INT_ARG_COUNT) {
+				out.puts("    mov QWORD [rbp-"); out.putd(arg.variable.stackOffset); out.puts("], "); out.putsln(cg_INT_ARG_REGISTERS[intRegUse]);
+				++intRegUse;
+			}
+			else {
+				out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.funktion.arguments.size - (intRegUse + floatRegUse) - stackUse))); out.putsln("]");
+				out.puts("    mov QWORD [rbp-"); out.putd(arg.variable.stackOffset); out.putsln("], rax");
+				++stackUse;
+			}
+		}
 	}
 
 	generate_block(funktion.funktion.body, out);
@@ -829,9 +1046,16 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 				for(var i = 0; i < array.block.children.size; ++i) {
 					generate_expr_rax(array.block.children.at(i), out);
-					out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_G");
-					out.put_name(&variable.variable.name); out.puts("+"); out.putd(i * itemType.size());
-					out.puts("], "); out.putsln(type.rax_subregister());
+
+					if(itemType.is_float()) {
+						out.puts("    movsd [_G"); out.put_name(&variable.variable.name); out.puts("+"); out.putd(i * 8);
+						out.putsln("], xmm0");
+					}
+					else {
+						out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_G");
+						out.put_name(&variable.variable.name); out.puts("+"); out.putd(i * itemType.size());
+						out.puts("], "); out.putsln(type.rax_subregister());
+					}
 				}
 				continue;
 			}
@@ -886,6 +1110,12 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 			out.puts("_S"); out.putd(str.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.literal.az.string.chars);
 			out.putc('"'); out.putsln(", 0");
+		}
+
+		for(var i = 0; i < this.floats.size; ++i) {
+			var float: Node* = this.floats.at(i);
+
+			out.puts("_D"); out.putd(float.literal.az.float.id); out.puts(": dq "); out.putsln(float.literal.az.float.str);
 		}
 	}
 }
