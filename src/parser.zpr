@@ -812,6 +812,24 @@ function Parser.parse_while_statement(): Node* {
 	return whileStmt;
 }
 
+function Parser.parse_do_while_statement(): Node* {
+	var doStmt = new_node(NodeType::DO_WHILE, this.previous);
+
+	doStmt.conditional.doTrue = this.parse_statement();
+
+	this.consume(TokenType::WHILE, "Expected 'while' after do..while body");
+
+	this.consume(TokenType::LEFT_PAREN, "Expected '(' after 'while'");
+
+	doStmt.conditional.condition = this.parse_expression();
+
+	this.consume(TokenType::RIGHT_PAREN, "Expected ')' after do..while condition");
+
+	this.consume(TokenType::SEMICOLON, "Expected ';' after do..while");
+
+	return doStmt;
+}
+
 function Parser.parse_for_statement(): Node* {
 	var forStmt = new_node(NodeType::FOR, this.previous);
 
@@ -870,13 +888,10 @@ function Parser.parse_array_initialization(): Node* {
 	array.block.children = new_vector();
 
 	if(!this.check(TokenType::RIGHT_SQBR)) {
-		var item = this.parse_expression();
-		array.add_child(item);
-
-		while(this.match(TokenType::COMMA)) {
+		do {
 			var item = this.parse_expression();
 			array.add_child(item);
-		}
+		} while(this.match(TokenType::COMMA));
 	}
 	this.consume(TokenType::RIGHT_SQBR, "Expected ']' after array initialization");
 	return array;
@@ -973,6 +988,9 @@ function Parser.parse_statement(): Node* {
 		this.consume(TokenType::SEMICOLON, "Expected ';' after 'continue'");
 		var kontinue = new_node(NodeType::CONTINUE, pos);
 		return kontinue;
+	}
+	else if(this.match(TokenType::DO)) {
+		return this.parse_do_while_statement();
 	}
 	else if(this.match(TokenType::IF)) {
 		return this.parse_if_statement();
@@ -1088,16 +1106,7 @@ function Parser.parse_function(): Node* {
 	this.consume(TokenType::LEFT_PAREN, "Expected '(' after function name");
 	
 	if(!this.check(TokenType::RIGHT_PAREN)) {
-		var argName = this.consume(TokenType::IDENTIFIER, "Expected parameter name");
-		this.consume(TokenType::COLON, "Expected ':' after parameter name");
-		var type = this.parse_type();
-
-		var arg = new_node(NodeType::DEFINE_VAR, argName);
-		this.bind_name(&arg.variable.name, argName);
-		arg.variable.type = type;
-		funktion.funktion.arguments.push(arg);
-
-		while(this.match(TokenType::COMMA)) {
+		do {
 			var argName = this.consume(TokenType::IDENTIFIER, "Expected parameter name");
 			this.consume(TokenType::COLON, "Expected ':' after parameter name");
 			var type = this.parse_type();
@@ -1107,7 +1116,7 @@ function Parser.parse_function(): Node* {
 			arg.variable.type = type;
 
 			funktion.funktion.arguments.push(arg);
-		}
+		} while(this.match(TokenType::COMMA));
 	}
 
 	this.consume(TokenType::RIGHT_PAREN, "Expected ')' after function parameters");
@@ -1205,12 +1214,7 @@ function Parser.parse_struct_definition(member: int): Node* {
 	structType.fields = new_vector();
 	structType.methods = new_vector();
 
-	//TODO: do ... while
-	var run = true;
-
-	while(run || !this.check(TokenType::RIGHT_BRACE)) {
-		run = false;
-
+	do {
 		if(this.match(TokenType::UNION)) {
 			var vnion = this.parse_union_definition(true);
 			for(var i = 0; i < vnion.computedType.fields.size; i = i + 1) {
@@ -1225,7 +1229,7 @@ function Parser.parse_struct_definition(member: int): Node* {
 		}
 
 		this.parse_member_definition(structType);
-	}
+	} while(!this.check(TokenType::RIGHT_BRACE));
 
 	this.consume(TokenType::RIGHT_BRACE, "Expected '}' after struct body");
 
@@ -1259,14 +1263,9 @@ function Parser.parse_union_definition(member: int): Node* {
 		this.bind_name(&unionType.name, name);
 	unionType.fields = new_vector();
 
-	//TODO: do ... while
-	var run = true;
-
-	while(run || !this.check(TokenType::RIGHT_BRACE)) {
-		run = false;
-
+	do {
 		this.parse_member_definition(unionType);
-	}
+	} while(!this.check(TokenType::RIGHT_BRACE));
 
 	this.consume(TokenType::RIGHT_BRACE, "Expected '}' after union body");
 
@@ -1318,13 +1317,9 @@ function Parser.parse_enum_declaration(): Node* {
 	var envm = new_node(NodeType::ENUM, name);
 	envm.block.children = new_vector();
 
-	//TODO: do..while
-	var run = true;
-
 	var count = 0;
 
-	while(run || this.match(TokenType::COMMA)) {
-		run = false;
+	do {
 		var constantName = this.consume(TokenType::IDENTIFIER, "Expected constant name");
 
 		var constant = new_node(NodeType::DEFINE_CONST, name);
@@ -1336,7 +1331,7 @@ function Parser.parse_enum_declaration(): Node* {
 		envm.block.children.push(constant);
 
 		count = count + 1;
-	}
+	} while(this.match(TokenType::COMMA));
 
 	this.consume(TokenType::RIGHT_BRACE, "Expected '}' after enum body");
 

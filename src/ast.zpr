@@ -53,6 +53,7 @@ enum NodeType {
 	EXPR_STMT,
 	IF,
 	WHILE,
+	DO_WHILE,
 	FOR,
 	WHEN,
 	BRANCH,
@@ -642,6 +643,14 @@ function print_ast_depth(node: Node*, depth: int) {
 			print_ast_depth(node.conditional.doTrue, depth + 1);
 			putln();
 		}
+		NodeType::DO_WHILE -> {
+			putsln("do");
+			print_ast_depth(node.conditional.doTrue, depth + 1);
+			for(var i = 0; i < depth; ++i) puts("  ");
+			putsln("while");
+			print_ast_depth(node.conditional.condition, depth + 1);
+			putln();
+		}
 		NodeType::FOR -> {
 			putsln("for");
 			if(node.loop.initial != null)
@@ -699,6 +708,9 @@ function print_ast_depth(node: Node*, depth: int) {
 		}
 		NodeType::CHAR_LITERAL -> {
 			puts("(literal "); putc(node.literal.az.integer); puts(")");
+		}
+		NodeType::FLOAT_LITERAL -> {
+			puts("(literal "); puts(node.literal.az.float.str); puts(")");
 		}
 		NodeType::STRING -> {
 			puts("(literal "); puts(node.literal.az.string.chars); puts(")");
