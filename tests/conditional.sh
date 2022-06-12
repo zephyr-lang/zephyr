@@ -99,6 +99,96 @@ function main(): int {
 
 echo " Done"
 
+echo -n "Do..While Statements: "
+
+assert_stdout "0
+1
+2
+3
+4
+5
+6
+7
+8
+9" "
+function main(): int {
+	var x = 0;
+
+	do {
+		printu(x);
+		++x;
+	} while(x < 10);
+
+	return 0;
+}
+"
+
+assert_stdout "10" "
+function main(): int {
+	var x = 10;
+
+	do {
+		printu(x);
+		++x;
+	} while(x < 10);
+
+	return 0;
+}
+"
+
+assert_stdout "0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10" "
+var _c = 0;
+
+function c(): int {
+	return _c++;
+}
+
+function main(): int {
+	do {
+		var x = c();
+		printu(x);
+	} while(x != 10);
+
+	return 0;
+}
+"
+
+assert_stdout "0
+1
+2
+3
+4
+5
+6
+7
+8
+9" "
+var _c = 0;
+
+function c(): int {
+	printu(_c);
+	return _c++;
+}
+
+function main(): int {
+	do c(); while(_c != 10);
+
+	return 0;
+}
+"
+
+echo " Done"
+
 echo -n "For Statements: "
 
 assert_stdout "0
