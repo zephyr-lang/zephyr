@@ -88,6 +88,21 @@ function cmp_suffix(type: int): i8* {
 	return null;
 }
 
+function ucmp_suffix(type: int): i8* {
+	when(type) {
+		NodeType::EQUAL -> return "e";
+		NodeType::NOT_EQUAL -> return "ne";
+		NodeType::LESS -> return "b";
+		NodeType::LESS_EQ -> return "na";
+		NodeType::GREATER -> return "a";
+		NodeType::GREATER_EQ -> return "nb";
+	}
+
+	eputs("Unsupported type in ucmp_suffix - "); eputs(node_type_to_string(type)); eputln();
+	exit(1);
+	return null;
+}
+
 function generate_addrof_rax(expr: Node*, out: File*) {
 	when(expr.unary.lvalue) {
 		LValue::LOCAL -> {
@@ -223,6 +238,17 @@ function generate_binary_float_arith(expr: Node*, out: File*) {
 	out.putsln("    movsd xmm0, xmm1");
 }
 
+function generate_float_comparison(expr: Node*, out: File*) {
+	generate_expr_rax(expr.binary.lhs, out);
+	out.putsln("    sub rsp, 8");
+	out.putsln("    movsd [rsp], xmm0");
+	generate_expr_rax(expr.binary.rhs, out);
+	out.putsln("    movsd xmm1, xmm0");
+	out.putsln("    movsd xmm0, [rsp]");
+	out.putsln("    add rsp, 8");
+	out.putsln("    ucomisd xmm0, xmm1");
+}
+
 function generate_binary_rax(expr: Node*, out: File*) {
 	if(expr.type == NodeType::OR) {
 		generate_logical_or_rax(expr, out);
@@ -237,6 +263,15 @@ function generate_binary_rax(expr: Node*, out: File*) {
 		assert(is_float_arithmetic(expr.type), "Invalid floating point operation in generate_binary");
 
 		generate_binary_float_arith(expr, out);
+		return;
+	}
+
+	if(is_comparison(expr.type) && expr.binary.lhs.computedType.is_float()) {
+		assert(expr.binary.rhs.computedType.is_float(), "Both sides of float operation must be floats - generate_binary");
+
+		generate_float_comparison(expr, out);
+		out.puts("    set"); out.puts(ucmp_suffix(expr.type)); out.putsln(" al");
+		out.putsln("    movzx rax, al");
 		return;
 	}
 

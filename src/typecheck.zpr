@@ -473,6 +473,11 @@ function Parser.type_check_binary(expr: Node*) {
 	else if(left.assignable(F64_TYPE) && right.assignable(F64_TYPE) && is_float_arithmetic(expr.type)) {
 		// Valid
 	}
+	else if(left.assignable(F64_TYPE) && right.assignable(F64_TYPE) && is_comparison(expr.type)) {
+		expr.computedType = INT_TYPE;
+		tc_typeStack.push(INT_TYPE);
+		return;
+	}
 	else {
 		expr.print_position();
 		eputs("Cannot perform operation '"); eputs(node_type_to_string(expr.type)); eputs("' on types "); eputs(type_to_string(left));

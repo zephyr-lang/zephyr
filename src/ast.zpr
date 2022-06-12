@@ -546,6 +546,13 @@ function is_float_arithmetic(type: NodeType): bool {
 	return false;
 }
 
+function is_comparison(type: NodeType): bool {
+	when(type) {
+		NodeType::EQUAL, NodeType::NOT_EQUAL, NodeType::LESS, NodeType::LESS_EQ, NodeType::GREATER, NodeType::GREATER_EQ -> return true;
+	}
+	return false;
+}
+
 function print_ast_depth(node: Node*, depth: int) {
 	for(var i = 0; i < depth; ++i) puts("  ");
 
