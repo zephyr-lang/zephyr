@@ -1016,10 +1016,10 @@ enum Animal {
 }
 
 function main(): int {
-	printu(DOG);
-	printu(CAT);
-	printu(ZEBRA);
-	printu(BEAR);
+	printu(Animal::DOG);
+	printu(Animal::CAT);
+	printu(Animal::ZEBRA);
+	printu(Animal::BEAR);
 	return 0;
 }
 "
@@ -1162,6 +1162,8 @@ function main(): int {
 "
 
 assert_stdout "Hello, World!" "
+import \"std/io.zpr\";
+
 namespace hello {
 	var message = \"Hello, World!\";
 	namespace world {
@@ -1170,6 +1172,8 @@ namespace hello {
 		}
 	}
 }
+
+function main(): int {  hello::world::print(); return 0; }
 "
 
 assert_stdout "10" "
@@ -1273,6 +1277,322 @@ function main(): int {
 		Type::A -> putsln(\"A\");
 		Type::B -> putsln(\"B\");
 	}
+
+	return 0;
+}
+"
+
+echo " Done"
+
+echo -n "Floats: "
+
+assert_stdout "10" "
+function main(): int {
+	var x = 10 as f64;
+	var y = x as int;
+
+	printu(y);
+
+	return 0;
+}
+"
+
+assert_stdout "20" "
+function main(): int {
+	var x = 10 as f64;
+	x += x;
+
+	printu(x as int);
+
+	return 0;
+}
+"
+
+assert_stdout "25" "
+function sum(a: f64, b: f64): f64 {
+	return a + b;
+}
+
+function main(): int {
+	var x = sum(10 as f64, 15 as f64);
+
+	printu(x as int);
+
+	return 0;
+}
+"
+
+assert_stdout "10" "
+var x: f64;
+
+function main(): int {
+	x = 10 as f64;
+
+	printu(x as int);
+
+	return 0;
+}
+"
+
+assert_stdout "2.5" "
+import \"std/io.zpr\";
+
+function main(): int {
+	var x = 5 as f64;
+	x /= 2 as f64;
+
+	putft(x);
+
+	return 0;
+}
+"
+
+assert_stdout "10.0, 15.0" "
+import \"std/io.zpr\";
+struct Point {
+	x: f64;
+	y: f64;
+}
+
+function Point.println() {
+	putft(this.x);
+	puts(\", \");
+	putft(this.y);
+	putln();
+}
+
+function main(): int {
+	var point: Point;
+	point.x = 10 as f64;
+	point.y = 15 as f64;
+
+	point.println();
+
+	return 0;
+}
+"
+
+assert_stdout "(20.0, 25.0)" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: f64;
+	y: f64;
+}
+
+function Point.translate(dx: f64, dy: f64) {
+	this.x += dx;
+	this.y += dy;
+}
+
+function Point.println() {
+	puts(\"(\");
+	putft(this.x);
+	puts(\", \");
+	putft(this.y);
+	putsln(\")\");
+}
+
+function main(): int {
+	var point: Point;
+	point.x = 15 as f64;
+	point.y = 10 as f64;
+
+	point.translate(5 as f64, 15 as f64);
+
+	point.println();
+
+	return 0;
+}
+"
+
+assert_stdout "0.0
+1.0
+2.0
+3.0
+4.0" "
+import \"std/io.zpr\";
+
+function main(): int {
+	var arr: f64[5];
+
+	for(var i = 0; i < 5; ++i) {
+		arr[i] = i as f64;
+	}
+
+	for(var i = 0; i < 5; ++i) {
+		putft(arr[i]);
+		putln();
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "0.0
+1.0
+2.0
+3.0
+4.0" "
+import \"std/io.zpr\";
+
+function main(): int {
+	var arr: f64[5] = [ 0 as f64, 1 as f64, 2 as f64, 3 as f64, 4 as f64 ];
+
+	for(var i = 0; i < 5; ++i) {
+		putft(arr[i]);
+		putln();
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "0.0
+1.0
+2.0
+3.0
+4.0" "
+import \"std/io.zpr\";
+
+var arr: f64[5] = [ 0 as f64, 1 as f64, 2 as f64, 3 as f64, 4 as f64 ];
+
+function main(): int {
+
+	for(var i = 0; i < 5; ++i) {
+		putft(arr[i]);
+		putln();
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "1
+0
+1
+0
+0
+1" "
+function main(): int {
+
+	var fiveHalves = 5 as f64;
+	fiveHalves /= 2 as f64;
+
+	var two = 2 as f64;
+
+	printu(fiveHalves > two);
+	printu(fiveHalves < two);
+	printu(fiveHalves >= two);
+	printu(fiveHalves <= two);
+	printu(fiveHalves == two);
+	printu(fiveHalves != two);
+
+	return 0;
+}
+"
+
+assert_stdout "2.5" "
+import \"std/io.zpr\";
+
+function main(): int {
+	var x = 2.5;
+
+	putft(x);
+	putln();
+
+	return 0;
+}
+"
+
+assert_stdout "12.5" "
+import \"std/io.zpr\";
+
+function main(): int {
+	var x = 2.5;
+
+	x += 10;
+
+	putft(x); putln();
+
+	return 0;
+}
+"
+
+assert_stdout "10.0" "
+import \"std/io.zpr\";
+
+function main(): int {
+	var x = 2.5;
+
+	x = 10;
+
+	putft(x); putln();
+
+	return 0;
+}
+"
+
+assert_stdout "2" "
+import \"std/io.zpr\";
+
+function main(): int {
+	var x = 2.5;
+	var y: i64;
+	y = x;
+
+	putd(y); putln();
+
+	return 0;
+}
+"
+
+assert_stdout "10.0" "
+import \"std/io.zpr\";
+
+
+function main(): int {
+	var x: f64 = 10;
+
+	putft(x); putln();
+
+	return 0;
+}
+"
+
+assert_stdout "10.0" "
+import \"std/io.zpr\";
+
+var x: f64 = 10;
+
+function main(): int {
+
+	putft(x); putln();
+
+	return 0;
+}
+"
+
+assert_stdout "10" "
+import \"std/io.zpr\";
+
+function main(): int {
+	var x: int = 10.5;
+
+	putd(x); putln();
+
+	return 0;
+}
+"
+
+assert_stdout "10" "
+import \"std/io.zpr\";
+
+var x: int = 10.5;
+
+function main(): int {
+
+	putd(x); putln();
 
 	return 0;
 }
