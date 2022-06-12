@@ -818,8 +818,14 @@ function generate_define_var(stmt: Node*, out: File*) {
 			itemType.indirection = itemType.indirection - 1;
 			for(var i = 0; i < array.block.children.size; ++i) {
 				generate_expr_rax(array.block.children.at(i), out);
-				out.puts("    mov "); out.puts(itemType.qualifier()); out.puts(" [rbp-"); out.putd(stmt.variable.stackOffset - (i * itemType.size()));
-				out.puts("], "); out.putsln(itemType.rax_subregister());
+				
+				if(itemType.is_float()) {
+					out.puts("    movsd [rbp-"); out.putd(stmt.variable.stackOffset - (i * 8)); out.putsln("], xmm0");
+				}
+				else {
+					out.puts("    mov "); out.puts(itemType.qualifier()); out.puts(" [rbp-"); out.putd(stmt.variable.stackOffset - (i * itemType.size()));
+					out.puts("], "); out.putsln(itemType.rax_subregister());
+				}
 			}
 			return;
 		}
@@ -1002,9 +1008,16 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 				for(var i = 0; i < array.block.children.size; ++i) {
 					generate_expr_rax(array.block.children.at(i), out);
-					out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_G");
-					out.put_name(&variable.variable.name); out.puts("+"); out.putd(i * itemType.size());
-					out.puts("], "); out.putsln(type.rax_subregister());
+
+					if(itemType.is_float()) {
+						out.puts("    movsd [_G"); out.put_name(&variable.variable.name); out.puts("+"); out.putd(i * 8);
+						out.putsln("], xmm0");
+					}
+					else {
+						out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_G");
+						out.put_name(&variable.variable.name); out.puts("+"); out.putd(i * itemType.size());
+						out.puts("], "); out.putsln(type.rax_subregister());
+					}
 				}
 				continue;
 			}
