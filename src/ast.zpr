@@ -40,6 +40,7 @@ enum NodeType {
 	RELATIVE,
 	INT_LITERAL,
 	CHAR_LITERAL,
+	FLOAT_LITERAL,
 	STRING,
 	CALL,
 	CALL_METHOD,
@@ -176,6 +177,10 @@ struct Node {
 				string: struct {
 					chars: i8*;
 					length: int;
+					id: int;
+				};
+				float: struct {
+					str: i8*;
 					id: int;
 				};
 			};

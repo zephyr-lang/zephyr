@@ -54,6 +54,7 @@ enum TokenType {
 
 	INT_LITERAL,
 	CHAR_LITERAL,
+	FLOAT_LITERAL,
 	STRING,
 	IDENTIFIER,
 
@@ -147,6 +148,7 @@ function token_type_to_string(type: TokenType): i8* {
 
 		TokenType::INT_LITERAL -> return "int-literal";
 		TokenType::CHAR_LITERAL -> return "char-literal";
+		TokenType::FLOAT_LITERAL -> return "float-literal";
 		TokenType::STRING -> return "string";
 		TokenType::IDENTIFIER -> return "identifier";
 

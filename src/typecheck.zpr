@@ -798,6 +798,10 @@ function Parser.type_check_expr(expr: Node*) {
 		expr.computedType = I8_TYPE;
 		tc_typeStack.push(I8_TYPE);
 	}
+	else if(expr.type == NodeType::FLOAT_LITERAL) {
+		expr.computedType = F64_TYPE;
+		tc_typeStack.push(F64_TYPE);
+	}
 	else if(expr.type == NodeType::STRING) {
 		expr.computedType = STR_TYPE;
 		tc_typeStack.push(STR_TYPE);

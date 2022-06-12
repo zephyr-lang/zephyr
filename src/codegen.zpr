@@ -641,6 +641,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 		NodeType::CHAR_LITERAL -> {
 			out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
 		}
+		NodeType::FLOAT_LITERAL -> {
+			out.puts("    movsd xmm0, [_D"); out.putd(expr.literal.az.float.id); out.putsln("]");
+		}
 		NodeType::STRING -> {
 			out.puts("    lea rax, [_S"); out.putd(expr.literal.az.string.id); out.putsln("]");
 		}
@@ -1107,6 +1110,12 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 			out.puts("_S"); out.putd(str.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.literal.az.string.chars);
 			out.putc('"'); out.putsln(", 0");
+		}
+
+		for(var i = 0; i < this.floats.size; ++i) {
+			var float: Node* = this.floats.at(i);
+
+			out.puts("_D"); out.putd(float.literal.az.float.id); out.puts(": dq "); out.putsln(float.literal.az.float.str);
 		}
 	}
 }

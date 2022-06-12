@@ -140,6 +140,12 @@ function Lexer.skip_whitespace() {
 
 function Lexer.number(): Token* {
 	while(is_digit(this.peek())) this.advance();
+
+	if(this.match('.')) {
+		while(is_digit(this.peek())) this.advance();
+		return this.make_token(TokenType::FLOAT_LITERAL);
+	}
+
 	return this.make_token(TokenType::INT_LITERAL);
 }
 
