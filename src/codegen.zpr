@@ -458,10 +458,13 @@ function generate_access_subscript(expr: Node*, out: File*) {
 	out.putsln("    mov rcx, rax");
 	out.putsln("    pop rax");
 
-	//TODO F64
-
-	out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister());
-	out.puts(", "); out.puts(expr.computedType.qualifier()); out.puts(" [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+	if(expr.computedType.is_float()) {
+		out.putsln("    movsd xmm0, [rax+rcx*8]");
+	}
+	else {
+		out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister());
+		out.puts(", "); out.puts(expr.computedType.qualifier()); out.puts(" [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+	}
 }
 
 function generate_access_member(expr: Node*, out: File*) {
