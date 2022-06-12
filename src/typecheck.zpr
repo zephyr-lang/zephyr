@@ -1036,6 +1036,51 @@ function Parser.type_check_while_statement(stmt: Node*) {
 	checkingLoop = wasCheckingLoop;
 }
 
+function Parser.type_check_do_while_statement(stmt: Node*) {
+	var wasCheckingLoop = checkingLoop;
+	checkingLoop = true;
+
+	// If the statement is a block, check it like a block, but including the condition
+	// This allows for the condition to reference variables declared in the body
+	if(stmt.conditional.doTrue.type == NodeType::BLOCK) {
+		var block = stmt.conditional.doTrue;
+
+		block.block.variables = new_vector();
+		block.block.currentStackOffset = this.currentBlock.block.currentStackOffset;
+		this.currentBlock = block;
+
+		for(var i = 0; i < block.block.children.size; ++i) {
+			if(block.block.hasReturned) {
+				(block.block.children.at(i) as Node*).print_position();
+				eputsln("Unreachable code (all paths return)");
+				exit(1);
+			}
+			this.type_check_statement(block.block.children.at(i));
+		}
+
+		this.type_check_expr(stmt.conditional.condition);
+		this.currentBlock = block.block.parent;
+	}
+	else {
+		this.type_check_expr(stmt.conditional.condition);
+	}
+
+
+	var conditionType: Type* = typeStack.pop();
+
+	if(!conditionType.assignable(INT_TYPE)) {
+		stmt.print_position();
+		eputs("Expected condition to be type 'int' but got "); eputs(type_to_string(conditionType)); eputln();
+		exit(1);
+	}
+
+	if(stmt.conditional.doTrue.type != NodeType::BLOCK) {
+		this.type_check_statement(stmt.conditional.doTrue);
+	}
+
+	checkingLoop = wasCheckingLoop;
+}
+
 function Parser.type_check_for_statement(stmt: Node*) {
 	var wasCheckingLoop = checkingLoop;
 	checkingLoop = true;
@@ -1099,6 +1144,9 @@ function Parser.type_check_statement(stmt: Node*) {
 	}
 	else if(stmt.type == NodeType::WHILE) {
 		this.type_check_while_statement(stmt);
+	}
+	else if(stmt.type == NodeType::DO_WHILE) {
+		this.type_check_do_while_statement(stmt);
 	}
 	else if(stmt.type == NodeType::FOR) {
 		this.type_check_for_statement(stmt);

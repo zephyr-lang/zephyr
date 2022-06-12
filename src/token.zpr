@@ -64,6 +64,7 @@ enum TokenType {
 	BREAK,
 	CONST,
 	CONTINUE,
+	DO,
 	ELSE,
 	ENUM,
 	IF,
@@ -158,6 +159,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::BREAK -> return "break";
 		TokenType::CONST -> return "const";
 		TokenType::CONTINUE -> return "continue";
+		TokenType::DO -> return "do";
 		TokenType::ELSE -> return "else";
 		TokenType::ELSE -> return "enum";
 		TokenType::IF -> return "if";

@@ -761,6 +761,30 @@ function generate_while_statement(whileStmt: Node*, out: File*) {
 	continueLabel = prevContinueLabel;
 }
 
+function generate_do_while_statement(whileStmt: Node*, out: File*) {
+	var condLabel = labelCount = labelCount + 1;
+	var bodyLabel = labelCount = labelCount + 1;
+	var endLabel = labelCount = labelCount + 1;
+
+	var prevContinueLabel = continueLabel;
+	var prevBreakLabel = breakLabel;
+	continueLabel = condLabel;
+	breakLabel = endLabel;
+
+	out.puts(".l"); out.putd(bodyLabel); out.putsln(":");
+
+	generate_statement(whileStmt.conditional.doTrue, out);
+
+	out.puts(".l"); out.putd(condLabel); out.putsln(":");
+	generate_expr_rax(whileStmt.conditional.condition, out);
+	out.putsln("    test rax, rax");
+	out.puts("    jne .l"); out.putd(bodyLabel); out.putln();
+
+	out.puts(".l"); out.putd(endLabel); out.putsln(":");
+	breakLabel = prevBreakLabel;
+	continueLabel = prevContinueLabel;
+}
+
 function generate_for_statement(forStmt: Node*, out: File*) {
 	if(forStmt.loop.initial != null)
 		generate_statement(forStmt.loop.initial, out);
@@ -893,6 +917,9 @@ function generate_statement(stmt: Node*, out: File*) {
 		}
 		NodeType::WHILE -> {
 			generate_while_statement(stmt, out);
+		}
+		NodeType::DO_WHILE -> {
+			generate_do_while_statement(stmt, out);
 		}
 		NodeType::FOR -> {
 			generate_for_statement(stmt, out);
