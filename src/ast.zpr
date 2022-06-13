@@ -147,9 +147,9 @@ struct Node {
 			name: Name;
 			returnType: Type*;
 			body: Node*;
-			hasImplicitBody: int;
+			hasImplicitBody: bool;
 
-			isMethod: int;
+			isMethod: bool;
 			parent: Node*;
 			parentType: Type*;
 
@@ -157,7 +157,8 @@ struct Node {
 
 			localVariableStackOffset: int;
 
-			used: int;
+			used: bool;
+			dced: bool;
 		};
 
 		block: struct {
@@ -172,6 +173,7 @@ struct Node {
 
 		literal: struct {
 			type: Type*;
+			used: bool;
 
 			az: union {
 				integer: int;
@@ -188,6 +190,8 @@ struct Node {
 		};
 
 		variable: struct {
+			used: bool;
+			
 			name: Name;
 			type: Type*;
 			value: Node*;
@@ -472,6 +476,8 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::DEREF -> return "*";
 		NodeType::SIZEOF -> return "sizeof";
 		NodeType::ACCESS_SUBSCRIPT -> return "[";
+		NodeType::ACCESS_MEMBER -> return ".";
+		NodeType::ASSIGN -> return "=";
 		NodeType::PRE_INCREMENT -> return "++";
 		NodeType::PRE_DECREMENT -> return "--";
 		NodeType::POST_INCREMENT -> return "++";

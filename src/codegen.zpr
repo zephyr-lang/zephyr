@@ -1065,6 +1065,9 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 	for(var i = 0; i < this.globalVars.size; ++i) {
 		var variable: Node* = this.globalVars.at(i);
+
+		if(!variable.variable.used) continue;
+
 		var type = variable.variable.type;
 
 		if(variable.variable.value != null) {
@@ -1116,6 +1119,8 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		for(var i = 0; i < this.globalVars.size; ++i) {
 			var variable: Node* = this.globalVars.at(i);
 
+			if(!variable.variable.used) continue;
+
 			out.puts("_G"); out.put_name(&variable.variable.name); out.puts(": ");
 			
 			var type = variable.variable.type;
@@ -1131,11 +1136,13 @@ function Parser.generate_program(ast: Node*, out: File*) {
 		}
 	}
 
-	if(this.strings.size > 0) {
+	if(this.strings.size > 0 || this.floats.size > 0) {
 		out.putsln("section .data");
 
 		for(var i = 0; i < this.strings.size; ++i) {
 			var str: Node* = this.strings.at(i);
+
+			if(!str.literal.used) continue;
 
 			out.puts("_S"); out.putd(str.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.literal.az.string.chars);
 			out.putc('"'); out.putsln(", 0");
@@ -1143,6 +1150,8 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 		for(var i = 0; i < this.floats.size; ++i) {
 			var float: Node* = this.floats.at(i);
+
+			if(!float.literal.used) continue;
 
 			out.puts("_D"); out.putd(float.literal.az.float.id); out.puts(": dq "); out.putsln(float.literal.az.float.str);
 		}

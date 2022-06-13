@@ -6,13 +6,14 @@ import "src/types.zpr";
 import "src/parser.zpr";
 import "src/codegen.zpr";
 import "src/typecheck.zpr";
+import "src/dce.zpr";
 
 // Prefixed with m_ for main
 
 var m_filepath: i8*;
 var m_cliSource: i8*;
 var m_outFile: i8*;
-var m_dumpAst: int;
+var m_dumpAst: bool;
 
 function usage_exit(out: int, code: int) {
 	fputsln(out, "Possible Arguments:");
@@ -104,6 +105,8 @@ function main(argc: int, argv: i8**): int {
 		print_ast(ast);
 
 	parser.type_check(ast);
+
+	parser.dce();
 
 	var asmFile: i8[1024];
 
