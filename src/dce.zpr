@@ -66,8 +66,11 @@ function Parser.dce_expression(expr: Node*) {
 				this.dce_expression(expr.block.children.at(i));
 			}
 		}
+		NodeType::FLOAT_LITERAL, NodeType::STRING -> {
+			expr.literal.used = true;
+		}
 		NodeType::SIZEOF,
-		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::FLOAT_LITERAL, NodeType::STRING, NodeType::ACCESS_VAR, NodeType::ACCESS_GLOBAL_VAR -> {}
+		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::ACCESS_VAR, NodeType::ACCESS_GLOBAL_VAR -> {}
 		else -> {
 			eputs("dce_expression unsupported node - ");
 			eputsln(node_type_to_string(expr.type));
@@ -161,4 +164,11 @@ function Parser.dce() {
 	}
 
 	this.dce_function(main);
+
+	for(var i = 0; i < this.globalVars.size; ++i) {
+		var gvar: Node* = this.globalVars.at(i);
+
+		if(gvar.variable.value != null)
+			this.dce_expression(gvar.variable.value);
+	}
 }

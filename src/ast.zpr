@@ -173,6 +173,7 @@ struct Node {
 
 		literal: struct {
 			type: Type*;
+			used: bool;
 
 			az: union {
 				integer: int;
