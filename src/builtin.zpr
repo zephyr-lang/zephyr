@@ -1,6 +1,8 @@
 import "std/core.zpr";
 import "src/ast.zpr";
 
+var builtinFunctions: Vector*;
+
 function add_implicit_printu_function(): Node* {
 	var name = synthetic_token(TokenType::IDENTIFIER, "printu");
 	var funktion = new_node(NodeType::FUNCTION, name);
@@ -61,6 +63,8 @@ function parser_builtin_functions(): Vector* {
 	functions.push(add_implicit_syscall_function("syscall4", 4));
 	functions.push(add_implicit_syscall_function("syscall5", 5));
 
+	builtinFunctions = functions;
+
 	return functions;
 }
 
@@ -100,12 +104,15 @@ function generate_implicit_printu_impl(out: File*) {
 }
 
 function generate_builtin_functions(out: File*) {
-	generate_implicit_printu_impl(out);
+	if((builtinFunctions.at(0) as Node*).funktion.used)
+		generate_implicit_printu_impl(out);
 
 	var ARG_REGISTERS: i8*[6] = [ "rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
 	var SYS_REGISTERS: i8*[6] = [ "rax", "rdi", "rsi", "rdx", "r10", "r8" ];
 
 	for(var i = 0; i <= 5; ++i) {
+		if(!(builtinFunctions.at(i + 1) as Node*).funktion.used) continue;
+
 		out.puts("_FZsyscall"); out.putd(i); out.putsln(":");
 
 		for(var arg = 0; arg <= i; arg = arg + 1) {
