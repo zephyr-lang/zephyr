@@ -4,7 +4,6 @@ import "std/subprocess.zpr";
 import "src/lexer.zpr";
 import "src/types.zpr";
 import "src/parser.zpr";
-var m_dce: bool; // codegen needs m_dce
 import "src/codegen.zpr";
 import "src/typecheck.zpr";
 import "src/dce.zpr";
@@ -45,9 +44,6 @@ function parse_cli_args(argc: int, argv: i8**): i8** {
 			if(argc - i == 0) usage_exit(stderr, 1);
 			m_outFile = argv[i + 1];
 			++i;
-		}
-		else if(streq(argv[i], "--dce")) {
-			m_dce = true;
 		}
 		else if(streq(argv[i], "--")) {
 			break;
@@ -110,8 +106,7 @@ function main(argc: int, argv: i8**): int {
 
 	parser.type_check(ast);
 
-	if(m_dce)
-		parser.dce();
+	parser.dce();
 
 	var asmFile: i8[1024];
 
