@@ -4,27 +4,119 @@ import "src/ast.zpr";
 import "src/typecheck.zpr";
 
 function Parser.dce_expression(expr: Node*) {
+	if(is_binary_op(expr.type)) {
+		this.dce_expression(expr.binary.lhs);
+		this.dce_expression(expr.binary.rhs);
+		return;
+	}
+	else if(is_unary_op(expr.type)) {
+		this.dce_expression(expr.unary);
+		return;
+	}
+
 	when(expr.type) {
 		NodeType::CALL -> {
 			var funktion = this.lookup_variable(&expr.funktion.name);
 			assert(funktion.type == NodeType::FUNCTION, "Typecheck must verify function call type");
+
+			for(var i = 0; i < expr.funktion.arguments.size; ++i) {
+				this.dce_expression(expr.funktion.arguments.at(i));
+			}
 
 			if(!funktion.funktion.dced) {
 				funktion.funktion.dced = true;
 				this.dce_function(funktion);
 			}
 		}
-		NodeType::INT_LITERAL -> {}
+		NodeType::CALL_METHOD -> {
+			this.dce_expression(expr.funktion.parent);
+			var funktion = expr.funktion.parentType.lookup_method(&expr.funktion.name);
+
+			for(var i = 0; i < expr.funktion.arguments.size; ++i) {
+				this.dce_expression(expr.funktion.arguments.at(i));
+			}
+
+			if(!funktion.funktion.dced) {
+				funktion.funktion.dced = true;
+				this.dce_function(funktion);
+			}
+		}
+		NodeType::TERNARY -> {
+			this.dce_expression(expr.conditional.condition);
+			this.dce_expression(expr.conditional.doTrue);
+			this.dce_expression(expr.conditional.doFalse);
+		}
+		NodeType::CAST, NodeType::INT_TO_FLOAT, NodeType::FLOAT_TO_INT,
+		NodeType::PRE_INCREMENT, NodeType::PRE_DECREMENT, NodeType::POST_INCREMENT, NodeType::POST_DECREMENT -> {
+			this.dce_expression(expr.unary);
+		}
+		NodeType::ACCESS_SUBSCRIPT -> {
+			this.dce_expression(expr.binary.lhs);
+			this.dce_expression(expr.binary.rhs);
+		}
+		NodeType::ASSIGN -> {
+			this.dce_expression(expr.assignment.lhs);
+			this.dce_expression(expr.assignment.rhs);
+		}
+		NodeType::ACCESS_MEMBER -> {
+			this.dce_expression(expr.member.parent);
+		}
+		NodeType::ARRAY_INIT -> {
+			for(var i = 0; i < expr.block.children.size; ++i) {
+				this.dce_expression(expr.block.children.at(i));
+			}
+		}
+		NodeType::SIZEOF,
+		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::FLOAT_LITERAL, NodeType::STRING, NodeType::ACCESS_VAR, NodeType::ACCESS_GLOBAL_VAR -> {}
 		else -> {
 			eputs("dce_expression unsupported node - ");
 			eputsln(node_type_to_string(expr.type));
+			eputd(expr.type); eputln();
 			exit(1);
 		}
 	}
 }
 
+function Parser.dce_block(block: Node*) {
+	for(var i = 0; i < block.block.children.size; ++i) {
+		this.dce_statement(block.block.children.at(i));
+	}
+}
+
 function Parser.dce_statement(stmt: Node*) {
 	when(stmt.type) {
+		NodeType::IF -> {
+			this.dce_expression(stmt.conditional.condition);
+			this.dce_statement(stmt.conditional.doTrue);
+			if(stmt.conditional.doFalse != null) this.dce_statement(stmt.conditional.doFalse);
+		}
+		NodeType::FOR -> {
+			if(stmt.loop.initial != null)
+				this.dce_statement(stmt.loop.initial);
+			if(stmt.loop.condition != null)
+				this.dce_expression(stmt.loop.condition);
+			if(stmt.loop.iteration != null)
+				this.dce_expression(stmt.loop.iteration);
+			this.dce_statement(stmt.loop.body);
+		}
+		NodeType::WHILE, NodeType::DO_WHILE -> {
+			this.dce_expression(stmt.conditional.condition);
+			this.dce_statement(stmt.conditional.doTrue);
+		}
+		NodeType::WHEN -> {
+			this.dce_expression(stmt.vhen.match);
+			for(var i = 0; i < stmt.vhen.branches.size; ++i)
+				this.dce_statement((stmt.vhen.branches.at(i) as Node*).branch.body);
+			if(stmt.vhen.default != null)
+				this.dce_statement(stmt.vhen.default);
+		}
+		NodeType::DEFINE_VAR -> {
+			if(stmt.variable.value != null)
+				this.dce_expression(stmt.variable.value);
+		}
+		NodeType::BLOCK -> {
+			this.dce_block(stmt);
+		}
 		NodeType::EXPR_STMT -> {
 			this.dce_expression(stmt.unary);
 		}
@@ -32,6 +124,7 @@ function Parser.dce_statement(stmt: Node*) {
 			if(stmt.unary != null)
 				this.dce_expression(stmt.unary);
 		}
+		NodeType::BREAK, NodeType::CONTINUE -> {}
 		else -> {
 			eputs("dce_statement unsupported node - ");
 			eputsln(node_type_to_string(stmt.type));
@@ -42,9 +135,10 @@ function Parser.dce_statement(stmt: Node*) {
 
 function Parser.dce_function(funktion: Node*) {
 	funktion.funktion.used = true;
-	for(var i = 0; i < funktion.funktion.body.block.children.size; ++i) {
-		this.dce_statement(funktion.funktion.body.block.children.at(i));
-	}
+	if(!funktion.funktion.hasImplicitBody)
+		for(var i = 0; i < funktion.funktion.body.block.children.size; ++i) {
+			this.dce_statement(funktion.funktion.body.block.children.at(i));
+		}
 }
 
 function Parser.dce() {

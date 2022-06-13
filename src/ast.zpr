@@ -473,6 +473,8 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::DEREF -> return "*";
 		NodeType::SIZEOF -> return "sizeof";
 		NodeType::ACCESS_SUBSCRIPT -> return "[";
+		NodeType::ACCESS_MEMBER -> return ".";
+		NodeType::ASSIGN -> return "=";
 		NodeType::PRE_INCREMENT -> return "++";
 		NodeType::PRE_DECREMENT -> return "--";
 		NodeType::POST_INCREMENT -> return "++";
