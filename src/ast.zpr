@@ -147,9 +147,9 @@ struct Node {
 			name: Name;
 			returnType: Type*;
 			body: Node*;
-			hasImplicitBody: int;
+			hasImplicitBody: bool;
 
-			isMethod: int;
+			isMethod: bool;
 			parent: Node*;
 			parentType: Type*;
 
@@ -157,7 +157,8 @@ struct Node {
 
 			localVariableStackOffset: int;
 
-			used: int;
+			used: bool;
+			dced: bool;
 		};
 
 		block: struct {

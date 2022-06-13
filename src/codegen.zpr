@@ -1026,7 +1026,7 @@ function Parser.generate_namespace(node: Node*, out: File*) {
 function Parser.generate_top_level_declaration(node: Node*, out: File*) {
 	when(node.type) {
 		NodeType::FUNCTION -> {
-			if(node.funktion.used)
+			if(node.funktion.used || !m_dce)
 				generate_function(node, out);
 		}
 		NodeType::DEFINE_GLOBAL_VAR -> {

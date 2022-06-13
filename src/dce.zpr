@@ -1,0 +1,70 @@
+import "std/core.zpr";
+import "std/io.zpr";
+import "src/ast.zpr";
+import "src/typecheck.zpr";
+
+function Parser.dce_expression(expr: Node*) {
+	when(expr.type) {
+		NodeType::CALL -> {
+			var funktion = this.lookup_variable(&expr.funktion.name);
+			assert(funktion.type == NodeType::FUNCTION, "Typecheck must verify function call type");
+
+			if(!funktion.funktion.dced) {
+				funktion.funktion.dced = true;
+				this.dce_function(funktion);
+			}
+		}
+		NodeType::INT_LITERAL -> {}
+		else -> {
+			eputs("dce_expression unsupported node - ");
+			eputsln(node_type_to_string(expr.type));
+			exit(1);
+		}
+	}
+}
+
+function Parser.dce_statement(stmt: Node*) {
+	when(stmt.type) {
+		NodeType::EXPR_STMT -> {
+			this.dce_expression(stmt.unary);
+		}
+		NodeType::RETURN -> {
+			if(stmt.unary != null)
+				this.dce_expression(stmt.unary);
+		}
+		else -> {
+			eputs("dce_statement unsupported node - ");
+			eputsln(node_type_to_string(stmt.type));
+			exit(1);
+		}
+	}
+}
+
+function Parser.dce_function(funktion: Node*) {
+	funktion.funktion.used = true;
+	for(var i = 0; i < funktion.funktion.body.block.children.size; ++i) {
+		this.dce_statement(funktion.funktion.body.block.children.at(i));
+	}
+}
+
+function Parser.dce() {
+	var mainTok = synthetic_token(TokenType::IDENTIFIER, "main");
+	var mainName: Name;
+	this.bind_name(&mainName, mainTok);
+
+	var main = this.lookup_variable(&mainName);
+	main.funktion.dced = true;
+
+	if(main == null) {
+		eputsln("A 'main' function must be defined for a zephyr program");
+		exit(1);
+	}
+
+	if(main.type != NodeType::FUNCTION) {
+		main.print_position();
+		eputsln("'main' must be a function");
+		exit(1);
+	}
+
+	this.dce_function(main);
+}

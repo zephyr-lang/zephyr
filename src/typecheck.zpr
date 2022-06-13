@@ -572,8 +572,6 @@ function Parser.type_check_call(expr: Node*) {
 		exit(1);
 	}
 
-	funktion.funktion.used = true;
-
 	if(funktion.funktion.arguments.size != expr.funktion.arguments.size) {
 		expr.print_position();
 		eputs("Call expected "); eputd(funktion.funktion.arguments.size); eputs(" arguments but got "); eputd(expr.funktion.arguments.size); eputln();
@@ -624,8 +622,6 @@ function Parser.type_check_method_call(expr: Node*) {
 		eputs("Cannot access method on type "); eputs(type_to_string(parentType)); eputln();
 		exit(1);
 	}
-
-	funktion.funktion.used = true;
 
 	expr.funktion.parentType = parentType;
 
@@ -1419,10 +1415,6 @@ function Parser.type_check_top_level_declaration(node: Node*) {
 	if(node.type == NodeType::FUNCTION) {
 		if(!node.funktion.hasImplicitBody)
 			this.type_check_function(node);
-
-		if(node.funktion.name.equals(&mainName)) {
-			node.funktion.used = true;
-		}
 	}
 	else if(node.type == NodeType::DEFINE_GLOBAL_VAR) {
 		this.type_check_global_var(node);
