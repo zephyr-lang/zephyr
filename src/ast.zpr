@@ -414,28 +414,43 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 		aliasLength = 12 + strlen(aliasName);
 	}
 
-	var quotesLength = quoted ? 2 : 0;
+	var str: i8*;
+	// No alias
+	if(aliasLength == 0) {
+		var quotesLength = quoted ? 2 : 0;
 
-	var str: i8* = malloc(quoted + strlen(baseType) + type.indirection + aliasLength + 1);
-	if(quoted) {
-		str[0] = 39; // '
-		strcpy(&str[1], baseType);
+		str = malloc(quoted + strlen(baseType) + type.indirection + aliasLength + 1);
+		if(quoted) {
+			str[0] = 39; // '
+			strcpy(&str[1], baseType);
+		}
+		else
+			strcpy(str, baseType);
+
+		for(var i = 0; i < type.indirection; ++i) {
+			strcat(str, "*");
+		}
+		if(quoted) strcat(str, "'");
 	}
-	else
-		strcpy(str, baseType);
+	else {
+		var quotesLength = quoted ? 4 : 2;
 
-	for(var i = 0; i < type.indirection; ++i) {
-		strcat(str, "*");
-	}
-	if(quoted) strcat(str, "'");
+		str = malloc(strlen(baseType) + quotesLength + aliasLength + 1);
 
-	if(aliasLength != 0) {
-		strcat(str, " (alias of ");
-		strcat(str, aliasName);
+		if(quoted) {
+			str[0] = 39;
+			strcpy(&str[1], aliasName);
+			strcat(str, "'");
+		}
+		else {
+			strcpy(str, aliasName);
+		}
+
+		strcat(str, " (alias of '");
+		strcat(str, baseType);
+		strcat(str, "')");
 		free(aliasName);
-		strcat(str, ")");
 	}
-
 
 	return str;
 }
