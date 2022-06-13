@@ -1065,6 +1065,9 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 	for(var i = 0; i < this.globalVars.size; ++i) {
 		var variable: Node* = this.globalVars.at(i);
+
+		if(!variable.variable.used) continue;
+
 		var type = variable.variable.type;
 
 		if(variable.variable.value != null) {
@@ -1115,6 +1118,8 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 		for(var i = 0; i < this.globalVars.size; ++i) {
 			var variable: Node* = this.globalVars.at(i);
+
+			if(!variable.variable.used) continue;
 
 			out.puts("_G"); out.put_name(&variable.variable.name); out.puts(": ");
 			

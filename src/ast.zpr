@@ -190,6 +190,8 @@ struct Node {
 		};
 
 		variable: struct {
+			used: bool;
+			
 			name: Name;
 			type: Type*;
 			value: Node*;

@@ -69,8 +69,13 @@ function Parser.dce_expression(expr: Node*) {
 		NodeType::FLOAT_LITERAL, NodeType::STRING -> {
 			expr.literal.used = true;
 		}
+		NodeType::ACCESS_GLOBAL_VAR -> {
+			var variable = this.lookup_variable(&expr.variable.name);
+			assert(variable.type == NodeType::DEFINE_GLOBAL_VAR, "typechecker must verify global variable type");
+			variable.variable.used = true;
+		}
 		NodeType::SIZEOF,
-		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::ACCESS_VAR, NodeType::ACCESS_GLOBAL_VAR -> {}
+		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::ACCESS_VAR -> {}
 		else -> {
 			eputs("dce_expression unsupported node - ");
 			eputsln(node_type_to_string(expr.type));
