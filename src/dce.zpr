@@ -75,11 +75,10 @@ function Parser.dce_expression(expr: Node*) {
 			variable.variable.used = true;
 		}
 		NodeType::SIZEOF,
-		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::ACCESS_VAR -> {}
+		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::UINT_LITERAL, NodeType::ACCESS_VAR -> {}
 		else -> {
 			eputs("dce_expression unsupported node - ");
 			eputsln(node_type_to_string(expr.type));
-			eputd(expr.type); eputln();
 			exit(1);
 		}
 	}

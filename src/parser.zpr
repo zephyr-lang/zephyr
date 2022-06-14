@@ -205,31 +205,39 @@ function Parser.parse_type(): Type* {
 
 	var type = new_type();
 
-	if(this.previous.type == TokenType::INT) type.type = DataType::INT;
-	else if(this.previous.type == TokenType::I8) type.type = DataType::I8;
-	else if(this.previous.type == TokenType::I16) type.type = DataType::I16;
-	else if(this.previous.type == TokenType::I32) type.type = DataType::I32;
-	else if(this.previous.type == TokenType::I64) type.type = DataType::I64;
-	else if(this.previous.type == TokenType::F64) type.type = DataType::F64;
-	else if(this.previous.type == TokenType::ANY) type.type = DataType::ANY;
-	else if(this.previous.type == TokenType::IDENTIFIER) {
-		type.type = DataType::UNRESOLVED;
+	when(this.previous.type) {
+		TokenType::INT -> type.type = DataType::INT;
+		TokenType::I8 -> type.type = DataType::I8;
+		TokenType::I16 -> type.type = DataType::I16;
+		TokenType::I32 -> type.type = DataType::I32;
+		TokenType::I64 -> type.type = DataType::I64;
+		TokenType::UINT -> type.type = DataType::UINT;
+		TokenType::U8 -> type.type = DataType::U8;
+		TokenType::U16 -> type.type = DataType::U16;
+		TokenType::U32 -> type.type = DataType::U32;
+		TokenType::U64 -> type.type = DataType::U64;
+		TokenType::F64 -> type.type = DataType::F64;
+		TokenType::ANY -> type.type = DataType::ANY;
 
-		var name = this.previous;
+		TokenType::IDENTIFIER -> {
+			type.type = DataType::UNRESOLVED;
 
-		var nameSpace = new_namespace(null, null);
-		nameSpace.parts = new_vector();
+			var name = this.previous;
 
-		while(this.match(TokenType::COLON_COLON)) {
-			nameSpace.parts.push(name);
-			name = this.consume(TokenType::IDENTIFIER, "Expected identifier");	
+			var nameSpace = new_namespace(null, null);
+			nameSpace.parts = new_vector();
+
+			while(this.match(TokenType::COLON_COLON)) {
+				nameSpace.parts.push(name);
+				name = this.consume(TokenType::IDENTIFIER, "Expected identifier");	
+			}
+
+			this.bind_name(&type.name, name);
+			if(nameSpace.parts.size > 0) bind_to_namespace(&type.name, nameSpace);
 		}
-
-		this.bind_name(&type.name, name);
-		if(nameSpace.parts.size > 0) bind_to_namespace(&type.name, nameSpace);
-	}
-	else {
-		this.error("Expected type");
+		else -> {
+			this.error("Expected type");
+		}
 	}
 
 	while(this.match(TokenType::STAR)) {
@@ -252,6 +260,12 @@ function Parser.parse_constant(): int {
 		if(this.error) return 0;
 
 		return atoi(literal.start);
+	}
+	else if(this.match(TokenType::UINT_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return 0;
+
+		return atoui(literal.start);
 	}
 	else if(this.match(TokenType::CHAR_LITERAL)) {
 		var literal = this.previous;
@@ -340,6 +354,16 @@ function Parser.parse_value(): Node* {
 		var literalNode = new_node(NodeType::INT_LITERAL, literal);
 		literalNode.literal.type = INT_TYPE;
 		literalNode.literal.az.integer = atoi(literal.start);
+
+		return literalNode;
+	}
+	else if(this.match(TokenType::UINT_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return null;
+
+		var literalNode = new_node(NodeType::UINT_LITERAL, literal);
+		literalNode.literal.type = UINT_TYPE;
+		literalNode.literal.az.uinteger = atoui(literal.start);
 
 		return literalNode;
 	}

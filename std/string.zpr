@@ -99,6 +99,20 @@ function atoi(str: i8*): int {
 	return num * sign;
 }
 
+function atoui(str: i8*): uint {
+	var num: uint = 0;
+
+	var i = 0;
+
+	while('0' <= str[i] && str[i] <= '9') {
+		num *= 10;
+		num += str[i] - '0';
+		++i;
+	}
+
+	return num;
+}
+
 // Splits a string on the first instance of a given character
 // Params:
 //  - str => the source string

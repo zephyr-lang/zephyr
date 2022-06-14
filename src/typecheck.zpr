@@ -12,11 +12,26 @@ var checkingLoop = false;
 
 function Type.is_integral(): bool {
 	return this.indirection == 0 && (
+		this.type == DataType::UINT||
+		this.type == DataType::U8  ||
+		this.type == DataType::U16 ||
+		this.type == DataType::U32 ||
+		this.type == DataType::U64 ||
 		this.type == DataType::INT ||
-		this.type == DataType::I8 ||
+		this.type == DataType::I8  ||
 		this.type == DataType::I16 ||
 		this.type == DataType::I32 ||
 		this.type == DataType::I64
+	);
+}
+
+function Type.is_unsigned(): bool {
+	return this.indirection == 0 && (
+		this.type == DataType::UINT||
+		this.type == DataType::U8  ||
+		this.type == DataType::U16 ||
+		this.type == DataType::U32 ||
+		this.type == DataType::U64
 	);
 }
 
@@ -88,6 +103,11 @@ function Type.size(): int {
 	if(this.type == DataType::I16) return 2;
 	if(this.type == DataType::I32) return 4;
 	if(this.type == DataType::I64) return 8;
+	if(this.type == DataType::UINT) return 8;
+	if(this.type == DataType::U8) return 1;
+	if(this.type == DataType::U16) return 2;
+	if(this.type == DataType::U32) return 4;
+	if(this.type == DataType::U64) return 8;
 	if(this.type == DataType::F64) return 8;
 	if(this.type == DataType::ANY) return 8;
 	if(this.type == DataType::STRUCT) {
@@ -826,6 +846,10 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == NodeType::INT_LITERAL) {
 		expr.computedType = INT_TYPE;
 		typeStack.push(INT_TYPE);
+	}
+	else if(expr.type == NodeType::UINT_LITERAL) {
+		expr.computedType = UINT_TYPE;
+		typeStack.push(UINT_TYPE);
 	}
 	else if(expr.type == NodeType::CHAR_LITERAL) {
 		expr.computedType = I8_TYPE;

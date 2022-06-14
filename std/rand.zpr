@@ -1,0 +1,10 @@
+var __std_rand_seed: uint = 1u;
+
+function srand(seed: uint) {
+	__std_rand_seed = seed;
+}
+
+function rand(): uint {
+	__std_rand_seed = 6364136223846793005*__std_rand_seed + 1;
+	return __std_rand_seed >> 33;
+}

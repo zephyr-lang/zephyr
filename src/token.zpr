@@ -53,6 +53,7 @@ enum TokenType {
 	RSH_EQ,
 
 	INT_LITERAL,
+	UINT_LITERAL,
 	CHAR_LITERAL,
 	FLOAT_LITERAL,
 	STRING,
@@ -82,6 +83,11 @@ enum TokenType {
 	SIZEOF,
 	STRUCT,
 	UNION,
+	UINT,
+	U8,
+	U16,
+	U32,
+	U64,
 	VAR,
 	VOID,
 	WHEN,
@@ -148,6 +154,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::RSH_EQ -> return ">>=";
 
 		TokenType::INT_LITERAL -> return "int-literal";
+		TokenType::UINT_LITERAL -> return "uint-literal";
 		TokenType::CHAR_LITERAL -> return "char-literal";
 		TokenType::FLOAT_LITERAL -> return "float-literal";
 		TokenType::STRING -> return "string";
@@ -177,6 +184,11 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::SIZEOF -> return "sizeof";
 		TokenType::STRUCT -> return "struct";
 		TokenType::UNION -> return "union";
+		TokenType::UINT -> return "uint";
+		TokenType::U8 -> return "u8";
+		TokenType::U16 -> return "u16";
+		TokenType::U32 -> return "u32";
+		TokenType::U64 -> return "u64";
 		TokenType::VAR -> return "var";
 		TokenType::VOID -> return "void";
 		TokenType::WHEN -> return "when";
