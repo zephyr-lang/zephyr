@@ -325,7 +325,10 @@ function generate_binary_rax(expr: Node*, out: File*) {
 			out.putsln("    sal rax, cl");
 		}
 		NodeType::RSH -> {
-			out.putsln("    sar rax, cl");
+			if(expr.computedType.is_unsigned())
+				out.putsln("    shr rax, cl");
+			else
+				out.putsln("    sar rax, cl");
 		}
 		NodeType::EQUAL, NodeType::NOT_EQUAL, NodeType::LESS, NodeType::LESS_EQ, NodeType::GREATER, NodeType::GREATER_EQ -> {
 			out.putsln("    cmp rax, rcx");
@@ -649,6 +652,9 @@ function generate_expr_rax(expr: Node*, out: File*) {
 	when(expr.type) {
 		NodeType::INT_LITERAL -> {
 			out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();
+		}
+		NodeType::UINT_LITERAL -> {
+			out.puts("    mov rax, "); out.putu(expr.literal.az.uinteger); out.putln();
 		}
 		NodeType::CHAR_LITERAL -> {
 			out.puts("    mov rax, "); out.putd(expr.literal.az.integer); out.putln();

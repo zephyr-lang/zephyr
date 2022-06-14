@@ -847,6 +847,10 @@ function Parser.type_check_expr(expr: Node*) {
 		expr.computedType = INT_TYPE;
 		typeStack.push(INT_TYPE);
 	}
+	else if(expr.type == NodeType::UINT_LITERAL) {
+		expr.computedType = UINT_TYPE;
+		typeStack.push(UINT_TYPE);
+	}
 	else if(expr.type == NodeType::CHAR_LITERAL) {
 		expr.computedType = I8_TYPE;
 		typeStack.push(I8_TYPE);

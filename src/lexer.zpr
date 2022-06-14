@@ -151,6 +151,9 @@ function Lexer.number(): Token* {
 		while(is_digit(this.peek())) this.advance();
 		return this.make_token(TokenType::FLOAT_LITERAL);
 	}
+	else if(this.match('u') || this.match('U')) {
+		return this.make_token(TokenType::UINT_LITERAL);
+	}
 
 	return this.make_token(TokenType::INT_LITERAL);
 }

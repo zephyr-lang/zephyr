@@ -39,6 +39,7 @@ enum NodeType {
 
 	RELATIVE,
 	INT_LITERAL,
+	UINT_LITERAL,
 	CHAR_LITERAL,
 	FLOAT_LITERAL,
 	STRING,
@@ -182,6 +183,7 @@ struct Node {
 
 			az: union {
 				integer: int;
+				uinteger: uint;
 				string: struct {
 					chars: i8*;
 					length: int;
@@ -510,6 +512,7 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::INT_TO_FLOAT -> return "int to float";
 		NodeType::FLOAT_TO_INT -> return "float to int";
 		NodeType::INT_LITERAL -> return "int literal";
+		NodeType::UINT_LITERAL -> return "uint literal";
 		NodeType::CHAR_LITERAL -> return "char literal";
 		NodeType::STRING -> return "string";
 		NodeType::CALL -> return "call";
@@ -736,6 +739,9 @@ function print_ast_depth(node: Node*, depth: int) {
 		}
 		NodeType::INT_LITERAL -> {
 			puts("(literal "); putd(node.literal.az.integer); puts(")");
+		}
+		NodeType::UINT_LITERAL -> {
+			puts("(literal "); putu(node.literal.az.uinteger); puts(")");
 		}
 		NodeType::CHAR_LITERAL -> {
 			puts("(literal "); putc(node.literal.az.integer); puts(")");

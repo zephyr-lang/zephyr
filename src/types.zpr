@@ -1,6 +1,7 @@
 import "src/ast.zpr";
 
 var INT_TYPE: Type*;
+var UINT_TYPE: Type*;
 var I8_TYPE: Type*;
 var STR_TYPE: Type*;
 var F64_TYPE: Type*;
@@ -26,6 +27,9 @@ function copy_type(a: Type*): Type* {
 function build_types() {
 	INT_TYPE = new_type();
 	INT_TYPE.type = DataType::INT;
+
+	UINT_TYPE = new_type();
+	UINT_TYPE.type = DataType::UINT;
 
 	I8_TYPE = new_type();
 	I8_TYPE.type = DataType::I8;

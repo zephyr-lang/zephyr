@@ -53,6 +53,7 @@ enum TokenType {
 	RSH_EQ,
 
 	INT_LITERAL,
+	UINT_LITERAL,
 	CHAR_LITERAL,
 	FLOAT_LITERAL,
 	STRING,
@@ -153,6 +154,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::RSH_EQ -> return ">>=";
 
 		TokenType::INT_LITERAL -> return "int-literal";
+		TokenType::UINT_LITERAL -> return "uint-literal";
 		TokenType::CHAR_LITERAL -> return "char-literal";
 		TokenType::FLOAT_LITERAL -> return "float-literal";
 		TokenType::STRING -> return "string";

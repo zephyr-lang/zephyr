@@ -261,6 +261,12 @@ function Parser.parse_constant(): int {
 
 		return atoi(literal.start);
 	}
+	else if(this.match(TokenType::UINT_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return 0;
+
+		return atoui(literal.start);
+	}
 	else if(this.match(TokenType::CHAR_LITERAL)) {
 		var literal = this.previous;
 		if(this.error) return 0;
@@ -348,6 +354,16 @@ function Parser.parse_value(): Node* {
 		var literalNode = new_node(NodeType::INT_LITERAL, literal);
 		literalNode.literal.type = INT_TYPE;
 		literalNode.literal.az.integer = atoi(literal.start);
+
+		return literalNode;
+	}
+	else if(this.match(TokenType::UINT_LITERAL)) {
+		var literal = this.previous;
+		if(this.error) return null;
+
+		var literalNode = new_node(NodeType::UINT_LITERAL, literal);
+		literalNode.literal.type = UINT_TYPE;
+		literalNode.literal.az.uinteger = atoui(literal.start);
 
 		return literalNode;
 	}
