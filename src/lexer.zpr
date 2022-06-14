@@ -109,6 +109,11 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("sizeof")) return TokenType::SIZEOF;
 	if(this.match_keyword("struct")) return TokenType::STRUCT;
 	if(this.match_keyword("union")) return TokenType::UNION;
+	if(this.match_keyword("uint")) return TokenType::UINT;
+	if(this.match_keyword("u8")) return TokenType::U8;
+	if(this.match_keyword("u16")) return TokenType::U16;
+	if(this.match_keyword("u32")) return TokenType::U32;
+	if(this.match_keyword("u64")) return TokenType::U64;
 	if(this.match_keyword("var")) return TokenType::VAR;
 	if(this.match_keyword("void")) return TokenType::VOID;
 	if(this.match_keyword("when")) return TokenType::WHEN;

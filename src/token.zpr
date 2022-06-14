@@ -82,6 +82,11 @@ enum TokenType {
 	SIZEOF,
 	STRUCT,
 	UNION,
+	UINT,
+	U8,
+	U16,
+	U32,
+	U64,
 	VAR,
 	VOID,
 	WHEN,
@@ -177,6 +182,11 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::SIZEOF -> return "sizeof";
 		TokenType::STRUCT -> return "struct";
 		TokenType::UNION -> return "union";
+		TokenType::UINT -> return "uint";
+		TokenType::U8 -> return "u8";
+		TokenType::U16 -> return "u16";
+		TokenType::U32 -> return "u32";
+		TokenType::U64 -> return "u64";
 		TokenType::VAR -> return "var";
 		TokenType::VOID -> return "void";
 		TokenType::WHEN -> return "when";

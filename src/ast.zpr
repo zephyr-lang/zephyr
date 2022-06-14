@@ -79,6 +79,11 @@ enum DataType {
 	I16,
 	I32,
 	I64,
+	UINT,
+	U8,
+	U16,
+	U32,
+	U64,
 	F64,
 	ANY,
 	STRUCT,
@@ -381,6 +386,11 @@ function data_type_to_string(type: DataType): i8* {
 		DataType::I16 -> return "i16";
 		DataType::I32 -> return "i32";
 		DataType::I64 -> return "i64";
+		DataType::INT -> return "int";
+		DataType::U8 -> return "u8";
+		DataType::U16 -> return "u16";
+		DataType::U32 -> return "u32";
+		DataType::U64 -> return "u64";
 		DataType::F64 -> return "f64";
 		DataType::ANY -> return "any";
 		DataType::ALIAS, DataType::UNRESOLVED, DataType::STRUCT, DataType::UNION -> {
