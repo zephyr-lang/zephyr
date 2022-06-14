@@ -36,8 +36,7 @@ function fputc(fd: int, char: i8) {
 	write(fd, &char, 1);
 }
 
-// TODO: This function should take an unsigned integer, but they are not supported yet
-function fputu(fd: int, val: int) {
+function fputu(fd: int, val: uint) {
 	var buffer: i8[21];
 	uitoa(val, buffer);
 
@@ -106,7 +105,7 @@ function putc(char: i8) {
 	fputc(stdout, char);
 }
 
-function putu(val: int) {
+function putu(val: uint) {
 	fputu(stdout, val);
 }
 
@@ -136,7 +135,7 @@ function eputc(char: i8) {
 	fputc(stderr, char);
 }
 
-function eputu(val: int) {
+function eputu(val: uint) {
 	fputu(stderr, val);
 }
 
@@ -215,7 +214,7 @@ function File.putc(char: i8) {
 	this.write(&char, 1);
 }
 
-function File.putu(val: int) {
+function File.putu(val: uint) {
 	var buffer: i8[21];
 	uitoa(val, buffer);
 

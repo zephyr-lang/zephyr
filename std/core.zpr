@@ -32,6 +32,10 @@ function lseek(fd: int, offset: int, w: int): int {
 	return syscall3(SYS_lseek, fd, offset, w);
 }
 
+function time(): uint {
+	return syscall1(SYS_time, null);
+}
+
 // Memory
 
 var __malloc_buffer: i8[15728640]; // 15 * 1024 * 1024 - 15MB
