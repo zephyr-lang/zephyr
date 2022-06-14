@@ -294,12 +294,22 @@ function generate_binary_rax(expr: Node*, out: File*) {
 			out.putsln("    imul rax, rcx");
 		}
 		NodeType::DIV -> {
-			out.putsln("    cqo");
-			out.putsln("    idiv rcx");
+			if(expr.computedType.is_unsigned()) {
+				out.putsln("    mov rdx, 0");
+				out.putsln("    div rcx");
+			} else {
+				out.putsln("    cqo");
+				out.putsln("    idiv rcx");
+			}
 		}
 		NodeType::MOD -> {
-			out.putsln("    cqo");
-			out.putsln("    idiv rcx");
+			if(expr.computedType.is_unsigned()) {
+				out.putsln("    mov rdx, 0");
+				out.putsln("    div rcx");
+			} else {
+				out.putsln("    cqo");
+				out.putsln("    idiv rcx");
+			}
 			out.putsln("    mov rax, rdx");
 		}
 		NodeType::BWAND -> {
@@ -319,7 +329,7 @@ function generate_binary_rax(expr: Node*, out: File*) {
 		}
 		NodeType::EQUAL, NodeType::NOT_EQUAL, NodeType::LESS, NodeType::LESS_EQ, NodeType::GREATER, NodeType::GREATER_EQ -> {
 			out.putsln("    cmp rax, rcx");
-			out.puts("    set"); out.puts(cmp_suffix(expr.type)); out.putsln(" al");
+			out.puts("    set"); out.puts(expr.computedType.is_unsigned() ? ucmp_suffix(expr.type) : cmp_suffix(expr.type)); out.putsln(" al");
 			out.putsln("    movzx rax, al");
 		}
 		else -> {
