@@ -1599,3 +1599,31 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Unsigned: "
+
+assert_stdout "1" "
+function main(): int {
+	var x: uint = -1;
+	printu(x > 1);
+	return 0;
+}
+"
+
+assert_stdout "9223372036854775807" "
+function main(): int {
+	var x: uint = -1;
+	printu(x / 2);
+	return 0;
+}
+"
+
+assert_stdout "20" "
+function main(): int {
+	var x = 20u;
+	printu(x);
+	return 0;
+}
+"
+
+echo " Done"
