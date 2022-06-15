@@ -502,18 +502,17 @@ function generate_access_global_var(expr: Node*, out: File*) {
 }
 
 function generate_access_subscript(expr: Node*, out: File*) {
-	generate_expr(expr.binary.lhs, out);
-	out.putsln("    push rax");
-	generate_expr(expr.binary.rhs, out);
-	out.putsln("    mov rcx, rax");
-	out.putsln("    pop rax");
+	generate_lvalue(expr, out);
 
 	if(expr.computedType.is_float()) {
-		out.putsln("    movsd xmm0, [rax+rcx*8]");
+		out.putsln("    movsd xmm0, [rax]");
+	}
+	else if(expr.computedType.is_structural()) {
+		// Load as pointer
 	}
 	else {
 		out.puts("    "); out.puts(expr.computedType.movzx()); out.puts(" "); out.puts(expr.computedType.movzx_rax_subregister());
-		out.puts(", "); out.puts(expr.computedType.qualifier()); out.puts(" [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+		out.puts(", "); out.puts(expr.computedType.qualifier()); out.putsln(" [rax]");
 	}
 }
 
@@ -565,7 +564,16 @@ function generate_lvalue(expr: Node*, out: File*) {
 			out.putsln("    mov rcx, rax");
 			out.putsln("    pop rax");
 
-			out.puts("    lea rax, [rax+rcx*"); out.putd(expr.computedType.size()); out.putsln("]");
+			//FIXME: This could make array accessing very slow
+			var size = expr.computedType.size();
+			if(size % 2 != 0 || size == 6 || size > 8) {
+				out.puts("    imul rcx, "); out.putu(size); out.putln();
+				out.putsln("    add rax, rcx");
+				out.putsln("    lea rax, [rax]");
+			}
+			else {
+				out.puts("    lea rax, [rax+rcx*"); out.putd(size); out.putsln("]");
+			}
 		}
 		LValue::DEREF -> {
 			generate_expr(expr.unary, out);

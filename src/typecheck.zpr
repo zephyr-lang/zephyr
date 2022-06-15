@@ -876,6 +876,7 @@ function Parser.type_check_expr(expr: Node*) {
 		this.type_check_ternary_expr(expr);
 	}
 	else if(expr.type == NodeType::SIZEOF) {
+		resolve_type(expr.computedType);
 		typeStack.push(INT_TYPE);
 	}
 	else if(expr.type == NodeType::ACCESS_SUBSCRIPT) {
