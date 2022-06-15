@@ -133,6 +133,8 @@ function Parser.error_at_token(token: Token*, message: i8*) {
 	eputs(": "); eputsln(message);
 
 	this.error = true;
+	
+	exit(1);
 }
 
 function Parser.error(message: i8*) {
@@ -1432,6 +1434,11 @@ function Parser.parse_alias() {
 function Parser.parse_namespace(): Node* {
 	var namespaceName = this.consume(TokenType::IDENTIFIER, "Expected namespace name");
 	var nameSpace = new_namespace(namespaceName, this.namespaceStack.empty() ? null : this.namespaceStack.top());
+
+	while(this.match(TokenType::COLON_COLON)) {
+		namespaceName = this.consume(TokenType::IDENTIFIER, "Expected identifier");
+		nameSpace.parts.push(namespaceName);
+	}
 
 	this.namespaceStack.push(nameSpace);
 
