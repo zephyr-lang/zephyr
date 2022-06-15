@@ -1,0 +1,51 @@
+import "std/core.zpr";
+import "std/io.zpr";
+
+namespace std::image {
+	struct Color8 {
+		red: u8;
+		green: u8;
+		blue: u8;
+	}
+
+	struct PPMImage {
+		width: u32;
+		height: u32;
+		data: Color8*;
+	}
+
+	function new_ppm_img(width: u32, height: u32): PPMImage* {
+		var img: PPMImage* = malloc(sizeof(PPMImage));
+		img.width = width;
+		img.height = height;
+		img.data = malloc(width * height * sizeof(Color8));
+		return img;
+	}
+
+	function PPMImage.set_pixel(x: u32, y: u32, color: Color8*) {
+		var idx = y * this.width + x;
+		this.data[idx].red = color.red;
+		this.data[idx].green = color.green;
+		this.data[idx].blue = color.blue;
+	}
+
+	function PPMImage.get_pixel(x: u32, y: u32): Color8* {
+		var idx = y * this.width + x;
+		return &this.data[idx];
+	}
+
+	function PPMImage.save(filename: i8*) {
+		var file = fopen(filename, 'w');
+
+		file.putsln("P6");
+		file.putu(this.width);
+		file.puts(" ");
+		file.putu(this.height);
+		file.putln();
+		file.putu(255); // Max colour value
+		file.putln();
+		file.write(this.data, this.width * this.height * sizeof(Color8));
+
+		file.close();
+	}
+}

@@ -1,0 +1,87 @@
+import "std/core.zpr";
+import "std/io.zpr";
+import "std/image.zpr";
+import "std/math.zpr";
+
+// Draws the Mandelbrot set [fc(z) = z^2 + c] - escape time algorithm
+// For the set and its implementation, see:
+//  - https://en.wikipedia.org/wiki/Mandelbrot_set
+//  - https://rosettacode.org/wiki/Mandelbrot_set#C
+// For the image format (std::image::PPMImage) used, see:
+//  - https://en.wikipedia.org/wiki/Netpbm#File_formats
+//  - http://netpbm.sourceforge.net/doc/ppm.html
+
+function main(argc: int, argv: i8**): int {
+	// Actual image resolution
+	var ixmax = 800;
+	var iymax = 800;
+
+	// Complex plane
+	var cxmin = -2.5;
+	var cxmax = 1.5;
+	var cymin = -2.0;
+	var cymax = 2.0;
+
+	var iterationMax = 200;
+
+	var outFile: i8*;
+
+	if(argc == 2) {
+		// Default
+		outFile = argv[1];
+	}
+	else {
+		eputsln("Usage: ");
+		eputs(argv[0]); eputsln(" <outfile>");
+		return -1;
+	}
+
+	// Precompute pixel width & height
+	var pixelWidth = (cxmax-cxmin)/ixmax;
+	var pixelHeight = (cymax-cymin)/iymax;
+
+	var img = std::image::new_ppm_img(ixmax, iymax);
+
+	for(var iy = 0; iy < iymax; ++iy) {
+		var cy = cymin + iy*pixelHeight;
+		if(abs(cy) < pixelHeight / 2) cy=0.0; // antenna
+
+		for(var ix = 0; ix < ixmax; ++ix) {
+			var cx = cxmin + ix*pixelWidth;
+
+			var zx = 0.0;
+			var zy = 0.0;
+			var zx2 = zx*zx;
+			var zy2 = zy*zy;
+
+			var iteration: int;
+
+			for(iteration = 0; iteration < iterationMax && (zx2+zy2 < 4.0); ++iteration) {
+				zy = 2 * zx * zy + cy;
+				zx = zx2 - zy2 + cx;
+				zx2 = zx*zx;
+				zy2 = zy*zy;
+			}
+
+			var color: std::image::Color8;
+			if(iteration == iterationMax) {
+				// interior colour is black
+				color.red = 0;
+				color.green = 0;
+				color.blue = 0;
+			}
+			else {
+				// exterior colour is white
+				color.red = 255;
+				color.green = 255;
+				color.blue = 255;
+			}
+
+			img.set_pixel(ix, iy, &color);
+		}
+	}
+
+	img.save(outFile);
+
+	return 0;
+}

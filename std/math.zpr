@@ -7,3 +7,8 @@ function ceil_multiple(num: int, n: int): int {
 function min(a: int, b: int): int {
 	return a < b ? a : b;
 }
+
+function abs(f: f64): f64 {
+	if(f < 0) f = -f;
+	return f;
+}

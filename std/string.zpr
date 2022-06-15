@@ -113,6 +113,38 @@ function atoui(str: i8*): uint {
 	return num;
 }
 
+function atof(str: i8*): f64 {
+	var num = 0.0;
+	var sign = 1.0;
+
+	var i = 0;
+
+	if(str[i] == '-') {
+		sign = -1.0;
+		++i;
+	}
+
+	while('0' <= str[i] && str[i] <= '9') {
+		num *= 10.0;
+		num += str[i] - '0';
+		++i;
+	}
+
+	var frac = 0.0;
+
+	if(str[i] == '.') {
+		++i;
+		var divisor = 10.0;
+		while('0' <= str[i] && str[i] <= '9') {
+			frac += (str[i] - '0') / divisor;
+			divisor *= 10.0;
+			++i;
+		}
+	}
+
+	return (num + frac) * sign;
+}
+
 // Splits a string on the first instance of a given character
 // Params:
 //  - str => the source string

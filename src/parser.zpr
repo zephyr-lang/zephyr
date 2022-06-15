@@ -872,7 +872,7 @@ function Parser.parse_for_statement(): Node* {
 	else if(this.match(TokenType::VAR)) {
 		forStmt.loop.initial = this.parse_var_declaration();
 	}
-	else if(this.match(TokenType::IDENTIFIER)) {
+	else if(this.check(TokenType::IDENTIFIER)) {
 		forStmt.loop.initial = this.parse_statement();
 	}
 	else {
