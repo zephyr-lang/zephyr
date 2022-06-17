@@ -256,50 +256,66 @@ function Parser.parse_type(): Type* {
 	return type;
 }
 
+function Parser.eval_constexpr(expr: Node*): int {
+	when(expr.type) {
+		// Note: only signed integers are supported as constants, so uint becomes int
+		NodeType::INT_LITERAL, NodeType::CHAR_LITERAL, NodeType::UINT_LITERAL -> return expr.literal.az.integer;
+		NodeType::ACCESS_VAR -> {
+			var constant = this.lookup_constant(&expr.variable.name);
+			if(constant == null) {
+				this.error("Unknown compile-time constant");
+				return 0;
+			}
+			return constant.constant.value;
+		}
+	}
+
+	if(is_binary_op(expr.type)) {
+		var left = this.eval_constexpr(expr.binary.lhs);
+		var right = this.eval_constexpr(expr.binary.rhs);
+
+		when(expr.type) {
+			NodeType::ADD -> return left + right;
+			NodeType::SUB -> return left - right;
+			NodeType::MUL -> return left * right;
+			NodeType::DIV -> return left / right;
+			NodeType::MOD -> return left % right;
+			NodeType::BWAND -> return left & right;
+			NodeType::BWOR -> return left | right;
+			NodeType::XOR -> return left ^ right;
+			NodeType::LSH -> return left << right;
+			NodeType::RSH -> return left >> right;
+			NodeType::EQUAL -> return left == right;
+			NodeType::NOT_EQUAL -> return left != right;
+			NodeType::LESS -> return left < right;
+			NodeType::LESS_EQ -> return left <= right;
+			NodeType::GREATER -> return left > right;
+			NodeType::GREATER_EQ -> return left >= right;
+			NodeType::OR -> return left || right;
+			NodeType::AND -> return left && right;
+		}
+	}
+
+	if(expr.type == NodeType::TERNARY) {
+		var condition = this.eval_constexpr(expr.conditional.condition);
+		var doTrue = this.eval_constexpr(expr.conditional.doTrue);
+		var doFalse = this.eval_constexpr(expr.conditional.doFalse);
+
+		return condition ? doTrue : doFalse;
+	}
+
+	if(expr.type == NodeType::BWNOT) return ~this.eval_constexpr(expr.unary);
+	if(expr.type == NodeType::NOT) return !this.eval_constexpr(expr.unary);
+	if(expr.type == NodeType::NEG) return -this.eval_constexpr(expr.unary);
+
+	this.error_at_token(expr.position, "Invalid constant expression");
+	return 0;
+}
+
 function Parser.parse_constant(): int {
-	if(this.match(TokenType::INT_LITERAL)) {
-		var literal = this.previous;
-		if(this.error) return 0;
+	var expr = this.parse_expression();
 
-		return atoi(literal.start);
-	}
-	else if(this.match(TokenType::UINT_LITERAL)) {
-		var literal = this.previous;
-		if(this.error) return 0;
-
-		return atoui(literal.start);
-	}
-	else if(this.match(TokenType::CHAR_LITERAL)) {
-		var literal = this.previous;
-		if(this.error) return 0;
-
-		return literal.start[1];
-	}
-	else if(this.match(TokenType::IDENTIFIER)) {
-		var name = this.previous;
-
-		var nameSpace = new_namespace(null, null);
-		nameSpace.parts = new_vector();
-
-		while(this.match(TokenType::COLON_COLON)) {
-			nameSpace.parts.push(name);
-			name = this.consume(TokenType::IDENTIFIER, "Expected identifier");	
-		}
-
-		var wholeName: Name;
-		this.bind_name(&wholeName, name);
-		if(nameSpace.parts.size > 0) bind_to_namespace(&wholeName, nameSpace);
-		var constant = this.lookup_constant(&wholeName);
-		if(constant == null) {
-			this.error("Unknown compile-time constant");
-			return 0;
-		}
-		return constant.constant.value;
-	}
-	else {
-		this.error_current("Expected constant value");
-		return 0;
-	}
+	return this.eval_constexpr(expr);
 }
 
 function Parser.parse_call(name: Token*): Node* {

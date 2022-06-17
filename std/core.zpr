@@ -38,14 +38,15 @@ function time(): uint {
 
 // Memory
 
-var __malloc_buffer: i8[15728640]; // 15 * 1024 * 1024 - 15MB
+const __MALLOC_BUFFER_SIZE = 15 * 1024 * 1024; // 15MB
+var __malloc_buffer: i8[__MALLOC_BUFFER_SIZE];
 var __malloc_buffer_offset = 0;
 
 function free(block: any*) {}
 
 function malloc(size: int): any* {
 	var offset = __malloc_buffer_offset;
-	if(offset + size >= 15728640) {
+	if(offset + size >= __MALLOC_BUFFER_SIZE) {
 		write(2, "MALLOC ERR", 10);
 		exit(-1);
 	}

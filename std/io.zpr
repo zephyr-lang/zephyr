@@ -6,7 +6,6 @@ const stdout = 1;
 const stderr = 2;
 
 const __FLOAT_PUT_PRECISION = 7;
-const __FLOAT_PUT_BUF_LENGTH = 8; //TODO: Inline as __FLOAT_PUT_PRECISION + 1
 
 //TODO: Make a built-in
 function assert(condition: bool, message: i8*) {
@@ -63,7 +62,7 @@ function fputft(fd: int, val: f64) {
 	fputu(fd, ipart);
 	fputc(fd, '.');
 
-	var buf: i8[__FLOAT_PUT_BUF_LENGTH];
+	var buf: i8[__FLOAT_PUT_PRECISION + 1];
 
 	if(frac == 0) {
 		buf[0] = '0';
@@ -241,7 +240,7 @@ function File.putft(val: f64) {
 	this.putu(ipart);
 	this.putc('.');
 
-	var buf: i8[__FLOAT_PUT_BUF_LENGTH];
+	var buf: i8[__FLOAT_PUT_PRECISION + 1];
 
 	if(frac == 0) {
 		buf[0] = '0';
