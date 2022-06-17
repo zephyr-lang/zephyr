@@ -1000,6 +1000,35 @@ function main(): int {
 }
 "
 
+assert_stdout "-90" "
+import \"std/io.zpr\";
+
+const CONSTANT = (6 + 4) * -(12 - 3);
+
+function main(): int {
+	var x = CONSTANT;
+
+	putd(x); putln();
+
+	return 0;
+}
+"
+
+assert_stdout "50
+20" "
+import \"std/io.zpr\";
+
+const t = 1 ? 50 : 20;
+const f = 0 ? 50 : 20;
+
+function main(): int {
+	putd(t); putln();
+	putd(f); putln();
+
+	return 0;
+}
+"
+
 echo " Done"
 
 echo -n "Enum: "
