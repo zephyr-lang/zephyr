@@ -1656,3 +1656,56 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Escapes: "
+
+assert_stdout "dog
+cat" "
+import \"std/io.zpr\";
+
+function main(): int {
+	puts(\"dog\"); putc('\\n'); puts(\"cat\");
+	return 0;
+}
+"
+
+assert_stdout "A" "
+import \"std/io.zpr\";
+
+function main(): int {
+	putc('\x41');
+	return 0;
+}
+"
+
+assert_stdout "Hello \"Jeff\"" "
+import \"std/io.zpr\";
+
+function main(): int {
+	puts(\"Hello \\\"Jeff\\\"\");
+	return 0;
+}
+"
+
+assert_stdout "Hello
+World" "
+import \"std/io.zpr\";
+
+function main(): int {
+	puts(\"Hello\\nWorld\");
+	return 0;
+}
+"
+
+assert_stdout "A" "
+import \"std/io.zpr\";
+
+function main(): int {
+
+	putsln(\"\x41\");
+
+	return 0;
+}
+"
+
+echo " Done"
