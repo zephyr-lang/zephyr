@@ -69,16 +69,6 @@ function Lexer.error_token(message: i8*): Token* {
 	return token;
 }
 
-function is_digit(c: i8): int {
-	return '0' <= c && c <= '9';
-}
-
-function is_alpha(c: i8): int {
-	return ('a' <= c && c <= 'z') ||
-	       ('A' <= c && c <= 'Z') ||
-		   c == '_';
-}
-
 function Lexer.match_keyword(keyword: i8*): int {
 	var length = strlen(keyword);
 	return (this.current as int) - (this.start as int) == length && memeq(this.start, keyword, length);
@@ -159,19 +149,31 @@ function Lexer.number(): Token* {
 }
 
 function Lexer.identifier(): Token* {
-	while(is_alpha(this.peek()) || is_digit(this.peek())) this.advance();
+	while(is_alpha(this.peek()) || is_digit(this.peek()) || this.peek() == '_') this.advance();
 	return this.make_token(this.identifier_type());
 }
 
 function Lexer.character(): Token* {
 	if(this.is_at_end()) return this.error_token("Expected character literal");
 	this.advance();
-	if(!this.match(39)) return this.error_token("Expected closing single quote");
+
+	if(this.current[-1] == '\\') {
+		this.advance();
+
+		if(this.current[-1] == 'x' || this.current[-1] == 'X') {
+			this.advance();
+			if(this.is_at_end()) return this.error_token("Invalid character escape");
+			this.advance();
+		}
+	}
+
+	if(!this.match('\'')) return this.error_token("Expected closing single quote");
 	return this.make_token(TokenType::CHAR_LITERAL);
 }
 
 function Lexer.string(): Token* {
-	while(!this.is_at_end() && this.peek() != '"') {
+	while(!(this.peek() == '"' && this.current[-1] != '\\') && !this.is_at_end()) {
+		if(this.peek() == '\n') ++this.line;
 		this.advance();
 	}
 
@@ -258,10 +260,10 @@ function Lexer.next(): Token* {
 	
 	var c = this.advance();
 
-	if(is_alpha(c)) return this.identifier();
+	if(is_alpha(c) || c == '_') return this.identifier();
 	if(is_digit(c)) return this.number();
 
-	if(c == 39) return this.character();
+	if(c == '\'') return this.character();
 	if(c == '"') return this.string();
 
 	when(c) {

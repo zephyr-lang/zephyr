@@ -175,3 +175,25 @@ function strcpy(dst: i8*, src: i8*) {
 	var length = strlen(src);
 	memcpy(dst, src, length + 1);
 }
+
+function is_digit(c: i8): bool {
+	return '0' <= c && c <= '9';
+}
+
+function is_alpha(c: i8): bool {
+	return ('a' <= c && c <= 'z') ||
+	       ('A' <= c && c <= 'Z');
+}
+
+function is_hex_digit(c: i8): bool {
+	return is_digit(c) || 
+		('a' <= c && c <= 'f') ||
+		('A' <= c && c <= 'F');
+}
+
+function hex_numeral(c: i8): i8 {
+	if('a' <= c && c <= 'f') return 15 - ('f' - c); 
+	if('A' <= c && c <= 'F') return 15 - ('F' - c);
+
+	return c - '0'; 
+}

@@ -1072,6 +1072,40 @@ function Parser.generate_top_level_declaration(node: Node*, out: File*) {
 	}
 }
 
+function Parser.generate_string(str: Node*, out: File*) {
+	var inQuotes = false;
+	var first = true;
+
+	for(var i = 0; str.literal.az.string.chars[i]; ++i) {
+		var c = str.literal.az.string.chars[i];
+
+		// Standard ascii range + space, without double quotes
+		if(('!' <= c && c <= '~' && c != '\"') || c == ' ') {
+			if(!inQuotes) {
+				inQuotes = true;
+				if(!first) out.puts(", ");
+				out.putc('\"');
+			}
+			out.putc(c);
+		}
+		else {
+			if(inQuotes) {
+				inQuotes = false;
+				out.putc('\"');
+			}
+			if(!first) out.puts(", ");
+			out.putu(c);
+		}
+		first = false;
+	}
+
+	if(inQuotes) {
+		out.putc('\"');
+	}
+
+	out.putsln(", 0");
+}
+
 function Parser.generate_program(ast: Node*, out: File*) {
 	out.putsln("section .text");
 	
@@ -1168,8 +1202,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 			if(!str.literal.used) continue;
 
-			out.puts("_S"); out.putd(str.literal.az.string.id); out.puts(": db "); out.putc('"'); out.puts(str.literal.az.string.chars);
-			out.putc('"'); out.putsln(", 0");
+			out.puts("_S"); out.putd(str.literal.az.string.id); out.puts(": db "); this.generate_string(str, out);
 		}
 
 		for(var i = 0; i < this.floats.size; ++i) {

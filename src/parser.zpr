@@ -256,6 +256,60 @@ function Parser.parse_type(): Type* {
 	return type;
 }
 
+function Parser.escape_literal(literal: Token*, index: int): int {
+	when(literal.start[index]) {
+		'0' -> return '\0';
+		'n' -> return '\n';
+		'r' -> return '\r';
+		't' -> return '\t';
+		'v' -> return '\v';
+		'\\' -> return '\\';
+		'\'' -> return '\'';
+		'\"' -> return '\"';
+
+		'x', 'X' -> {
+			if(!is_hex_digit(literal.start[index + 1]) || !is_hex_digit(literal.start[index + 2])) {
+				this.error_at_token(literal, "Invalid hexadecimal escape");
+			}
+			return hex_numeral(literal.start[index + 1])*16 + hex_numeral(literal.start[index + 2]);
+		}
+	}
+
+	return -1;
+}
+
+function Parser.escape_character(literal: Token*): i8 {
+	if(literal.start[1] != '\\') {
+		return literal.start[1];
+	}
+	
+	var value = this.escape_literal(literal, 2);
+
+	if(value != -1) return value;
+
+	this.error_at_token(literal, "Invalid escape sequence");
+	return 0;
+}
+
+function Parser.escape_string(literal: Token*, buf: i8*) {
+	var bufIdx = 0;
+	for(var i = 0; i < literal.length - 2; ++i) {
+		var char = literal.start[i + 1];
+
+		if(char != '\\') {
+			buf[bufIdx] = char;
+			++bufIdx;
+			continue;
+		}
+		
+		buf[bufIdx] = this.escape_literal(literal, i + 2);
+		if(literal.start[i + 2] == 'x' || literal.start[i + 2] == 'X') i += 2;
+		++i;
+		++bufIdx;
+	}
+	buf[bufIdx] = '\0';
+}
+
 function Parser.eval_constexpr(expr: Node*): int {
 	when(expr.type) {
 		// Note: only signed integers are supported as constants, so uint becomes int
@@ -391,7 +445,7 @@ function Parser.parse_value(): Node* {
 
 		var literalNode = new_node(NodeType::CHAR_LITERAL, literal);
 		literalNode.literal.type = I8_TYPE;
-		literalNode.literal.az.integer = literal.start[1];
+		literalNode.literal.az.integer = this.escape_character(literal);
 
 		return literalNode;
 	}
@@ -420,8 +474,7 @@ function Parser.parse_value(): Node* {
 		literalNode.literal.type = STR_TYPE;
 
 		var buf = malloc(literal.length - 2 + 1);
-		memcpy(buf, &literal.start[1], literal.length - 2);
-		buf[literal.length - 2] = 0;
+		this.escape_string(literal, buf);
 
 		literalNode.literal.az.string.chars = buf;
 		literalNode.literal.az.string.length = literal.length - 2;
