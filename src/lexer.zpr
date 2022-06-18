@@ -172,7 +172,8 @@ function Lexer.character(): Token* {
 }
 
 function Lexer.string(): Token* {
-	while(!this.is_at_end() && this.peek() != '"') {
+	while(!(this.peek() == '"' && this.current[-1] != '\\') && !this.is_at_end()) {
+		if(this.peek() == '\n') ++this.line;
 		this.advance();
 	}
 
