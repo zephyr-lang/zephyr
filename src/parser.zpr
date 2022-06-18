@@ -256,6 +256,23 @@ function Parser.parse_type(): Type* {
 	return type;
 }
 
+function Parser.escape_character(literal: Token*): i8 {
+	if(literal.start[1] != 92) {
+		return literal.start[1];
+	}
+	when(literal.start[2]) {
+		'n' -> return 10;
+		'r' -> return 13;
+		't' -> return 9;
+		'v' -> return 11;
+		92 -> return 92;
+		39 -> return 39;
+		34 -> return 34;
+	}
+	this.error_at_token(literal, "Invalid escape sequence");
+	return 0;
+}
+
 function Parser.eval_constexpr(expr: Node*): int {
 	when(expr.type) {
 		// Note: only signed integers are supported as constants, so uint becomes int
@@ -391,7 +408,7 @@ function Parser.parse_value(): Node* {
 
 		var literalNode = new_node(NodeType::CHAR_LITERAL, literal);
 		literalNode.literal.type = I8_TYPE;
-		literalNode.literal.az.integer = literal.start[1];
+		literalNode.literal.az.integer = this.escape_character(literal);
 
 		return literalNode;
 	}
