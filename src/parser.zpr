@@ -268,6 +268,13 @@ function Parser.escape_character(literal: Token*): i8 {
 		'\\' -> return '\\';
 		'\'' -> return '\'';
 		'\"' -> return '\"';
+
+		'x', 'X' -> {
+			if(!is_hex_digit(literal.start[3]) || !is_hex_digit(literal.start[4])) {
+				this.error_at_token(literal, "Invalid hexadecimal escape");
+			}
+			return hex_numeral(literal.start[3])*16 + hex_numeral(literal.start[4]);
+		}
 	}
 	this.error_at_token(literal, "Invalid escape sequence");
 	return 0;
