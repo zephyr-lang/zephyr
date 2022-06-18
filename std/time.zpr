@@ -1,0 +1,14 @@
+const CLOCK_MONOTONIC = 1;
+
+struct timespec {
+	tv_sec: int;
+	tv_nsec: int;
+}
+
+function nanosleep(req: timespec*, rem: timespec*): int {
+	return syscall2(SYS_nanosleep, req, rem);
+}
+
+function clock_nanosleep(clockid: int, flags: int, req: timespec*, rem: timespec*): int {
+	return syscall4(SYS_clock_nanosleep, clockid, flags, req, rem);
+}
