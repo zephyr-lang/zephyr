@@ -303,6 +303,7 @@ function Parser.escape_string(literal: Token*, buf: i8*) {
 		}
 		
 		buf[bufIdx] = this.escape_literal(literal, i + 2);
+		if(literal.start[i + 2] == 'x' || literal.start[i + 2] == 'X') i += 2;
 		++i;
 		++bufIdx;
 	}
