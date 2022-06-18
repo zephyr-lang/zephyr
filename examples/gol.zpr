@@ -92,9 +92,8 @@ function print_board(board: i8*) {
 }
 
 function move_cursor_start() {
-	// TODO: Use escape characters for this - \x1b[
-	putc(27); puts("["); putu(ROWS); puts("A");
-	putc(27); puts("["); putu(COLUMNS); puts("D");
+	puts("\x1b["); putu(ROWS); puts("A");
+	puts("\x1b["); putu(COLUMNS); puts("D");
 }
 
 function set_blinker(board: i8*) {
