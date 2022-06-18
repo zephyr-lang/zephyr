@@ -18,7 +18,7 @@ function assert(condition: bool, message: i8*) {
 // ========== fput family ==========
 
 function fputln(fd: int) {
-	var n = 10;
+	var n = '\n';
 	write(fd, &n, 1);
 }
 
@@ -197,7 +197,7 @@ function File.write(buf: any*, size: int) {
 }
 
 function File.putln() {
-	this.putc(10);
+	this.putc('\n');
 }
 
 function File.puts(str: i8*) {

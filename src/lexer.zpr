@@ -167,12 +167,11 @@ function Lexer.character(): Token* {
 	if(this.is_at_end()) return this.error_token("Expected character literal");
 	this.advance();
 
-	//TODO Character escapes
-	if(this.current[-1] == 92) {
+	if(this.current[-1] == '\\') {
 		this.advance();
 	}
 
-	if(!this.match(39)) return this.error_token("Expected closing single quote");
+	if(!this.match('\'')) return this.error_token("Expected closing single quote");
 	return this.make_token(TokenType::CHAR_LITERAL);
 }
 
@@ -267,8 +266,7 @@ function Lexer.next(): Token* {
 	if(is_alpha(c)) return this.identifier();
 	if(is_digit(c)) return this.number();
 
-	//TODO Character escape
-	if(c == 39) return this.character();
+	if(c == '\'') return this.character();
 	if(c == '"') return this.string();
 
 	when(c) {

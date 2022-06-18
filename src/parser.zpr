@@ -257,17 +257,17 @@ function Parser.parse_type(): Type* {
 }
 
 function Parser.escape_character(literal: Token*): i8 {
-	if(literal.start[1] != 92) {
+	if(literal.start[1] != '\\') {
 		return literal.start[1];
 	}
 	when(literal.start[2]) {
-		'n' -> return 10;
-		'r' -> return 13;
-		't' -> return 9;
-		'v' -> return 11;
-		92 -> return 92;
-		39 -> return 39;
-		34 -> return 34;
+		'n' -> return '\n';
+		'r' -> return '\r';
+		't' -> return '\t';
+		'v' -> return '\v';
+		'\\' -> return '\\';
+		'\'' -> return '\'';
+		'\"' -> return '\"';
 	}
 	this.error_at_token(literal, "Invalid escape sequence");
 	return 0;
