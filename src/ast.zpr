@@ -388,7 +388,7 @@ function data_type_to_string(type: DataType): i8* {
 		DataType::I16 -> return "i16";
 		DataType::I32 -> return "i32";
 		DataType::I64 -> return "i64";
-		DataType::INT -> return "int";
+		DataType::UINT -> return "uint";
 		DataType::U8 -> return "u8";
 		DataType::U16 -> return "u16";
 		DataType::U32 -> return "u32";
