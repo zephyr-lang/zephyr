@@ -674,9 +674,9 @@ function generate_new(expr: Node*, out: File*) {
 		var constructorName: Name;
 		parser.bind_name(&constructorName, constructorTok);
 
-		out.putsln("push rax");
+		out.putsln("    push rax");
 		generate_method_call(null, expr.constructor.type, &constructorName, expr.constructor.arguments, out);
-		out.putsln("pop rax");
+		out.putsln("    pop rax");
 	}
 }
 
@@ -969,6 +969,12 @@ function generate_define_var(stmt: Node*, out: File*) {
 	}
 }
 
+function generate_delete(stmt: Node*, out: File*) {
+	generate_expr(stmt.unary, out);
+	out.putsln("    mov rdi, rax");
+	out.putsln("    call _FZfree");
+}
+
 function generate_statement(stmt: Node*, out: File*) {
 	when(stmt.type) {
 		NodeType::IF -> {
@@ -1006,6 +1012,9 @@ function generate_statement(stmt: Node*, out: File*) {
 		}
 		NodeType::BREAK -> {
 			out.puts("    jmp .l"); out.putd(breakLabel); out.putln();
+		}
+		NodeType::DELETE -> {
+			generate_delete(stmt, out);
 		}
 		else -> {
 			eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();

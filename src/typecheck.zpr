@@ -1261,6 +1261,42 @@ function Parser.type_check_when_statement(stmt: Node*) {
 	this.currentBlock.block.hasReturned = hasReturned;
 }
 
+// Verify that the free function exists with the signature free(block: any*): void
+function Parser.resolve_free_function(): Node* {
+	var freeTok = synthetic_token(TokenType::IDENTIFIER, "free");
+	var freeName: Name;
+	this.bind_name(&freeName, freeTok);
+
+	var freeFunc = this.lookup_function(&freeName);
+
+	if(freeFunc == null) return null;
+	if(freeFunc.funktion.name.namespaceName != null) return null;
+	if(freeFunc.funktion.arguments.size != 1) return null;
+	var arg: Node* = freeFunc.funktion.arguments.at(0);
+	if(arg.variable.type.type != DataType::ANY || arg.variable.type.indirection != 1) return null;
+	if(freeFunc.funktion.returnType.type != DataType::VOID) return null;
+
+	return freeFunc;
+}
+
+function Parser.type_check_delete_statement(stmt: Node*) {
+	this.type_check_expr(stmt.unary);
+	var targetType: Type* = typeStack.pop();
+	resolve_type(targetType);
+
+	if(targetType.indirection == 0) {
+		stmt.print_position();
+		eputs("Cannot delete non-pointer type "); eputsln(type_to_string(targetType));
+		exit(1);
+	}
+
+	if(this.resolve_free_function() == null) {
+		stmt.print_position();
+		eputsln("Global 'free(block: any*)' function is required for 'delete'\n => Try including 'std/core.zpr'");
+		exit(1);
+	}
+}
+
 function Parser.type_check_statement(stmt: Node*) {
 	if(stmt.type == NodeType::IF) {
 		this.type_check_if_statement(stmt);
@@ -1319,6 +1355,9 @@ function Parser.type_check_statement(stmt: Node*) {
 			eputsln("Cannot use 'break' outside of a loop");
 			exit(1);
 		}
+	}
+	else if(stmt.type == NodeType::DELETE) {
+		this.type_check_delete_statement(stmt);
 	}
 	else {
 		eputsln("Unreachable - type_check_statement");

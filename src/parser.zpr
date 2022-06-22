@@ -1097,6 +1097,18 @@ function Parser.parse_when_statement(): Node* {
 	return vhen;
 }
 
+function Parser.parse_delete_statement(): Node* {
+	var keyword = this.previous;
+
+	var expr = this.parse_expression();
+	
+	this.consume(TokenType::SEMICOLON, "Expected ';' after delete expression");
+
+	var node = new_node(NodeType::DELETE, keyword);
+	node.unary = expr;
+	return node;
+}
+
 function Parser.parse_statement(): Node* {
 	if(this.match(TokenType::BREAK)) {
 		var pos = this.previous;
@@ -1109,6 +1121,9 @@ function Parser.parse_statement(): Node* {
 		this.consume(TokenType::SEMICOLON, "Expected ';' after 'continue'");
 		var kontinue = new_node(NodeType::CONTINUE, pos);
 		return kontinue;
+	}
+	else if(this.match(TokenType::DELETE)) {
+		return this.parse_delete_statement();
 	}
 	else if(this.match(TokenType::DO)) {
 		return this.parse_do_while_statement();

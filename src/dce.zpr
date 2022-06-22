@@ -149,6 +149,14 @@ function Parser.dce_statement(stmt: Node*) {
 			if(stmt.unary != null)
 				this.dce_expression(stmt.unary);
 		}
+		NodeType::DELETE -> {
+			var freeFunc = this.resolve_free_function();
+			if(!freeFunc.funktion.dced) {
+				freeFunc.funktion.dced = true;
+				this.dce_function(freeFunc);
+			}
+			this.dce_expression(stmt.unary);
+		}
 		NodeType::BREAK, NodeType::CONTINUE -> {}
 		else -> {
 			eputs("dce_statement unsupported node - ");

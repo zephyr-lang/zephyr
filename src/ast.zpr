@@ -53,6 +53,7 @@ enum NodeType {
 	ARRAY_INIT,
 	EXPR_STMT,
 	NEW,
+	DELETE,
 	IF,
 	WHILE,
 	DO_WHILE,
@@ -531,6 +532,7 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::ARRAY_INIT -> return "init array";
 		NodeType::EXPR_STMT -> return "expr stmt";
 		NodeType::NEW -> return "new";
+		NodeType::DELETE -> return "delete";
 		NodeType::IF -> return "if";
 		NodeType::WHILE -> return "while";
 		NodeType::FOR -> return "for";
