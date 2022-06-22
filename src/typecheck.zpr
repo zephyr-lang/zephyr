@@ -1295,6 +1295,23 @@ function Parser.type_check_delete_statement(stmt: Node*) {
 		eputsln("Global 'free(block: any*)' function is required for 'delete'\n => Try including 'std/core.zpr'");
 		exit(1);
 	}
+
+	if(targetType.type == DataType::STRUCT) {
+		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+		var deconstructorName: Name;
+		this.bind_name(&deconstructorName, deconstructorTok);
+
+		var deconstructor = targetType.lookup_method(&deconstructorName);
+
+		if(deconstructor != null) {
+			if(deconstructor.funktion.arguments.size - 1 != 0) {
+				stmt.print_position();
+				eputs("The deconstructor of type "); eputs(type_to_string(targetType)); eputs(" must have 0 arguments (has "); 
+				eputu(deconstructor.funktion.arguments.size); eputsln(")");
+				exit(1);
+			}
+		}
+	}
 }
 
 function Parser.type_check_statement(stmt: Node*) {

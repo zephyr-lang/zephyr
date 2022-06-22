@@ -973,6 +973,16 @@ function generate_delete(stmt: Node*, out: File*) {
 	generate_expr(stmt.unary, out);
 	out.putsln("    mov rdi, rax");
 	out.putsln("    call _FZfree");
+
+	var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+	var deconstructorName: Name;
+	parser.bind_name(&deconstructorName, deconstructorTok);
+
+	var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+
+	if(deconstructor != null) {
+		out.puts("    call _M"); out.put_name(&stmt.unary.computedType.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
+	}
 }
 
 function generate_statement(stmt: Node*, out: File*) {
