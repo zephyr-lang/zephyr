@@ -410,7 +410,7 @@ function generate_call(expr: Node*, out: File*) {
 	}
 }
 
-function generate_call_method(expr: Node*, out: File*) {
+function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arguments: Vector*, out: File*) {
 	for(var i = 0; i < intRegistersInUse; ++i) {
 		out.puts("    push "); out.putsln(INT_ARG_REGISTERS[i]);
 	}
@@ -423,11 +423,12 @@ function generate_call_method(expr: Node*, out: File*) {
 	var localFloatRegUse = 0;
 	++intRegistersInUse;
 	
-	generate_expr(expr.funktion.parent, out);
+	if(parent != null)
+		generate_expr(parent, out);
 	out.putsln("    mov rdi, rax");
 
-	for(var i = 0; i < expr.funktion.arguments.size; ++i) {
-		var arg: Node* = expr.funktion.arguments.at(i);
+	for(var i = 0; i < arguments.size; ++i) {
+		var arg: Node* = arguments.at(i);
 
 		if(arg.expr_type().is_float()) {
 			if(localFloatRegUse < FLOAT_ARG_COUNT) {
@@ -459,7 +460,7 @@ function generate_call_method(expr: Node*, out: File*) {
 	intRegistersInUse -= localIntRegUse;
 	floatRegistersInUse -= localFloatRegUse;
 
-	out.puts("    call _M"); out.put_name(&expr.funktion.parentType.name); out.puts("_"); out.put_name(&expr.funktion.name);
+	out.puts("    call _M"); out.put_name(&parentType.name); out.puts("_"); out.put_name(name);
 	out.putln();
 
 	for(var i = 0; i < intRegistersInUse; ++i) {
@@ -470,6 +471,10 @@ function generate_call_method(expr: Node*, out: File*) {
 		out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
 		out.putsln("    add rsp, 8");
 	}
+}
+
+function generate_call_method(expr: Node*, out: File*) {
+	generate_method_call(expr.funktion.parent, expr.funktion.parentType, &expr.funktion.name, expr.funktion.arguments, out);
 }
 
 function generate_ternary(expr: Node*, out: File*) {
@@ -663,6 +668,16 @@ function generate_new(expr: Node*, out: File*) {
 	// Typecheck should verify that malloc exists with the correct signature
 	out.puts("    mov rdi, "); out.putu(expr.constructor.type.size()); out.putln();
 	out.putsln("    call _FZmalloc");
+
+	if(expr.constructor.arguments != null) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		parser.bind_name(&constructorName, constructorTok);
+
+		out.putsln("push rax");
+		generate_method_call(null, expr.constructor.type, &constructorName, expr.constructor.arguments, out);
+		out.putsln("pop rax");
+	}
 }
 
 function generate_expr(expr: Node*, out: File*) {

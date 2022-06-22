@@ -424,6 +424,20 @@ function Parser.parse_new(): Node* {
 
 	var node = new_node(NodeType::NEW, keyword);
 	node.constructor.type = type;
+	node.constructor.arguments = null;
+
+	if(this.match(TokenType::LEFT_PAREN)) {
+		node.constructor.arguments = new_vector();
+		if(!this.check(TokenType::RIGHT_PAREN)) {
+			do {
+				var arg = this.parse_expression();
+
+				node.constructor.arguments.push(arg);
+			} while(this.match(TokenType::COMMA));
+		}
+		this.consume(TokenType::RIGHT_PAREN, "Expected ')' after constructor arguments");
+	}
+
 	return node;
 }
 

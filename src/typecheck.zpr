@@ -389,10 +389,6 @@ function Type.lookup_method(name: Name*): Node* {
 		}
 	}
 
-	name.print_position();
-	eputs("Type "); eputs(type_to_string(this)); eputs(" has no method '"); name.eput(); eputsln("'");
-	exit(1);
-
 	return null;
 }
 
@@ -637,11 +633,21 @@ function Parser.type_check_method_call(expr: Node*) {
 
 	if(parentType.type == DataType::STRUCT && parentType.indirection == 0) {
 		funktion = parentType.lookup_method(&name);
+		if(funktion == null) {
+			name.print_position();
+			eputs("Type "); eputs(type_to_string(parentType)); eputs(" has no method '"); name.eput(); eputsln("'");
+			exit(1);
+		}
 	}
 	else if(parentType.type == DataType::STRUCT && parentType.indirection == 1 && !parentType.isArray) {
 		var copy = copy_type(parentType);
 		copy.indirection = copy.indirection - 1;
 		funktion = copy.lookup_method(&name);
+		if(funktion == null) {
+			name.print_position();
+			eputs("Type "); eputs(type_to_string(copy)); eputs(" has no method '"); name.eput(); eputsln("'");
+			exit(1);
+		}
 		parentType = copy;
 	}
 	else {
@@ -873,6 +879,54 @@ function Parser.type_check_new(expr: Node*) {
 		expr.print_position();
 		eputsln("Global 'malloc(size: uint)' function is required for 'new'\n => Try including 'std/core.zpr'");
 		exit(1);
+	}
+
+	// A constructor is specified
+	if(expr.constructor.arguments != null) {
+		if(expr.constructor.type.type != DataType::STRUCT || expr.constructor.type.indirection != 0) {
+			expr.print_position();
+			eputs("Cannot call constructor of type "); eputsln(type_to_string(expr.constructor.type));
+			exit(1);
+		}
+
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructor = expr.constructor.type.lookup_method(&constructorName);
+		// Perform default operation if constructor does not exist and there are no arguments
+		if(constructor == null) {
+			if(expr.constructor.arguments.size != 0) {
+				eputs("Type "); eputs(type_to_string(expr.constructor.type)); eputs(" has no constructor: expected 0 arguments, got "); 
+				eputd(expr.constructor.arguments.size); eputln();
+			}
+			expr.constructor.arguments = null;
+		}
+		else {
+			// Type check as if it were a method call
+			if(constructor.funktion.arguments.size - 1 != expr.constructor.arguments.size) {
+				expr.print_position();
+				eputs("Call expected "); eputd(constructor.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(expr.constructor.arguments.size); eputln();
+				exit(1);
+			}
+
+			for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
+				var arg: Node* = expr.constructor.arguments.at(i - 1);
+				this.type_check_expr(arg);
+
+				var argType: Type* = typeStack.pop();
+				
+				var param: Node* = constructor.funktion.arguments.at(i);
+				var paramType = param.variable.type;
+
+				if(!argType.assignable(paramType)) {
+					expr.print_position();
+					eputs("Function argument "); eputd(i + 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
+					eputs(type_to_string(argType)); eputln();
+					exit(1);
+				}
+			}
+		}
 	}
 
 	var ptr = copy_type(expr.constructor.type);

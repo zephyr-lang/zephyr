@@ -244,6 +244,7 @@ struct Node {
 
 		constructor: struct {
 			type: Type*;
+			arguments: Vector*;
 		};
 	};
 }
