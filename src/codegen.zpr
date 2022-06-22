@@ -121,7 +121,7 @@ function generate_addrof(expr: Node*, out: File*) {
 			out.putsln("    pop rax");
 
 			//FIXME: This could make array accessing very slow
-			var size = expr.computedType.size();
+			var size = expr.unary.computedType.size();
 			if(size % 2 != 0 || size == 6 || size > 8) {
 				out.puts("    imul rcx, "); out.putu(size); out.putln();
 				out.putsln("    add rax, rcx");

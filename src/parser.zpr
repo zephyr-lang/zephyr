@@ -456,7 +456,7 @@ function Parser.parse_value(): Node* {
 		var literalNode = new_node(NodeType::FLOAT_LITERAL, literal);
 		literalNode.literal.type = F64_TYPE;
 
-		var str = malloc(literal.length + 1);
+		var str: i8* = malloc(literal.length + 1);
 		memcpy(str, literal.start, literal.length);
 		str[literal.length] = 0;
 
@@ -473,7 +473,7 @@ function Parser.parse_value(): Node* {
 		var literalNode = new_node(NodeType::STRING, literal);
 		literalNode.literal.type = STR_TYPE;
 
-		var buf = malloc(literal.length - 2 + 1);
+		var buf: i8* = malloc(literal.length - 2 + 1);
 		this.escape_string(literal, buf);
 
 		literalNode.literal.az.string.chars = buf;
@@ -1448,7 +1448,7 @@ function Parser.parse_import() {
 	var path = this.consume(TokenType::STRING, "Expected import path");
 	this.consume(TokenType::SEMICOLON, "Expected ';' after import");
 
-	var spath = malloc(path.length - 2 + 1);
+	var spath: i8* = malloc(path.length - 2 + 1);
 	memcpy(spath, &path.start[1], path.length - 2);
 	spath[path.length - 2] = 0;
 

@@ -38,23 +38,181 @@ function time(): uint {
 
 // Memory
 
-const __MALLOC_BUFFER_SIZE = 15 * 1024 * 1024; // 15MB
-var __malloc_buffer: i8[__MALLOC_BUFFER_SIZE];
-var __malloc_buffer_offset = 0;
+namespace std::internal::malloc {
 
-function free(block: any*) {}
-
-function malloc(size: int): any* {
-	var offset = __malloc_buffer_offset;
-	if(offset + size >= __MALLOC_BUFFER_SIZE) {
-		write(2, "MALLOC ERR", 10);
-		exit(-1);
+	// Direct syscall wrappers - these do not act the same way as the libC functions do
+	function brk(addr: any*): any* {
+		return syscall1(SYS_brk, addr) as any*;
 	}
-	__malloc_buffer_offset += size;
 
-	var ptr = &__malloc_buffer[offset];
+	var __sbrk_base = null;
 
-	return &__malloc_buffer[offset];
+	function sbrk(inc: uint): any* {
+		if(__sbrk_base == null) __sbrk_base = brk(null);
+
+		if(inc == 0) {
+			return __sbrk_base;
+		}
+
+		var prev = __sbrk_base;
+
+		__sbrk_base = brk(((__sbrk_base as uint) + inc) as any*);
+
+		return prev;
+	}
+
+	// Header of each block allocated by malloc
+	// TODO: Collapse `free` into the LSB of size
+	struct __malloc_header {
+		size: uint;
+		free: uint;
+
+		previousBlock: __malloc_header*;
+
+		// Record the next and previous *free* blocks in an implicit doubly linked list
+		next: __malloc_header*;
+		prev: __malloc_header*;
+	}
+
+	// The beginning of the heap
+	var __malloc_base: __malloc_header* = null;
+
+	// The last block of the heap
+	var __malloc_last: __malloc_header* = null;
+
+	// The first item of the free blocks linked list
+	var __free_blocks_base: __malloc_header* = null;
+	// The last item of the free blocks linked list
+	var __free_blocks_last: __malloc_header* = null;
+
+	// Locate a block within the free block linked list which has enough size for a block of the specified `size`
+	// returns null if such a block is not found
+	// last is set to the previous block (i.e., last.next == block, block.prev == last)
+	function __find_malloc_block(last: __malloc_header**, size: uint): __malloc_header* {
+		var current = __free_blocks_base;
+		while(current != null) {
+			if(current.size >= size) {
+				return current;
+			}
+			*last = current;
+			current = current.next;
+		}
+		return current;
+	}
+
+	// Given a user-level allocated block (i.e., the memory used in a program)
+	// return the header which describes the block
+	function __get_malloc_header_ptr(ptr: any*): __malloc_header* {
+		return &(ptr as __malloc_header*)[-1];
+	}
+
+	function _malloc(reqsize: uint): any* {
+		var size = ((sizeof(__malloc_header) + reqsize - 1)|7) + 1;
+		
+		var block: __malloc_header*;
+
+		if(__malloc_base == null) {
+			block = sbrk(size);
+			__malloc_base = block;
+			__malloc_last = block;
+			block.previousBlock = null;
+		}
+		else {
+			var last = __malloc_base;
+			var found = __find_malloc_block(&last, size);
+			if(found == null) {
+				block = sbrk(size);
+				block.previousBlock = __malloc_last;
+				__malloc_last = block;
+			}
+			else {
+				block = found;
+				block.free = 0;
+
+				// Split the block
+				if(block.size > size) {
+					var split = ((block as uint) + size) as __malloc_header*;
+					split.size = block.size - size;
+					split.next = block.next;
+					split.prev = block.prev;
+					split.free = 1;
+
+					block.size = size;
+
+					if(block.prev != null) {
+						block.prev.next = split;
+					}
+					if(block.next != null) {
+						block.next.prev = split;
+					}
+					if(block == __free_blocks_base) {
+						__free_blocks_base = split;
+					}
+				}
+				else {
+					// Remove the free block from the linked list
+					if(block.prev != null) {
+						block.prev.next = block.next;
+					}
+					if(block.next != null) {
+						block.next.prev = block.prev;
+					}
+					if(block == __free_blocks_base) {
+						__free_blocks_base = block.next;
+					}
+				}
+
+				return &block[1];
+			}
+		}
+
+		block.size = size;
+		block.free = 0;
+
+		// Return the memory immediately after the header
+		return &block[1];
+	}
+
+	function _free(ptr: any*) {
+		if(ptr == null) {
+			return;
+		}
+
+		var header = __get_malloc_header_ptr(ptr);
+		header.free = 1;
+		
+		if(__free_blocks_base == null) {
+			__free_blocks_base = header;
+			__free_blocks_last = header;
+			header.prev = null;
+			header.next = null;
+		}
+		else {
+			// if the list has at least one item, append this block to the end
+			__free_blocks_last.next = header;
+			header.prev = __free_blocks_last;
+			__free_blocks_last = header;
+		}
+
+		// Attempt to merge this block with the previous block
+		if(header.previousBlock != null && header.previousBlock.free) {
+			header.previousBlock.size += header.size;
+
+			if(header.previousBlock.prev != null) header.previousBlock.prev.next = header.next;
+			if(header.next != null) header.next.prev = header.previousBlock;
+		}
+
+		//TODO: next block merging
+	}
+
+}
+
+function malloc(size: uint): any* {
+	return std::internal::malloc::_malloc(size);
+}
+
+function free(block: any*) {
+	return std::internal::malloc::_free(block);
 }
 
 function memcpy(dst: any*, src: any*, size: int) {

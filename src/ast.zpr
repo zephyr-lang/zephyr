@@ -318,7 +318,7 @@ function Name.to_string(): i8* {
 		}
 	}
 
-	var str = malloc(namespaceLength + this.name.length + 1);
+	var str: i8* = malloc(namespaceLength + this.name.length + 1);
 	str[0] = 0;
 
 	for(var i = 0; i < parts.size; ++i) {
