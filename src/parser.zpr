@@ -418,6 +418,15 @@ function Parser.parse_identifier(): Node* {
 	return access;
 }
 
+function Parser.parse_new(): Node* {
+	var keyword = this.previous;
+	var type = this.parse_type();
+
+	var node = new_node(NodeType::NEW, keyword);
+	node.constructor.type = type;
+	return node;
+}
+
 function Parser.parse_value(): Node* {
 	if(this.match(TokenType::INT_LITERAL)) {
 		var literal = this.previous;
@@ -500,6 +509,9 @@ function Parser.parse_value(): Node* {
 		this.consume(TokenType::RIGHT_PAREN, "Expected ')' after sizeof type");
 		expr.computedType = type;
 		return expr;
+	}
+	else if(this.match(TokenType::NEW)) {
+		return this.parse_new();
 	}
 	else if(this.match(TokenType::LEFT_PAREN)) {
 		var expr = this.parse_expression();

@@ -15,13 +15,13 @@ function new_type(): Type* {
 }
 
 function copy_type(a: Type*): Type* {
-	var new: Type* = malloc(sizeof(Type));
-	new.type = a.type;
-	new.indirection = a.indirection;
-	new.name = a.name;
-	new.fields = a.fields;
-	new.methods = a.methods;
-	return new;
+	var copy: Type* = malloc(sizeof(Type));
+	copy.type = a.type;
+	copy.indirection = a.indirection;
+	copy.name = a.name;
+	copy.fields = a.fields;
+	copy.methods = a.methods;
+	return copy;
 }
 
 function build_types() {

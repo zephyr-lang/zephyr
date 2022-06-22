@@ -79,6 +79,7 @@ enum TokenType {
 	FOR,
 	FUNCTION,
 	NAMESPACE,
+	NEW,
 	RETURN,
 	SIZEOF,
 	STRUCT,
@@ -180,6 +181,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::FOR -> return "for";
 		TokenType::FUNCTION -> return "function";
 		TokenType::NAMESPACE -> return "namespace";
+		TokenType::NEW -> return "new";
 		TokenType::RETURN -> return "return";
 		TokenType::SIZEOF -> return "sizeof";
 		TokenType::STRUCT -> return "struct";

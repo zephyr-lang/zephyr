@@ -216,20 +216,20 @@ function resolve_type(type: Type*): Type* {
 	var resolve = lookup_type(&type.name);
 
 	if(resolve.type == DataType::ALIAS) {
-		var new = copy_type(resolve.aliased);
-		new.indirection = type.indirection;
-		new.isArray = type.isArray;
-		new.arrayLength = type.arrayLength;
-		new.aliased = resolve;
-		*type = *new;
+		var copy = copy_type(resolve.aliased);
+		copy.indirection = type.indirection;
+		copy.isArray = type.isArray;
+		copy.arrayLength = type.arrayLength;
+		copy.aliased = resolve;
+		*type = *copy;
 		return type;
 	}
 
-	var new = copy_type(resolve);
-	new.indirection = type.indirection;
-	new.isArray = type.isArray;
-	new.arrayLength = type.arrayLength;
-	*type = *new;
+	var copy = copy_type(resolve);
+	copy.indirection = type.indirection;
+	copy.isArray = type.isArray;
+	copy.arrayLength = type.arrayLength;
+	*type = *copy;
 	return type;
 }
 
@@ -256,6 +256,13 @@ function Parser.lookup_variable(name: Name*): Node* {
 	var global = this.lookup_global_variable(name);
 	if(global != null) return global;
 
+	var funktion = this.lookup_function(name);
+	if(funktion != null) return funktion;
+
+	return null;
+}
+
+function Parser.lookup_function(name: Name*): Node* {
 	if(name.namespaceName == null) {
 		for(var ni = namespaces.size - 1; ni >= 0; --ni) {
 			var nameSpace: Namespace* = namespaces.at(ni);
@@ -836,6 +843,44 @@ function Parser.type_check_inc_decrement(expr: Node*) {
 	typeStack.push(type);
 }
 
+// Verify that the malloc function exists with the signature malloc(size: uint): any*
+function Parser.resolve_malloc_function(): Node* {
+	var mallocTok = synthetic_token(TokenType::IDENTIFIER, "malloc");
+	var mallocName: Name;
+	this.bind_name(&mallocName, mallocTok);
+
+	var mallocFunc = this.lookup_function(&mallocName);
+
+	if(mallocFunc == null) return null;
+	if(mallocFunc.funktion.name.namespaceName != null) return null;
+	if(mallocFunc.funktion.arguments.size != 1) return null;
+	var arg: Node* = mallocFunc.funktion.arguments.at(0);
+	if(arg.variable.type.type != DataType::UINT || arg.variable.type.indirection != 0) return null;
+	if(mallocFunc.funktion.returnType.type != DataType::ANY || mallocFunc.funktion.returnType.indirection != 1) return null;
+
+	return mallocFunc;
+}
+
+function Parser.type_check_new(expr: Node*) {
+	resolve_type(expr.constructor.type);
+
+	if(expr.constructor.type.isArray) {
+		expr.print_position();
+		eputsln("Unsupported operation - cannot instanciate arrays with new");
+		exit(1);
+	}
+	if(this.resolve_malloc_function() == null) {
+		expr.print_position();
+		eputsln("Global 'malloc(size: uint)' function is required for 'new'\n => Try including 'std/core.zpr'");
+		exit(1);
+	}
+
+	var ptr = copy_type(expr.constructor.type);
+	ptr.indirection++;
+	expr.computedType = ptr;
+	typeStack.push(ptr);
+}
+
 function Parser.type_check_expr(expr: Node*) {
 	if(is_unary_op(expr.type)) {
 		this.type_check_unary(expr);
@@ -913,6 +958,9 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == NodeType::PRE_INCREMENT || expr.type == NodeType::POST_INCREMENT || expr.type == NodeType::PRE_DECREMENT || expr.type == NodeType::POST_DECREMENT) {
 		this.type_check_inc_decrement(expr);
+	}
+	else if(expr.type == NodeType::NEW) {
+		this.type_check_new(expr);
 	}
 	else {
 		eputsln("Unreachable - type_check_expr");

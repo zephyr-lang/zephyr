@@ -52,6 +52,7 @@ enum NodeType {
 	ACCESS_GLOBAL_VAR,
 	ARRAY_INIT,
 	EXPR_STMT,
+	NEW,
 	IF,
 	WHILE,
 	DO_WHILE,
@@ -239,6 +240,10 @@ struct Node {
 		nameSpace: struct {
 			name: Namespace*;
 			body: Node*;
+		};
+
+		constructor: struct {
+			type: Type*;
 		};
 	};
 }
@@ -524,6 +529,7 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::ACCESS_GLOBAL_VAR -> return "access gvar";
 		NodeType::ARRAY_INIT -> return "init array";
 		NodeType::EXPR_STMT -> return "expr stmt";
+		NodeType::NEW -> return "new";
 		NodeType::IF -> return "if";
 		NodeType::WHILE -> return "while";
 		NodeType::FOR -> return "for";

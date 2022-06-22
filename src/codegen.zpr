@@ -15,6 +15,8 @@ var floatRegistersInUse = 0;
 var continueLabel = 0;
 var breakLabel = 0;
 
+var parser: Parser*;
+
 function Type.qualifier(): i8* {
 	when(this.size()) {
 		1 -> return "BYTE";
@@ -657,6 +659,12 @@ function generate_post_decrement(expr: Node*, out: File*) {
 	out.putsln("   mov rax, rdx");
 }
 
+function generate_new(expr: Node*, out: File*) {
+	// Typecheck should verify that malloc exists with the correct signature
+	out.puts("    mov rdi, "); out.putu(expr.constructor.type.size()); out.putln();
+	out.putsln("    call _FZmalloc");
+}
+
 function generate_expr(expr: Node*, out: File*) {
 	if(is_unary_op(expr.type)) {
 		generate_unary(expr, out);
@@ -739,6 +747,9 @@ function generate_expr(expr: Node*, out: File*) {
 		NodeType::FLOAT_TO_INT -> {
 			generate_expr(expr.unary, out);
 			out.putsln("    cvttsd2si rax, xmm0");
+		}
+		NodeType::NEW -> {
+			generate_new(expr, out);
 		}
 		else -> {
 			eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
@@ -1116,6 +1127,7 @@ function Parser.generate_string(str: Node*, out: File*) {
 }
 
 function Parser.generate_program(ast: Node*, out: File*) {
+	parser = this;
 	out.putsln("section .text");
 	
 	generate_builtin_functions(out);

@@ -74,6 +74,13 @@ function Parser.dce_expression(expr: Node*) {
 			assert(variable.type == NodeType::DEFINE_GLOBAL_VAR, "typechecker must verify global variable type");
 			variable.variable.used = true;
 		}
+		NodeType::NEW -> {
+			var mallocFunc = this.resolve_malloc_function();
+			if(!mallocFunc.funktion.dced) {
+				mallocFunc.funktion.dced = true;
+				this.dce_function(mallocFunc);
+			}
+		}
 		NodeType::SIZEOF,
 		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::UINT_LITERAL, NodeType::ACCESS_VAR -> {}
 		else -> {
