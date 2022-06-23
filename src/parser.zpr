@@ -424,10 +424,9 @@ function Parser.parse_new(): Node* {
 
 	var node = new_node(NodeType::NEW, keyword);
 	node.constructor.type = type;
-	node.constructor.arguments = null;
+	node.constructor.arguments = new_vector();
 
 	if(this.match(TokenType::LEFT_PAREN)) {
-		node.constructor.arguments = new_vector();
 		if(!this.check(TokenType::RIGHT_PAREN)) {
 			do {
 				var arg = this.parse_expression();

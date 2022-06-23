@@ -882,13 +882,7 @@ function Parser.type_check_new(expr: Node*) {
 	}
 
 	// A constructor is specified
-	if(expr.constructor.arguments != null) {
-		if(expr.constructor.type.type != DataType::STRUCT || expr.constructor.type.indirection != 0) {
-			expr.print_position();
-			eputs("Cannot call constructor of type "); eputsln(type_to_string(expr.constructor.type));
-			exit(1);
-		}
-
+	if(expr.constructor.type.type == DataType::STRUCT && expr.constructor.type.indirection == 0) {
 		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
 		var constructorName: Name;
 		this.bind_name(&constructorName, constructorTok);
@@ -899,7 +893,9 @@ function Parser.type_check_new(expr: Node*) {
 			if(expr.constructor.arguments.size != 0) {
 				eputs("Type "); eputs(type_to_string(expr.constructor.type)); eputs(" has no constructor: expected 0 arguments, got "); 
 				eputd(expr.constructor.arguments.size); eputln();
+				exit(1);
 			}
+			// Indicate to codegen to not generate a call to the constructor
 			expr.constructor.arguments = null;
 		}
 		else {
@@ -1068,10 +1064,12 @@ function Parser.type_check_define_var(stmt: Node*) {
 		exit(1);
 	}
 
+	var valueType: Type* = null;
 	if(declType.type == DataType::VOID) {
 		this.type_check_expr(stmt.variable.value);
 		stmt.variable.type = typeStack.pop();
 		declType = stmt.variable.type;
+		valueType = declType;
 	}
 
 	resolve_type(stmt.variable.type);
@@ -1083,14 +1081,17 @@ function Parser.type_check_define_var(stmt: Node*) {
 	}
 
 	if(stmt.variable.value != null) {
-		if(stmt.variable.value.type == NodeType::ARRAY_INIT) {
-			this.type_check_array_init(stmt.variable.value, stmt.variable.type);
-		}
-		else {
-			this.type_check_expr(stmt.variable.value);
+		if(valueType == null) {
+			if(stmt.variable.value.type == NodeType::ARRAY_INIT) {
+				this.type_check_array_init(stmt.variable.value, stmt.variable.type);
+				valueType = typeStack.pop();
+			}
+			else {
+				this.type_check_expr(stmt.variable.value);
+				valueType = typeStack.pop();
+			}
 		}
 
-		var valueType: Type* = typeStack.pop();
 		resolve_type(valueType);
 
 		if(declType.is_integral() && valueType.is_float()) {
