@@ -671,7 +671,7 @@ function generate_new(expr: Node*, out: File*) {
 	out.puts("    mov rdi, "); out.putu(expr.constructor.type.size()); out.putln();
 	out.putsln("    call _FZmalloc");
 
-	if(expr.constructor.arguments != null) {
+	if(expr.constructor.shouldConstruct) {
 		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
 		var constructorName: Name;
 		parser.bind_name(&constructorName, constructorTok);
@@ -685,7 +685,7 @@ function generate_new(expr: Node*, out: File*) {
 function generate_new_array(expr: Node*, out: File*) {
 	// Typecheck should verify that malloc exists with the correct signature
 	generate_expr(expr.constructor.array.length, out);
-	if(expr.constructor.array.shouldConstruct) {
+	if(expr.constructor.shouldConstruct) {
 		out.putsln("    push rax");
 	}
 	out.puts("    imul rax, "); out.putu(expr.constructor.type.size()); out.putln();
@@ -693,7 +693,7 @@ function generate_new_array(expr: Node*, out: File*) {
 	out.putsln("    call _FZmalloc");
 
 	// Construct a for-loop inline
-	if(expr.constructor.array.shouldConstruct) {
+	if(expr.constructor.shouldConstruct) {
 		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
 		var constructorName: Name;
 		parser.bind_name(&constructorName, constructorTok);
@@ -1039,81 +1039,88 @@ function generate_define_var(stmt: Node*, out: File*) {
 }
 
 function generate_delete(stmt: Node*, out: File*) {
-	generate_expr(stmt.unary, out);
+	generate_expr(stmt.deconstructor.value, out);
 	out.putsln("    mov rdi, rax");
 	out.putsln("    call _FZfree");
 
-	var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
-	var deconstructorName: Name;
-	parser.bind_name(&deconstructorName, deconstructorTok);
+	if(stmt.deconstructor.shouldDeconstruct) {
+		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+		var deconstructorName: Name;
+		parser.bind_name(&deconstructorName, deconstructorTok);
 
-	var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+		var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
 
-	if(deconstructor != null) {
-		out.puts("    call _M"); out.put_name(&stmt.unary.computedType.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
+		if(deconstructor != null) {
+			out.puts("    call _M"); out.put_name(&stmt.unary.computedType.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
+		}
 	}
 }
 
 function generate_delete_array(stmt: Node*, out: File*) {
 	generate_expr(stmt.deconstructor.value, out);
 
-	out.putsln("push rax");
-	out.putsln("push rax");
+	if(stmt.deconstructor.shouldDeconstruct) {
+		out.putsln("push rax");
+		out.putsln("push rax");
 
-	var arrayLengthFunc = parser.resolve_get_array_length_function();
-	out.putsln("mov rdi, rax");
-	out.puts("mov rsi, "); out.putu(stmt.deconstructor.elementType.size()); out.putln();
-	out.puts("call _F"); out.put_name(&arrayLengthFunc.funktion.name); out.putln();
+		var arrayLengthFunc = parser.resolve_get_array_length_function();
+		out.putsln("mov rdi, rax");
+		out.puts("mov rsi, "); out.putu(stmt.deconstructor.elementType.size()); out.putln();
+		out.puts("call _F"); out.put_name(&arrayLengthFunc.funktion.name); out.putln();
 
-	out.putsln("push rax");
+		out.putsln("push rax");
 
-	var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
-	var deconstructorName: Name;
-	parser.bind_name(&deconstructorName, deconstructorTok);
+		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+		var deconstructorName: Name;
+		parser.bind_name(&deconstructorName, deconstructorTok);
 
-	var loopStart = ++labelCount;
-	var loopEnd = ++labelCount;
+		var loopStart = ++labelCount;
+		var loopEnd = ++labelCount;
 
-	out.putsln("    mov rcx, 0");
-	out.putsln("    push rcx");          // push 'i' initialised to 0
-	out.putsln("    mov rdx, [rsp+8]");  // move the length into rdx
-	out.putsln("    mov rax, [rsp+16]"); // move the address of the array into rax
+		out.putsln("    mov rcx, 0");
+		out.putsln("    push rcx");          // push 'i' initialised to 0
+		out.putsln("    mov rdx, [rsp+8]");  // move the length into rdx
+		out.putsln("    mov rax, [rsp+16]"); // move the address of the array into rax
 
-	// At the beginning of each iteration, the top of the stack appears as such:
-	// - i (iteration)
-	// - length of array
-	// - address (offsetted)
-	// - address (result)
+		// At the beginning of each iteration, the top of the stack appears as such:
+		// - i (iteration)
+		// - length of array
+		// - address (offsetted)
+		// - address (result)
 
-	out.puts(".l"); out.putu(loopStart); out.putsln(":");
-	out.putsln("    cmp rcx, rdx");
-	out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
+		out.puts(".l"); out.putu(loopStart); out.putsln(":");
+		out.putsln("    cmp rcx, rdx");
+		out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
 
-	// address (offsetted) is already in rax at this point
-	generate_method_call(null, stmt.deconstructor.elementType, &deconstructorName, null, out);
+		// address (offsetted) is already in rax at this point
+		generate_method_call(null, stmt.deconstructor.elementType, &deconstructorName, null, out);
 
-	// Set registers as such:
-	// rcx - i
-	// rax - address (offsetted)
-	// rdx - length
-	out.putsln("    mov rcx, [rsp]");
-	out.putsln("    mov rax, [rsp+16]");
-	out.putsln("    mov rdx, [rsp+8]");
+		// Set registers as such:
+		// rcx - i
+		// rax - address (offsetted)
+		// rdx - length
+		out.putsln("    mov rcx, [rsp]");
+		out.putsln("    mov rax, [rsp+16]");
+		out.putsln("    mov rdx, [rsp+8]");
 
-	// Increment (and store) i (by 1) and the offsetted address (by the size of an element)
-	out.putsln("    add rcx, 1");
-	out.putsln("    mov [rsp], rcx");
-	out.puts("    add rax, "); out.putu(stmt.deconstructor.elementType.size()); out.putln();
-	out.putsln("    mov [rsp+16], rax");
+		// Increment (and store) i (by 1) and the offsetted address (by the size of an element)
+		out.putsln("    add rcx, 1");
+		out.putsln("    mov [rsp], rcx");
+		out.puts("    add rax, "); out.putu(stmt.deconstructor.elementType.size()); out.putln();
+		out.putsln("    mov [rsp+16], rax");
 
-	// complete the loop
-	out.puts("    jmp .l"); out.putu(loopStart); out.putln();
+		// complete the loop
+		out.puts("    jmp .l"); out.putu(loopStart); out.putln();
 
-	out.puts(".l"); out.putu(loopEnd); out.putsln(":");
-	// Set rax to the final result address (which is the same as the one malloc originally returned)
-	// then pop the values from the stack
-	out.putsln("    mov rax, [rsp+24]");
-	out.putsln("    add rsp, 32");
+		out.puts(".l"); out.putu(loopEnd); out.putsln(":");
+		// Set rax to the final result address (which is the same as the one malloc originally returned)
+		// then pop the values from the stack
+		out.putsln("    mov rax, [rsp+24]");
+		out.putsln("    add rsp, 32");
+	}
+	
+	out.putsln("    mov rdi, rax");
+	out.putsln("    call _FZfree");
 }
 
 function generate_statement(stmt: Node*, out: File*) {

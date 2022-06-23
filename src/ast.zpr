@@ -247,11 +247,11 @@ struct Node {
 
 		constructor: struct {
 			type: Type*;
+			shouldConstruct: bool;
 			union {
 				arguments: Vector*;
 				array: struct {
 					length: Node*;
-					shouldConstruct: bool;
 				};
 			};
 		};
@@ -259,6 +259,7 @@ struct Node {
 		deconstructor: struct {
 			value: Node*;
 			elementType: Type*;
+			shouldDeconstruct: bool;
 		};
 	};
 }

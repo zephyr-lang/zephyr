@@ -80,7 +80,7 @@ function Parser.dce_expression(expr: Node*) {
 				mallocFunc.funktion.dced = true;
 				this.dce_function(mallocFunc);
 			}
-			if(expr.constructor.arguments != null) {
+			if(expr.constructor.shouldConstruct) {
 				var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
 				var constructorName: Name;
 				this.bind_name(&constructorName, constructorTok);
@@ -100,7 +100,7 @@ function Parser.dce_expression(expr: Node*) {
 			}
 			this.dce_expression(expr.constructor.array.length);
 
-			if(expr.constructor.array.shouldConstruct) {
+			if(expr.constructor.shouldConstruct) {
 				var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
 				var constructorName: Name;
 				this.bind_name(&constructorName, constructorTok);
@@ -175,17 +175,19 @@ function Parser.dce_statement(stmt: Node*) {
 				freeFunc.funktion.dced = true;
 				this.dce_function(freeFunc);
 			}
-			this.dce_expression(stmt.unary);
+			this.dce_expression(stmt.deconstructor.value);
 
-			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
-			var deconstructorName: Name;
-			this.bind_name(&deconstructorName, deconstructorTok);
+			if(stmt.deconstructor.shouldDeconstruct) {
+				var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+				var deconstructorName: Name;
+				this.bind_name(&deconstructorName, deconstructorTok);
 
-			var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+				var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
 
-			if(deconstructor != null && !deconstructor.funktion.dced) {
-				deconstructor.funktion.dced = true;
-				this.dce_function(deconstructor);
+				if(deconstructor != null && !deconstructor.funktion.dced) {
+					deconstructor.funktion.dced = true;
+					this.dce_function(deconstructor);
+				}
 			}
 		}
 		NodeType::DELETE_ARRAY -> {
@@ -194,17 +196,25 @@ function Parser.dce_statement(stmt: Node*) {
 				func.funktion.dced = true;
 				this.dce_function(func);
 			}
-			this.dce_expression(stmt.unary);
+			this.dce_expression(stmt.deconstructor.value);
+			
+			var freeFunc = this.resolve_free_function();
+			if(!freeFunc.funktion.dced) {
+				freeFunc.funktion.dced = true;
+				this.dce_function(freeFunc);
+			}
 
-			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
-			var deconstructorName: Name;
-			this.bind_name(&deconstructorName, deconstructorTok);
+			if(stmt.deconstructor.shouldDeconstruct) {
+				var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+				var deconstructorName: Name;
+				this.bind_name(&deconstructorName, deconstructorTok);
 
-			var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+				var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
 
-			if(deconstructor != null && !deconstructor.funktion.dced) {
-				deconstructor.funktion.dced = true;
-				this.dce_function(deconstructor);
+				if(deconstructor != null && !deconstructor.funktion.dced) {
+					deconstructor.funktion.dced = true;
+					this.dce_function(deconstructor);
+				}
 			}
 		}
 		NodeType::BREAK, NodeType::CONTINUE -> {}

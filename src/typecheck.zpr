@@ -917,6 +917,7 @@ function Parser.type_check_new(expr: Node*) {
 					exit(1);
 				}
 			}
+			expr.constructor.shouldConstruct = true;
 		}
 	}
 
@@ -944,7 +945,7 @@ function Parser.type_check_new_array(expr: Node*) {
 		// Perform default operation if constructor does not exist
 		// (for now, ) creating via an array does not care if a constructor with more arguments is the only option
 		if(constructor != null && constructor.funktion.arguments.size - 1 == 0) {
-			expr.constructor.array.shouldConstruct = true;
+			expr.constructor.shouldConstruct = true;
 		}
 	}
 
@@ -1316,7 +1317,7 @@ function Parser.resolve_free_function(): Node* {
 }
 
 function Parser.type_check_delete_statement(stmt: Node*) {
-	this.type_check_expr(stmt.unary);
+	this.type_check_expr(stmt.deconstructor.value);
 	var targetType: Type* = typeStack.pop();
 	resolve_type(targetType);
 
@@ -1340,6 +1341,7 @@ function Parser.type_check_delete_statement(stmt: Node*) {
 		var deconstructor = targetType.lookup_method(&deconstructorName);
 
 		if(deconstructor != null) {
+			stmt.deconstructor.shouldDeconstruct = true;
 			if(deconstructor.funktion.arguments.size - 1 != 0) {
 				stmt.print_position();
 				eputs("The deconstructor of type "); eputs(type_to_string(targetType)); eputs(" must have 0 arguments (has "); 
@@ -1413,6 +1415,7 @@ function Parser.type_check_delete_array_statement(stmt: Node*) {
 				eputu(deconstructor.funktion.arguments.size); eputsln(")");
 				exit(1);
 			}
+			stmt.deconstructor.shouldDeconstruct = true;
 		}
 	}
 }

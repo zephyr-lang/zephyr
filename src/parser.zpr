@@ -446,9 +446,10 @@ function Parser.parse_new(): Node* {
 		this.consume(TokenType::RIGHT_SQBR, "Expected ']' after array length");
 		node.type = NodeType::NEW_ARRAY;
 		node.constructor.array.length = length;
-		node.constructor.array.shouldConstruct = false;
 	}
 
+	node.constructor.shouldConstruct = false;
+	
 	return node;
 }
 
@@ -1116,7 +1117,8 @@ function Parser.parse_delete_statement(): Node* {
 	this.consume(TokenType::SEMICOLON, "Expected ';' after delete expression");
 
 	var node = new_node(NodeType::DELETE, keyword);
-	node.unary = expr;
+	node.deconstructor.value = expr;
+	node.deconstructor.shouldDeconstruct = false;
 	return node;
 }
 
@@ -1129,6 +1131,7 @@ function Parser.parse_delete_array_statement(): Node* {
 
 	var node = new_node(NodeType::DELETE_ARRAY, keyword);
 	node.deconstructor.value = expr;
+	node.deconstructor.shouldDeconstruct = false;
 	return node;
 }
 
