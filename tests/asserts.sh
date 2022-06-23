@@ -75,7 +75,7 @@ function assert_exit_code() {
 	fi
 
 	set +e
-	./build/test
+	./build/test >/dev/null 2>&1
 	res=$?
 	set -e
 
