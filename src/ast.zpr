@@ -55,6 +55,7 @@ enum NodeType {
 	NEW,
 	NEW_ARRAY,
 	DELETE,
+	DELETE_ARRAY,
 	IF,
 	WHILE,
 	DO_WHILE,
@@ -253,6 +254,11 @@ struct Node {
 					shouldConstruct: bool;
 				};
 			};
+		};
+
+		deconstructor: struct {
+			value: Node*;
+			elementType: Type*;
 		};
 	};
 }
@@ -541,6 +547,7 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::NEW -> return "new";
 		NodeType::NEW_ARRAY -> return "new[]";
 		NodeType::DELETE -> return "delete";
+		NodeType::DELETE_ARRAY -> return "delete[]";
 		NodeType::IF -> return "if";
 		NodeType::WHILE -> return "while";
 		NodeType::FOR -> return "for";

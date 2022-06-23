@@ -64,6 +64,7 @@ namespace std::internal::malloc {
 	// Header of each block allocated by malloc
 	// TODO: Collapse `free` into the LSB of size
 	struct __malloc_header {
+		reqsize: uint;
 		size: uint;
 		free: uint;
 
@@ -133,6 +134,7 @@ namespace std::internal::malloc {
 				if(block.size > size) {
 					var split = ((block as uint) + size) as __malloc_header*;
 					split.size = block.size - size;
+					split.reqsize = block.reqsize - reqsize;
 					split.next = block.next;
 					split.prev = block.prev;
 					split.free = 1;
@@ -167,6 +169,7 @@ namespace std::internal::malloc {
 		}
 
 		block.size = size;
+		block.reqsize = reqsize;
 		block.free = 0;
 
 		// Return the memory immediately after the header
@@ -197,6 +200,7 @@ namespace std::internal::malloc {
 		// Attempt to merge this block with the previous block
 		if(header.previousBlock != null && header.previousBlock.free) {
 			header.previousBlock.size += header.size;
+			header.previousBlock.reqsize += header.reqsize;
 
 			if(header.previousBlock.prev != null) header.previousBlock.prev.next = header.next;
 			if(header.next != null) header.next.prev = header.previousBlock;
@@ -205,6 +209,12 @@ namespace std::internal::malloc {
 		//TODO: next block merging
 	}
 
+
+	function __get_array_length(ptr: any*, elementSize: uint): uint {
+		var header = __get_malloc_header_ptr(ptr);
+
+		return header.reqsize / elementSize;
+	}
 }
 
 function malloc(size: uint): any* {

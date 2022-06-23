@@ -81,7 +81,13 @@ function Lexer.identifier_type(): int {
 	if(this.match_keyword("break")) return TokenType::BREAK;
 	if(this.match_keyword("const")) return TokenType::CONST;
 	if(this.match_keyword("continue")) return TokenType::CONTINUE;
-	if(this.match_keyword("delete")) return TokenType::DELETE;
+	if(this.match_keyword("delete")) {
+		if(this.match('[') && this.match(']')) {
+			return TokenType::DELETE_ARRAY;
+		}
+
+		return TokenType::DELETE;
+	}
 	if(this.match_keyword("do")) return TokenType::DO;
 	if(this.match_keyword("else")) return TokenType::ELSE;
 	if(this.match_keyword("enum")) return TokenType::ENUM;

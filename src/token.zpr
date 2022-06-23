@@ -66,6 +66,7 @@ enum TokenType {
 	CONST,
 	CONTINUE,
 	DELETE,
+	DELETE_ARRAY,
 	DO,
 	ELSE,
 	ENUM,
@@ -169,6 +170,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::CONST -> return "const";
 		TokenType::CONTINUE -> return "continue";
 		TokenType::DELETE -> return "delete";
+		TokenType::DELETE_ARRAY -> return "delete-array";
 		TokenType::DO -> return "do";
 		TokenType::ELSE -> return "else";
 		TokenType::ELSE -> return "enum";

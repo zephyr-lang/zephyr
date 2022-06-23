@@ -1054,6 +1054,68 @@ function generate_delete(stmt: Node*, out: File*) {
 	}
 }
 
+function generate_delete_array(stmt: Node*, out: File*) {
+	generate_expr(stmt.deconstructor.value, out);
+
+	out.putsln("push rax");
+	out.putsln("push rax");
+
+	var arrayLengthFunc = parser.resolve_get_array_length_function();
+	out.putsln("mov rdi, rax");
+	out.puts("mov rsi, "); out.putu(stmt.deconstructor.elementType.size()); out.putln();
+	out.puts("call _F"); out.put_name(&arrayLengthFunc.funktion.name); out.putln();
+
+	out.putsln("push rax");
+
+	var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+	var deconstructorName: Name;
+	parser.bind_name(&deconstructorName, deconstructorTok);
+
+	var loopStart = ++labelCount;
+	var loopEnd = ++labelCount;
+
+	out.putsln("    mov rcx, 0");
+	out.putsln("    push rcx");          // push 'i' initialised to 0
+	out.putsln("    mov rdx, [rsp+8]");  // move the length into rdx
+	out.putsln("    mov rax, [rsp+16]"); // move the address of the array into rax
+
+	// At the beginning of each iteration, the top of the stack appears as such:
+	// - i (iteration)
+	// - length of array
+	// - address (offsetted)
+	// - address (result)
+
+	out.puts(".l"); out.putu(loopStart); out.putsln(":");
+	out.putsln("    cmp rcx, rdx");
+	out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
+
+	// address (offsetted) is already in rax at this point
+	generate_method_call(null, stmt.deconstructor.elementType, &deconstructorName, null, out);
+
+	// Set registers as such:
+	// rcx - i
+	// rax - address (offsetted)
+	// rdx - length
+	out.putsln("    mov rcx, [rsp]");
+	out.putsln("    mov rax, [rsp+16]");
+	out.putsln("    mov rdx, [rsp+8]");
+
+	// Increment (and store) i (by 1) and the offsetted address (by the size of an element)
+	out.putsln("    add rcx, 1");
+	out.putsln("    mov [rsp], rcx");
+	out.puts("    add rax, "); out.putu(stmt.deconstructor.elementType.size()); out.putln();
+	out.putsln("    mov [rsp+16], rax");
+
+	// complete the loop
+	out.puts("    jmp .l"); out.putu(loopStart); out.putln();
+
+	out.puts(".l"); out.putu(loopEnd); out.putsln(":");
+	// Set rax to the final result address (which is the same as the one malloc originally returned)
+	// then pop the values from the stack
+	out.putsln("    mov rax, [rsp+24]");
+	out.putsln("    add rsp, 32");
+}
+
 function generate_statement(stmt: Node*, out: File*) {
 	when(stmt.type) {
 		NodeType::IF -> {
@@ -1094,6 +1156,9 @@ function generate_statement(stmt: Node*, out: File*) {
 		}
 		NodeType::DELETE -> {
 			generate_delete(stmt, out);
+		}
+		NodeType::DELETE_ARRAY -> {
+			generate_delete_array(stmt, out);
 		}
 		else -> {
 			eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();

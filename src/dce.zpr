@@ -188,6 +188,25 @@ function Parser.dce_statement(stmt: Node*) {
 				this.dce_function(deconstructor);
 			}
 		}
+		NodeType::DELETE_ARRAY -> {
+			var func = this.resolve_get_array_length_function();
+			if(!func.funktion.dced) {
+				func.funktion.dced = true;
+				this.dce_function(func);
+			}
+			this.dce_expression(stmt.unary);
+
+			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+			var deconstructorName: Name;
+			this.bind_name(&deconstructorName, deconstructorTok);
+
+			var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+
+			if(deconstructor != null && !deconstructor.funktion.dced) {
+				deconstructor.funktion.dced = true;
+				this.dce_function(deconstructor);
+			}
+		}
 		NodeType::BREAK, NodeType::CONTINUE -> {}
 		else -> {
 			eputs("dce_statement unsupported node - ");
