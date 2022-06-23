@@ -92,6 +92,14 @@ function Parser.dce_expression(expr: Node*) {
 				}
 			}
 		}
+		NodeType::NEW_ARRAY -> {
+			var mallocFunc = this.resolve_malloc_function();
+			if(!mallocFunc.funktion.dced) {
+				mallocFunc.funktion.dced = true;
+				this.dce_function(mallocFunc);
+			}
+			this.dce_expression(expr.constructor.length);
+		}
 		NodeType::SIZEOF,
 		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::UINT_LITERAL, NodeType::ACCESS_VAR -> {}
 		else -> {

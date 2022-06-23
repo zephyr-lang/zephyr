@@ -870,11 +870,6 @@ function Parser.resolve_malloc_function(): Node* {
 function Parser.type_check_new(expr: Node*) {
 	resolve_type(expr.constructor.type);
 
-	if(expr.constructor.type.isArray) {
-		expr.print_position();
-		eputsln("Unsupported operation - cannot instanciate arrays with new");
-		exit(1);
-	}
 	if(this.resolve_malloc_function() == null) {
 		expr.print_position();
 		eputsln("Global 'malloc(size: uint)' function is required for 'new'\n => Try including 'std/core.zpr'");
@@ -923,6 +918,30 @@ function Parser.type_check_new(expr: Node*) {
 				}
 			}
 		}
+	}
+
+	var ptr = copy_type(expr.constructor.type);
+	ptr.indirection++;
+	expr.computedType = ptr;
+	typeStack.push(ptr);
+}
+
+function Parser.type_check_new_array(expr: Node*) {
+	resolve_type(expr.constructor.type);
+
+	if(this.resolve_malloc_function() == null) {
+		expr.print_position();
+		eputsln("Global 'malloc(size: uint)' function is required for 'new'\n => Try including 'std/core.zpr'");
+		exit(1);
+	}
+
+	this.type_check_expr(expr.constructor.length);
+	var length: Type* = typeStack.pop();
+
+	if(!length.assignable(INT_TYPE)) {
+		expr.print_position();
+		eputs("Cannot create array with index of type "); eputs(type_to_string(length)); eputln();
+		exit(1);
 	}
 
 	var ptr = copy_type(expr.constructor.type);
@@ -1011,6 +1030,9 @@ function Parser.type_check_expr(expr: Node*) {
 	}
 	else if(expr.type == NodeType::NEW) {
 		this.type_check_new(expr);
+	}
+	else if(expr.type == NodeType::NEW_ARRAY) {
+		this.type_check_new_array(expr);
 	}
 	else {
 		eputsln("Unreachable - type_check_expr");

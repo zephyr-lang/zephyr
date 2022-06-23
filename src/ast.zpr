@@ -53,6 +53,7 @@ enum NodeType {
 	ARRAY_INIT,
 	EXPR_STMT,
 	NEW,
+	NEW_ARRAY,
 	DELETE,
 	IF,
 	WHILE,
@@ -245,7 +246,10 @@ struct Node {
 
 		constructor: struct {
 			type: Type*;
-			arguments: Vector*;
+			union {
+				arguments: Vector*;
+				length: Node*;
+			};
 		};
 	};
 }
@@ -532,6 +536,7 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::ARRAY_INIT -> return "init array";
 		NodeType::EXPR_STMT -> return "expr stmt";
 		NodeType::NEW -> return "new";
+		NodeType::NEW_ARRAY -> return "new[]";
 		NodeType::DELETE -> return "delete";
 		NodeType::IF -> return "if";
 		NodeType::WHILE -> return "while";

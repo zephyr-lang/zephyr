@@ -680,6 +680,14 @@ function generate_new(expr: Node*, out: File*) {
 	}
 }
 
+function generate_new_array(expr: Node*, out: File*) {
+	// Typecheck should verify that malloc exists with the correct signature
+	generate_expr(expr.constructor.length, out);
+	out.puts("    imul rax, "); out.putu(expr.constructor.type.size()); out.putln();
+	out.putsln("    mov rdi, rax");
+	out.putsln("    call _FZmalloc");
+}
+
 function generate_expr(expr: Node*, out: File*) {
 	if(is_unary_op(expr.type)) {
 		generate_unary(expr, out);
@@ -765,6 +773,9 @@ function generate_expr(expr: Node*, out: File*) {
 		}
 		NodeType::NEW -> {
 			generate_new(expr, out);
+		}
+		NodeType::NEW_ARRAY -> {
+			generate_new_array(expr, out);
 		}
 		else -> {
 			eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();

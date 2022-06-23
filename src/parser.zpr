@@ -202,7 +202,7 @@ function Parser.find_string(needle: Node*): Node* {
 	return null;
 }
 
-function Parser.parse_type(): Type* {
+function Parser.parse_type_no_array(): Type* {
 	this.advance();
 
 	var type = new_type();
@@ -245,6 +245,11 @@ function Parser.parse_type(): Type* {
 	while(this.match(TokenType::STAR)) {
 		type.indirection = type.indirection + 1;
 	}
+	return type;
+}
+
+function Parser.parse_type(): Type* {
+	var type = this.parse_type_no_array();
 
 	if(this.match(TokenType::LEFT_SQBR)) {
 		type.isArray = true;
@@ -420,7 +425,7 @@ function Parser.parse_identifier(): Node* {
 
 function Parser.parse_new(): Node* {
 	var keyword = this.previous;
-	var type = this.parse_type();
+	var type = this.parse_type_no_array();
 
 	var node = new_node(NodeType::NEW, keyword);
 	node.constructor.type = type;
@@ -435,6 +440,12 @@ function Parser.parse_new(): Node* {
 			} while(this.match(TokenType::COMMA));
 		}
 		this.consume(TokenType::RIGHT_PAREN, "Expected ')' after constructor arguments");
+	}
+	else if(this.match(TokenType::LEFT_SQBR)) {
+		var length = this.parse_expression();
+		this.consume(TokenType::RIGHT_SQBR, "Expected ']' after array length");
+		node.type = NodeType::NEW_ARRAY;
+		node.constructor.length = length;
 	}
 
 	return node;
