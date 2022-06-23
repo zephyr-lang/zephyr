@@ -52,6 +52,10 @@ enum NodeType {
 	ACCESS_GLOBAL_VAR,
 	ARRAY_INIT,
 	EXPR_STMT,
+	NEW,
+	NEW_ARRAY,
+	DELETE,
+	DELETE_ARRAY,
 	IF,
 	WHILE,
 	DO_WHILE,
@@ -240,6 +244,23 @@ struct Node {
 			name: Namespace*;
 			body: Node*;
 		};
+
+		constructor: struct {
+			type: Type*;
+			shouldConstruct: bool;
+			union {
+				arguments: Vector*;
+				array: struct {
+					length: Node*;
+				};
+			};
+		};
+
+		deconstructor: struct {
+			value: Node*;
+			elementType: Type*;
+			shouldDeconstruct: bool;
+		};
 	};
 }
 
@@ -318,7 +339,7 @@ function Name.to_string(): i8* {
 		}
 	}
 
-	var str = malloc(namespaceLength + this.name.length + 1);
+	var str: i8* = malloc(namespaceLength + this.name.length + 1);
 	str[0] = 0;
 
 	for(var i = 0; i < parts.size; ++i) {
@@ -524,6 +545,10 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::ACCESS_GLOBAL_VAR -> return "access gvar";
 		NodeType::ARRAY_INIT -> return "init array";
 		NodeType::EXPR_STMT -> return "expr stmt";
+		NodeType::NEW -> return "new";
+		NodeType::NEW_ARRAY -> return "new[]";
+		NodeType::DELETE -> return "delete";
+		NodeType::DELETE_ARRAY -> return "delete[]";
 		NodeType::IF -> return "if";
 		NodeType::WHILE -> return "while";
 		NodeType::FOR -> return "for";
@@ -870,6 +895,29 @@ function print_ast_depth(node: Node*, depth: int) {
 			for(var i = 0; i < node.nameSpace.body.block.children.size; ++i) {
 				print_ast_depth(node.nameSpace.body.block.children.at(i), depth + 1);
 			}
+		}
+		NodeType::NEW -> {
+			puts("new "); puts(type_to_string(node.constructor.type));
+			for(var i = 0; i < node.constructor.arguments.size; ++i) {
+				if(i == 0) putln();
+				var arg: Node* = node.constructor.arguments.at(i);
+				print_ast_depth(arg, depth + 1);
+				if(i != node.constructor.arguments.size -1) putln();
+			}
+		}
+		NodeType::NEW_ARRAY -> {
+			puts("new[] "); putsln(type_to_string(node.constructor.type));
+			print_ast_depth(node.constructor.array.length, depth + 1);
+		}
+		NodeType::DELETE -> {
+			putsln("delete");
+			print_ast_depth(node.deconstructor.value, depth + 1);
+			putln();
+		}
+		NodeType::DELETE_ARRAY -> {
+			putsln("delete[]");
+			print_ast_depth(node.deconstructor.value, depth + 1);
+			putln();
 		}
 		else -> {
 			eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));

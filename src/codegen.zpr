@@ -15,6 +15,8 @@ var floatRegistersInUse = 0;
 var continueLabel = 0;
 var breakLabel = 0;
 
+var parser: Parser*;
+
 function Type.qualifier(): i8* {
 	when(this.size()) {
 		1 -> return "BYTE";
@@ -121,7 +123,7 @@ function generate_addrof(expr: Node*, out: File*) {
 			out.putsln("    pop rax");
 
 			//FIXME: This could make array accessing very slow
-			var size = expr.computedType.size();
+			var size = expr.unary.computedType.size();
 			if(size % 2 != 0 || size == 6 || size > 8) {
 				out.puts("    imul rcx, "); out.putu(size); out.putln();
 				out.putsln("    add rax, rcx");
@@ -408,7 +410,7 @@ function generate_call(expr: Node*, out: File*) {
 	}
 }
 
-function generate_call_method(expr: Node*, out: File*) {
+function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arguments: Vector*, out: File*) {
 	for(var i = 0; i < intRegistersInUse; ++i) {
 		out.puts("    push "); out.putsln(INT_ARG_REGISTERS[i]);
 	}
@@ -421,35 +423,38 @@ function generate_call_method(expr: Node*, out: File*) {
 	var localFloatRegUse = 0;
 	++intRegistersInUse;
 	
-	generate_expr(expr.funktion.parent, out);
+	if(parent != null)
+		generate_expr(parent, out);
 	out.putsln("    mov rdi, rax");
 
-	for(var i = 0; i < expr.funktion.arguments.size; ++i) {
-		var arg: Node* = expr.funktion.arguments.at(i);
+	if(arguments != null) {
+		for(var i = 0; i < arguments.size; ++i) {
+			var arg: Node* = arguments.at(i);
 
-		if(arg.expr_type().is_float()) {
-			if(localFloatRegUse < FLOAT_ARG_COUNT) {
-				generate_expr(arg, out);
-				out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
-				++floatRegistersInUse;
-				++localFloatRegUse;
+			if(arg.expr_type().is_float()) {
+				if(localFloatRegUse < FLOAT_ARG_COUNT) {
+					generate_expr(arg, out);
+					out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
+					++floatRegistersInUse;
+					++localFloatRegUse;
+				}
+				else {
+					generate_expr(arg, out);
+					out.putsln("    sub rsp, 8");
+					out.putsln("    movsd [rsp], xmm0");
+				}
 			}
 			else {
-				generate_expr(arg, out);
-				out.putsln("    sub rsp, 8");
-				out.putsln("    movsd [rsp], xmm0");
-			}
-		}
-		else {
-			if(localIntRegUse < INT_ARG_COUNT) {
-				generate_expr(arg, out);
-				out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
-				++intRegistersInUse;
-				++localIntRegUse;
-			}
-			else {
-				generate_expr(arg, out);
-				out.putsln("    push rax");
+				if(localIntRegUse < INT_ARG_COUNT) {
+					generate_expr(arg, out);
+					out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
+					++intRegistersInUse;
+					++localIntRegUse;
+				}
+				else {
+					generate_expr(arg, out);
+					out.putsln("    push rax");
+				}
 			}
 		}
 	}
@@ -457,7 +462,7 @@ function generate_call_method(expr: Node*, out: File*) {
 	intRegistersInUse -= localIntRegUse;
 	floatRegistersInUse -= localFloatRegUse;
 
-	out.puts("    call _M"); out.put_name(&expr.funktion.parentType.name); out.puts("_"); out.put_name(&expr.funktion.name);
+	out.puts("    call _M"); out.put_name(&parentType.name); out.puts("_"); out.put_name(name);
 	out.putln();
 
 	for(var i = 0; i < intRegistersInUse; ++i) {
@@ -468,6 +473,10 @@ function generate_call_method(expr: Node*, out: File*) {
 		out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
 		out.putsln("    add rsp, 8");
 	}
+}
+
+function generate_call_method(expr: Node*, out: File*) {
+	generate_method_call(expr.funktion.parent, expr.funktion.parentType, &expr.funktion.name, expr.funktion.arguments, out);
 }
 
 function generate_ternary(expr: Node*, out: File*) {
@@ -657,6 +666,86 @@ function generate_post_decrement(expr: Node*, out: File*) {
 	out.putsln("   mov rax, rdx");
 }
 
+function generate_new(expr: Node*, out: File*) {
+	// Typecheck should verify that malloc exists with the correct signature
+	out.puts("    mov rdi, "); out.putu(expr.constructor.type.size()); out.putln();
+	out.putsln("    call _FZmalloc");
+
+	if(expr.constructor.shouldConstruct) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		parser.bind_name(&constructorName, constructorTok);
+
+		out.putsln("    push rax");
+		generate_method_call(null, expr.constructor.type, &constructorName, expr.constructor.arguments, out);
+		out.putsln("    pop rax");
+	}
+}
+
+function generate_new_array(expr: Node*, out: File*) {
+	// Typecheck should verify that malloc exists with the correct signature
+	generate_expr(expr.constructor.array.length, out);
+	if(expr.constructor.shouldConstruct) {
+		out.putsln("    push rax");
+	}
+	out.puts("    imul rax, "); out.putu(expr.constructor.type.size()); out.putln();
+	out.putsln("    mov rdi, rax");
+	out.putsln("    call _FZmalloc");
+
+	// Construct a for-loop inline
+	if(expr.constructor.shouldConstruct) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		parser.bind_name(&constructorName, constructorTok);
+
+		var loopStart = ++labelCount;
+		var loopEnd = ++labelCount;
+
+		out.putsln("    mov rdx, [rsp]"); // Capture the length in rdx
+		out.putsln("    push rax");       // push the malloc'd address (changes)
+		out.putsln("    push rax");       // push the malloc'd address (static, final result)
+
+		out.putsln("    mov rcx, 0");
+		out.putsln("    push rcx");       // push 'i' initialised to 0
+
+		// At the beginning of each iteration, the top of the stack appears as such:
+		// - i (iteration)
+		// - address (result)
+		// - address (offsetted)
+		// - length of array
+
+		out.puts(".l"); out.putu(loopStart); out.putsln(":");
+		out.putsln("    cmp rcx, rdx");
+		out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
+
+		// address (offsetted) is already in rax at this point
+		generate_method_call(null, expr.constructor.type, &constructorName, null, out);
+
+		// Set registers as such:
+		// rcx - i
+		// rax - address (offsetted)
+		// rdx - length
+		out.putsln("    mov rcx, [rsp]");
+		out.putsln("    mov rax, [rsp+16]");
+		out.putsln("    mov rdx, [rsp+24]");
+
+		// Increment (and store) i (by 1) and the offsetted address (by the size of an element)
+		out.putsln("    add rcx, 1");
+		out.putsln("    mov [rsp], rcx");
+		out.puts("    add rax, "); out.putu(expr.constructor.type.size()); out.putln();
+		out.putsln("    mov [rsp+16], rax");
+
+		// complete the loop
+		out.puts("    jmp .l"); out.putu(loopStart); out.putln();
+
+		out.puts(".l"); out.putu(loopEnd); out.putsln(":");
+		// Set rax to the final result address (which is the same as the one malloc originally returned)
+		// then pop the values from the stack
+		out.putsln("    mov rax, [rsp+8]");
+		out.putsln("    add rsp, 32");
+	}
+}
+
 function generate_expr(expr: Node*, out: File*) {
 	if(is_unary_op(expr.type)) {
 		generate_unary(expr, out);
@@ -739,6 +828,12 @@ function generate_expr(expr: Node*, out: File*) {
 		NodeType::FLOAT_TO_INT -> {
 			generate_expr(expr.unary, out);
 			out.putsln("    cvttsd2si rax, xmm0");
+		}
+		NodeType::NEW -> {
+			generate_new(expr, out);
+		}
+		NodeType::NEW_ARRAY -> {
+			generate_new_array(expr, out);
 		}
 		else -> {
 			eputs("Unsupported type in generate_expr_rax - "); eputs(node_type_to_string(expr.type)); eputln();
@@ -943,6 +1038,91 @@ function generate_define_var(stmt: Node*, out: File*) {
 	}
 }
 
+function generate_delete(stmt: Node*, out: File*) {
+	generate_expr(stmt.deconstructor.value, out);
+	out.putsln("    mov rdi, rax");
+	out.putsln("    call _FZfree");
+
+	if(stmt.deconstructor.shouldDeconstruct) {
+		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+		var deconstructorName: Name;
+		parser.bind_name(&deconstructorName, deconstructorTok);
+
+		var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+
+		if(deconstructor != null) {
+			out.puts("    call _M"); out.put_name(&stmt.unary.computedType.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
+		}
+	}
+}
+
+function generate_delete_array(stmt: Node*, out: File*) {
+	generate_expr(stmt.deconstructor.value, out);
+
+	if(stmt.deconstructor.shouldDeconstruct) {
+		out.putsln("push rax");
+		out.putsln("push rax");
+
+		var arrayLengthFunc = parser.resolve_get_array_length_function();
+		out.putsln("mov rdi, rax");
+		out.puts("mov rsi, "); out.putu(stmt.deconstructor.elementType.size()); out.putln();
+		out.puts("call _F"); out.put_name(&arrayLengthFunc.funktion.name); out.putln();
+
+		out.putsln("push rax");
+
+		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+		var deconstructorName: Name;
+		parser.bind_name(&deconstructorName, deconstructorTok);
+
+		var loopStart = ++labelCount;
+		var loopEnd = ++labelCount;
+
+		out.putsln("    mov rcx, 0");
+		out.putsln("    push rcx");          // push 'i' initialised to 0
+		out.putsln("    mov rdx, [rsp+8]");  // move the length into rdx
+		out.putsln("    mov rax, [rsp+16]"); // move the address of the array into rax
+
+		// At the beginning of each iteration, the top of the stack appears as such:
+		// - i (iteration)
+		// - length of array
+		// - address (offsetted)
+		// - address (result)
+
+		out.puts(".l"); out.putu(loopStart); out.putsln(":");
+		out.putsln("    cmp rcx, rdx");
+		out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
+
+		// address (offsetted) is already in rax at this point
+		generate_method_call(null, stmt.deconstructor.elementType, &deconstructorName, null, out);
+
+		// Set registers as such:
+		// rcx - i
+		// rax - address (offsetted)
+		// rdx - length
+		out.putsln("    mov rcx, [rsp]");
+		out.putsln("    mov rax, [rsp+16]");
+		out.putsln("    mov rdx, [rsp+8]");
+
+		// Increment (and store) i (by 1) and the offsetted address (by the size of an element)
+		out.putsln("    add rcx, 1");
+		out.putsln("    mov [rsp], rcx");
+		out.puts("    add rax, "); out.putu(stmt.deconstructor.elementType.size()); out.putln();
+		out.putsln("    mov [rsp+16], rax");
+
+		// complete the loop
+		out.puts("    jmp .l"); out.putu(loopStart); out.putln();
+
+		out.puts(".l"); out.putu(loopEnd); out.putsln(":");
+		// Set rax to the final result address (which is the same as the one malloc originally returned)
+		// then pop the values from the stack
+		out.putsln("    mov rax, [rsp+24]");
+		out.putsln("    add rsp, 32");
+	}
+	
+	out.putsln("    mov rdi, rax");
+	out.putsln("    call _FZfree");
+}
+
 function generate_statement(stmt: Node*, out: File*) {
 	when(stmt.type) {
 		NodeType::IF -> {
@@ -980,6 +1160,12 @@ function generate_statement(stmt: Node*, out: File*) {
 		}
 		NodeType::BREAK -> {
 			out.puts("    jmp .l"); out.putd(breakLabel); out.putln();
+		}
+		NodeType::DELETE -> {
+			generate_delete(stmt, out);
+		}
+		NodeType::DELETE_ARRAY -> {
+			generate_delete_array(stmt, out);
 		}
 		else -> {
 			eputs("Unsupported type in generate_statement - "); eputs(node_type_to_string(stmt.type)); eputln();
@@ -1116,6 +1302,7 @@ function Parser.generate_string(str: Node*, out: File*) {
 }
 
 function Parser.generate_program(ast: Node*, out: File*) {
+	parser = this;
 	out.putsln("section .text");
 	
 	generate_builtin_functions(out);

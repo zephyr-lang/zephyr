@@ -74,6 +74,44 @@ function Parser.dce_expression(expr: Node*) {
 			assert(variable.type == NodeType::DEFINE_GLOBAL_VAR, "typechecker must verify global variable type");
 			variable.variable.used = true;
 		}
+		NodeType::NEW -> {
+			var mallocFunc = this.resolve_malloc_function();
+			if(!mallocFunc.funktion.dced) {
+				mallocFunc.funktion.dced = true;
+				this.dce_function(mallocFunc);
+			}
+			if(expr.constructor.shouldConstruct) {
+				var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+				var constructorName: Name;
+				this.bind_name(&constructorName, constructorTok);
+
+				var constructor = expr.constructor.type.lookup_method(&constructorName);
+				if(!constructor.funktion.dced) {
+					constructor.funktion.dced = true;
+					this.dce_function(constructor);
+				}
+			}
+		}
+		NodeType::NEW_ARRAY -> {
+			var mallocFunc = this.resolve_malloc_function();
+			if(!mallocFunc.funktion.dced) {
+				mallocFunc.funktion.dced = true;
+				this.dce_function(mallocFunc);
+			}
+			this.dce_expression(expr.constructor.array.length);
+
+			if(expr.constructor.shouldConstruct) {
+				var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+				var constructorName: Name;
+				this.bind_name(&constructorName, constructorTok);
+
+				var constructor = expr.constructor.type.lookup_method(&constructorName);
+				if(!constructor.funktion.dced) {
+					constructor.funktion.dced = true;
+					this.dce_function(constructor);
+				}
+			}
+		}
 		NodeType::SIZEOF,
 		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::UINT_LITERAL, NodeType::ACCESS_VAR -> {}
 		else -> {
@@ -130,6 +168,54 @@ function Parser.dce_statement(stmt: Node*) {
 		NodeType::RETURN -> {
 			if(stmt.unary != null)
 				this.dce_expression(stmt.unary);
+		}
+		NodeType::DELETE -> {
+			var freeFunc = this.resolve_free_function();
+			if(!freeFunc.funktion.dced) {
+				freeFunc.funktion.dced = true;
+				this.dce_function(freeFunc);
+			}
+			this.dce_expression(stmt.deconstructor.value);
+
+			if(stmt.deconstructor.shouldDeconstruct) {
+				var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+				var deconstructorName: Name;
+				this.bind_name(&deconstructorName, deconstructorTok);
+
+				var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+
+				if(deconstructor != null && !deconstructor.funktion.dced) {
+					deconstructor.funktion.dced = true;
+					this.dce_function(deconstructor);
+				}
+			}
+		}
+		NodeType::DELETE_ARRAY -> {
+			var func = this.resolve_get_array_length_function();
+			if(!func.funktion.dced) {
+				func.funktion.dced = true;
+				this.dce_function(func);
+			}
+			this.dce_expression(stmt.deconstructor.value);
+			
+			var freeFunc = this.resolve_free_function();
+			if(!freeFunc.funktion.dced) {
+				freeFunc.funktion.dced = true;
+				this.dce_function(freeFunc);
+			}
+
+			if(stmt.deconstructor.shouldDeconstruct) {
+				var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+				var deconstructorName: Name;
+				this.bind_name(&deconstructorName, deconstructorTok);
+
+				var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+
+				if(deconstructor != null && !deconstructor.funktion.dced) {
+					deconstructor.funktion.dced = true;
+					this.dce_function(deconstructor);
+				}
+			}
 		}
 		NodeType::BREAK, NodeType::CONTINUE -> {}
 		else -> {

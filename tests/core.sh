@@ -1709,3 +1709,290 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "New / Delete: "
+
+assert_stdout "(10, 15)" "
+import \"std/core.zpr\";
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function print_point(p: Point*) {
+	puts(\"(\"); putd(p.x); puts(\", \"); putd(p.y); putsln(\")\");
+}
+
+function main(): int {
+	var point = new Point;
+
+	point.x = 10;
+	point.y = 15;
+
+	print_point(point);
+
+	return 0;
+}
+"
+
+assert_stdout "(20, 30)" "
+import \"std/core.zpr\";
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.constructor(x: int, y: int) {
+	this.x = x;
+	this.y = y;
+}
+
+function print_point(p: Point*) {
+	puts(\"(\"); putd(p.x); puts(\", \"); putd(p.y); putsln(\")\");
+}
+
+function main(): int {
+	var point = new Point(20, 30);
+
+	print_point(point);
+
+	return 0;
+}
+"
+
+assert_stdout "(0, 0)" "
+import \"std/core.zpr\";
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function print_point(p: Point*) {
+	puts(\"(\"); putd(p.x); puts(\", \"); putd(p.y); putsln(\")\");
+}
+
+function main(): int {
+	var point = new Point();
+
+	print_point(point);
+
+	return 0;
+}
+"
+
+assert_exit_code 0 "
+import \"std/core.zpr\";
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.constructor(x: int, y: int) {
+	this.x = x;
+	this.y = y;
+}
+
+function print_point(p: Point*) {
+	puts(\"(\"); putd(p.x); puts(\", \"); putd(p.y); putsln(\")\");
+}
+
+function main(): int {
+	var point = new Point(10, 15);
+
+	print_point(point);
+
+	delete point;
+
+	return 0;
+}
+"
+
+assert_stdout "(10, 15)
+Cleaning up!" "
+import \"std/core.zpr\";
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.constructor(x: int, y: int) {
+	this.x = x;
+	this.y = y;
+}
+
+function Point.deconstructor() {
+	putsln(\"Cleaning up!\");
+}
+
+function print_point(p: Point*) {
+	puts(\"(\"); putd(p.x); puts(\", \"); putd(p.y); putsln(\")\");
+}
+
+function main(): int {
+	var point = new Point(10, 15);
+
+	print_point(point);
+
+	delete point;
+
+	return 0;
+}
+"
+
+assert_stdout "(0, 0)
+(0, 0)
+(0, 0)
+(0, 0)
+(0, 0)
+(0, 0)
+(0, 0)
+(0, 0)
+(0, 0)
+(0, 0)
+(0, 0)
+(0, 0)" "
+import \"std/core.zpr\";
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function print_point(p: Point*) {
+	puts(\"(\"); putd(p.x); puts(\", \"); putd(p.y); putsln(\")\");
+}
+
+function main(): int {
+	var amount = 12;
+	
+	var point = new Point[amount];
+
+	for(var i = 0; i < amount; ++i) {
+		print_point(point);
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "(15, 20)
+(15, 20)
+(15, 20)
+(15, 20)
+(15, 20)
+(15, 20)
+(15, 20)
+(15, 20)
+(15, 20)
+(15, 20)
+(15, 20)
+(15, 20)" "
+import \"std/core.zpr\";
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.constructor() {
+	this.x = 15;
+	this.y = 20;
+}
+
+function print_point(p: Point*) {
+	puts(\"(\"); putd(p.x); puts(\", \"); putd(p.y); putsln(\")\");
+}
+
+function main(): int {
+	var amount = 12;
+	
+	var point = new Point[amount];
+
+	for(var i = 0; i < amount; ++i) {
+		print_point(&point[i]);
+	}
+
+	return 0;
+}
+"
+
+assert_stdout "Constructing!
+Constructing!
+Constructing!
+Constructing!
+Constructing!
+Constructing!
+Constructing!
+Constructing!
+Constructing!
+Constructing!
+Constructing!
+Constructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!
+Deconstructing!" "
+import \"std/core.zpr\";
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.constructor() {
+	putsln(\"Constructing!\");
+}
+
+function Point.deconstructor() {
+	putsln(\"Deconstructing!\");
+}
+
+function print_point(p: Point*) {
+	puts(\"(\"); putd(p.x); puts(\", \"); putd(p.y); putsln(\")\");
+}
+
+function main(): int {
+	var amount = 12;
+	
+	var point = new Point[amount];
+
+	delete[] point;
+
+	return 0;
+}
+"
+
+assert_exit_code 0 "
+import \"std/core.zpr\";
+
+function main(): int {
+	var point = new int;
+
+	delete point;
+
+	return 0;
+}
+"
+
+echo " Done"

@@ -216,20 +216,20 @@ function resolve_type(type: Type*): Type* {
 	var resolve = lookup_type(&type.name);
 
 	if(resolve.type == DataType::ALIAS) {
-		var new = copy_type(resolve.aliased);
-		new.indirection = type.indirection;
-		new.isArray = type.isArray;
-		new.arrayLength = type.arrayLength;
-		new.aliased = resolve;
-		*type = *new;
+		var copy = copy_type(resolve.aliased);
+		copy.indirection = type.indirection;
+		copy.isArray = type.isArray;
+		copy.arrayLength = type.arrayLength;
+		copy.aliased = resolve;
+		*type = *copy;
 		return type;
 	}
 
-	var new = copy_type(resolve);
-	new.indirection = type.indirection;
-	new.isArray = type.isArray;
-	new.arrayLength = type.arrayLength;
-	*type = *new;
+	var copy = copy_type(resolve);
+	copy.indirection = type.indirection;
+	copy.isArray = type.isArray;
+	copy.arrayLength = type.arrayLength;
+	*type = *copy;
 	return type;
 }
 
@@ -256,6 +256,13 @@ function Parser.lookup_variable(name: Name*): Node* {
 	var global = this.lookup_global_variable(name);
 	if(global != null) return global;
 
+	var funktion = this.lookup_function(name);
+	if(funktion != null) return funktion;
+
+	return null;
+}
+
+function Parser.lookup_function(name: Name*): Node* {
 	if(name.namespaceName == null) {
 		for(var ni = namespaces.size - 1; ni >= 0; --ni) {
 			var nameSpace: Namespace* = namespaces.at(ni);
@@ -381,10 +388,6 @@ function Type.lookup_method(name: Name*): Node* {
 			return method;
 		}
 	}
-
-	name.print_position();
-	eputs("Type "); eputs(type_to_string(this)); eputs(" has no method '"); name.eput(); eputsln("'");
-	exit(1);
 
 	return null;
 }
@@ -630,11 +633,21 @@ function Parser.type_check_method_call(expr: Node*) {
 
 	if(parentType.type == DataType::STRUCT && parentType.indirection == 0) {
 		funktion = parentType.lookup_method(&name);
+		if(funktion == null) {
+			name.print_position();
+			eputs("Type "); eputs(type_to_string(parentType)); eputs(" has no method '"); name.eput(); eputsln("'");
+			exit(1);
+		}
 	}
 	else if(parentType.type == DataType::STRUCT && parentType.indirection == 1 && !parentType.isArray) {
 		var copy = copy_type(parentType);
 		copy.indirection = copy.indirection - 1;
 		funktion = copy.lookup_method(&name);
+		if(funktion == null) {
+			name.print_position();
+			eputs("Type "); eputs(type_to_string(copy)); eputs(" has no method '"); name.eput(); eputsln("'");
+			exit(1);
+		}
 		parentType = copy;
 	}
 	else {
@@ -836,6 +849,121 @@ function Parser.type_check_inc_decrement(expr: Node*) {
 	typeStack.push(type);
 }
 
+// Verify that the malloc function exists with the signature malloc(size: uint): any*
+function Parser.resolve_malloc_function(): Node* {
+	var mallocTok = synthetic_token(TokenType::IDENTIFIER, "malloc");
+	var mallocName: Name;
+	this.bind_name(&mallocName, mallocTok);
+
+	var mallocFunc = this.lookup_function(&mallocName);
+
+	if(mallocFunc == null) return null;
+	if(mallocFunc.funktion.name.namespaceName != null) return null;
+	if(mallocFunc.funktion.arguments.size != 1) return null;
+	var arg: Node* = mallocFunc.funktion.arguments.at(0);
+	if(arg.variable.type.type != DataType::UINT || arg.variable.type.indirection != 0) return null;
+	if(mallocFunc.funktion.returnType.type != DataType::ANY || mallocFunc.funktion.returnType.indirection != 1) return null;
+
+	return mallocFunc;
+}
+
+function Parser.type_check_new(expr: Node*) {
+	resolve_type(expr.constructor.type);
+
+	if(this.resolve_malloc_function() == null) {
+		expr.print_position();
+		eputsln("Global 'malloc(size: uint)' function is required for 'new'\n => Try including 'std/core.zpr'");
+		exit(1);
+	}
+
+	// Constructing an object
+	if(expr.constructor.type.type == DataType::STRUCT && expr.constructor.type.indirection == 0) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructor = expr.constructor.type.lookup_method(&constructorName);
+		// Perform default operation if constructor does not exist and there are no arguments
+		if(constructor == null) {
+			if(expr.constructor.arguments.size != 0) {
+				eputs("Type "); eputs(type_to_string(expr.constructor.type)); eputs(" has no constructor: expected 0 arguments, got "); 
+				eputd(expr.constructor.arguments.size); eputln();
+				exit(1);
+			}
+			// Indicate to codegen to not generate a call to the constructor
+			expr.constructor.arguments = null;
+		}
+		else {
+			// Type check as if it were a method call
+			if(constructor.funktion.arguments.size - 1 != expr.constructor.arguments.size) {
+				expr.print_position();
+				eputs("Call expected "); eputd(constructor.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(expr.constructor.arguments.size); eputln();
+				exit(1);
+			}
+
+			for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
+				var arg: Node* = expr.constructor.arguments.at(i - 1);
+				this.type_check_expr(arg);
+
+				var argType: Type* = typeStack.pop();
+				
+				var param: Node* = constructor.funktion.arguments.at(i);
+				var paramType = param.variable.type;
+
+				if(!argType.assignable(paramType)) {
+					expr.print_position();
+					eputs("Function argument "); eputd(i + 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
+					eputs(type_to_string(argType)); eputln();
+					exit(1);
+				}
+			}
+			expr.constructor.shouldConstruct = true;
+		}
+	}
+
+	var ptr = copy_type(expr.constructor.type);
+	ptr.indirection++;
+	expr.computedType = ptr;
+	typeStack.push(ptr);
+}
+
+function Parser.type_check_new_array(expr: Node*) {
+	resolve_type(expr.constructor.type);
+
+	if(this.resolve_malloc_function() == null) {
+		expr.print_position();
+		eputsln("Global 'malloc(size: uint)' function is required for 'new'\n => Try including 'std/core.zpr'");
+		exit(1);
+	}
+
+	if(expr.constructor.type.type == DataType::STRUCT && expr.constructor.type.indirection == 0) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructor = expr.constructor.type.lookup_method(&constructorName);
+		// Perform default operation if constructor does not exist
+		// (for now, ) creating via an array does not care if a constructor with more arguments is the only option
+		if(constructor != null && constructor.funktion.arguments.size - 1 == 0) {
+			expr.constructor.shouldConstruct = true;
+		}
+	}
+
+	this.type_check_expr(expr.constructor.array.length);
+	var length: Type* = typeStack.pop();
+
+	if(!length.assignable(INT_TYPE)) {
+		expr.print_position();
+		eputs("Cannot create array with index of type "); eputs(type_to_string(length)); eputln();
+		exit(1);
+	}
+
+	var ptr = copy_type(expr.constructor.type);
+	ptr.indirection++;
+	expr.computedType = ptr;
+	typeStack.push(ptr);
+}
+
 function Parser.type_check_expr(expr: Node*) {
 	if(is_unary_op(expr.type)) {
 		this.type_check_unary(expr);
@@ -914,6 +1042,12 @@ function Parser.type_check_expr(expr: Node*) {
 	else if(expr.type == NodeType::PRE_INCREMENT || expr.type == NodeType::POST_INCREMENT || expr.type == NodeType::PRE_DECREMENT || expr.type == NodeType::POST_DECREMENT) {
 		this.type_check_inc_decrement(expr);
 	}
+	else if(expr.type == NodeType::NEW) {
+		this.type_check_new(expr);
+	}
+	else if(expr.type == NodeType::NEW_ARRAY) {
+		this.type_check_new_array(expr);
+	}
 	else {
 		eputsln("Unreachable - type_check_expr");
 		exit(1);
@@ -966,10 +1100,12 @@ function Parser.type_check_define_var(stmt: Node*) {
 		exit(1);
 	}
 
+	var valueType: Type* = null;
 	if(declType.type == DataType::VOID) {
 		this.type_check_expr(stmt.variable.value);
 		stmt.variable.type = typeStack.pop();
 		declType = stmt.variable.type;
+		valueType = declType;
 	}
 
 	resolve_type(stmt.variable.type);
@@ -981,14 +1117,17 @@ function Parser.type_check_define_var(stmt: Node*) {
 	}
 
 	if(stmt.variable.value != null) {
-		if(stmt.variable.value.type == NodeType::ARRAY_INIT) {
-			this.type_check_array_init(stmt.variable.value, stmt.variable.type);
-		}
-		else {
-			this.type_check_expr(stmt.variable.value);
+		if(valueType == null) {
+			if(stmt.variable.value.type == NodeType::ARRAY_INIT) {
+				this.type_check_array_init(stmt.variable.value, stmt.variable.type);
+				valueType = typeStack.pop();
+			}
+			else {
+				this.type_check_expr(stmt.variable.value);
+				valueType = typeStack.pop();
+			}
 		}
 
-		var valueType: Type* = typeStack.pop();
 		resolve_type(valueType);
 
 		if(declType.is_integral() && valueType.is_float()) {
@@ -1159,6 +1298,128 @@ function Parser.type_check_when_statement(stmt: Node*) {
 	this.currentBlock.block.hasReturned = hasReturned;
 }
 
+// Verify that the free function exists with the signature free(block: any*): void
+function Parser.resolve_free_function(): Node* {
+	var freeTok = synthetic_token(TokenType::IDENTIFIER, "free");
+	var freeName: Name;
+	this.bind_name(&freeName, freeTok);
+
+	var freeFunc = this.lookup_function(&freeName);
+
+	if(freeFunc == null) return null;
+	if(freeFunc.funktion.name.namespaceName != null) return null;
+	if(freeFunc.funktion.arguments.size != 1) return null;
+	var arg: Node* = freeFunc.funktion.arguments.at(0);
+	if(arg.variable.type.type != DataType::ANY || arg.variable.type.indirection != 1) return null;
+	if(freeFunc.funktion.returnType.type != DataType::VOID) return null;
+
+	return freeFunc;
+}
+
+function Parser.type_check_delete_statement(stmt: Node*) {
+	this.type_check_expr(stmt.deconstructor.value);
+	var targetType: Type* = typeStack.pop();
+	resolve_type(targetType);
+
+	if(targetType.indirection == 0) {
+		stmt.print_position();
+		eputs("Cannot delete non-pointer type "); eputsln(type_to_string(targetType));
+		exit(1);
+	}
+
+	if(this.resolve_free_function() == null) {
+		stmt.print_position();
+		eputsln("Global 'free(block: any*)' function is required for 'delete'\n => Try including 'std/core.zpr'");
+		exit(1);
+	}
+
+	if(targetType.type == DataType::STRUCT) {
+		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+		var deconstructorName: Name;
+		this.bind_name(&deconstructorName, deconstructorTok);
+
+		var deconstructor = targetType.lookup_method(&deconstructorName);
+
+		if(deconstructor != null) {
+			stmt.deconstructor.shouldDeconstruct = true;
+			if(deconstructor.funktion.arguments.size - 1 != 0) {
+				stmt.print_position();
+				eputs("The deconstructor of type "); eputs(type_to_string(targetType)); eputs(" must have 0 arguments (has "); 
+				eputu(deconstructor.funktion.arguments.size); eputsln(")");
+				exit(1);
+			}
+		}
+	}
+}
+
+// Verify that the function std::internal::malloc::__get_array_length(ptr: any*, elementSize: uint): uint exists
+function Parser.resolve_get_array_length_function(): Node* {
+	var funcTok = synthetic_token(TokenType::IDENTIFIER, "__get_array_length");
+	var funcName: Name;
+	this.bind_name(&funcName, funcTok);
+
+	var nameSpace = new_namespace(null, null);
+	nameSpace.parts = new_vector();
+
+	nameSpace.parts.push(synthetic_token(TokenType::IDENTIFIER, "std"));
+	nameSpace.parts.push(synthetic_token(TokenType::IDENTIFIER, "internal"));
+	nameSpace.parts.push(synthetic_token(TokenType::IDENTIFIER, "malloc"));
+
+	bind_to_namespace(&funcName, nameSpace);
+
+	var func = this.lookup_function(&funcName);
+
+	if(func == null) return null;
+	if(func.funktion.arguments.size != 2) return null;
+	var ptrArg: Node* = func.funktion.arguments.at(0);
+	if(ptrArg.variable.type.type != DataType::ANY || ptrArg.variable.type.indirection != 1) return null;
+	var elmSizeArg: Node* = func.funktion.arguments.at(1);
+	if(elmSizeArg.variable.type.type != DataType::UINT || elmSizeArg.variable.type.indirection != 0) return null;
+	if(func.funktion.returnType.type != DataType::UINT) return null;
+
+	return func;
+}
+
+function Parser.type_check_delete_array_statement(stmt: Node*) {
+	this.type_check_expr(stmt.deconstructor.value);
+	var targetType: Type* = typeStack.pop();
+	resolve_type(targetType);
+
+	if(targetType.indirection == 0) {
+		stmt.print_position();
+		eputs("Cannot delete non-pointer type "); eputsln(type_to_string(targetType));
+		exit(1);
+	}
+
+	if(this.resolve_free_function() == null) {
+		stmt.print_position();
+		eputsln("Function 'std::internal::malloc::__get_array_length(ptr: any*, elementSize: uint): uint' is required for 'delete[]'\n => Try including 'std/core.zpr'");
+		exit(1);
+	}
+
+	var elementType = copy_type(targetType);
+	--elementType.indirection;
+	stmt.deconstructor.elementType = elementType;
+
+	if(elementType.type == DataType::STRUCT) {
+		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+		var deconstructorName: Name;
+		this.bind_name(&deconstructorName, deconstructorTok);
+
+		var deconstructor = elementType.lookup_method(&deconstructorName);
+
+		if(deconstructor != null) {
+			if(deconstructor.funktion.arguments.size - 1 != 0) {
+				stmt.print_position();
+				eputs("The deconstructor of type "); eputs(type_to_string(elementType)); eputs(" must have 0 arguments (has "); 
+				eputu(deconstructor.funktion.arguments.size); eputsln(")");
+				exit(1);
+			}
+			stmt.deconstructor.shouldDeconstruct = true;
+		}
+	}
+}
+
 function Parser.type_check_statement(stmt: Node*) {
 	if(stmt.type == NodeType::IF) {
 		this.type_check_if_statement(stmt);
@@ -1217,6 +1478,12 @@ function Parser.type_check_statement(stmt: Node*) {
 			eputsln("Cannot use 'break' outside of a loop");
 			exit(1);
 		}
+	}
+	else if(stmt.type == NodeType::DELETE) {
+		this.type_check_delete_statement(stmt);
+	}
+	else if(stmt.type == NodeType::DELETE_ARRAY) {
+		this.type_check_delete_array_statement(stmt);
 	}
 	else {
 		eputsln("Unreachable - type_check_statement");

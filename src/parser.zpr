@@ -202,7 +202,7 @@ function Parser.find_string(needle: Node*): Node* {
 	return null;
 }
 
-function Parser.parse_type(): Type* {
+function Parser.parse_type_no_array(): Type* {
 	this.advance();
 
 	var type = new_type();
@@ -245,6 +245,11 @@ function Parser.parse_type(): Type* {
 	while(this.match(TokenType::STAR)) {
 		type.indirection = type.indirection + 1;
 	}
+	return type;
+}
+
+function Parser.parse_type(): Type* {
+	var type = this.parse_type_no_array();
 
 	if(this.match(TokenType::LEFT_SQBR)) {
 		type.isArray = true;
@@ -418,6 +423,36 @@ function Parser.parse_identifier(): Node* {
 	return access;
 }
 
+function Parser.parse_new(): Node* {
+	var keyword = this.previous;
+	var type = this.parse_type_no_array();
+
+	var node = new_node(NodeType::NEW, keyword);
+	node.constructor.type = type;
+	node.constructor.arguments = new_vector();
+
+	if(this.match(TokenType::LEFT_PAREN)) {
+		if(!this.check(TokenType::RIGHT_PAREN)) {
+			do {
+				var arg = this.parse_expression();
+
+				node.constructor.arguments.push(arg);
+			} while(this.match(TokenType::COMMA));
+		}
+		this.consume(TokenType::RIGHT_PAREN, "Expected ')' after constructor arguments");
+	}
+	else if(this.match(TokenType::LEFT_SQBR)) {
+		var length = this.parse_expression();
+		this.consume(TokenType::RIGHT_SQBR, "Expected ']' after array length");
+		node.type = NodeType::NEW_ARRAY;
+		node.constructor.array.length = length;
+	}
+
+	node.constructor.shouldConstruct = false;
+	
+	return node;
+}
+
 function Parser.parse_value(): Node* {
 	if(this.match(TokenType::INT_LITERAL)) {
 		var literal = this.previous;
@@ -456,7 +491,7 @@ function Parser.parse_value(): Node* {
 		var literalNode = new_node(NodeType::FLOAT_LITERAL, literal);
 		literalNode.literal.type = F64_TYPE;
 
-		var str = malloc(literal.length + 1);
+		var str: i8* = malloc(literal.length + 1);
 		memcpy(str, literal.start, literal.length);
 		str[literal.length] = 0;
 
@@ -473,7 +508,7 @@ function Parser.parse_value(): Node* {
 		var literalNode = new_node(NodeType::STRING, literal);
 		literalNode.literal.type = STR_TYPE;
 
-		var buf = malloc(literal.length - 2 + 1);
+		var buf: i8* = malloc(literal.length - 2 + 1);
 		this.escape_string(literal, buf);
 
 		literalNode.literal.az.string.chars = buf;
@@ -500,6 +535,9 @@ function Parser.parse_value(): Node* {
 		this.consume(TokenType::RIGHT_PAREN, "Expected ')' after sizeof type");
 		expr.computedType = type;
 		return expr;
+	}
+	else if(this.match(TokenType::NEW)) {
+		return this.parse_new();
 	}
 	else if(this.match(TokenType::LEFT_PAREN)) {
 		var expr = this.parse_expression();
@@ -1071,6 +1109,32 @@ function Parser.parse_when_statement(): Node* {
 	return vhen;
 }
 
+function Parser.parse_delete_statement(): Node* {
+	var keyword = this.previous;
+
+	var expr = this.parse_expression();
+	
+	this.consume(TokenType::SEMICOLON, "Expected ';' after delete expression");
+
+	var node = new_node(NodeType::DELETE, keyword);
+	node.deconstructor.value = expr;
+	node.deconstructor.shouldDeconstruct = false;
+	return node;
+}
+
+function Parser.parse_delete_array_statement(): Node* {
+	var keyword = this.previous;
+
+	var expr = this.parse_expression();
+	
+	this.consume(TokenType::SEMICOLON, "Expected ';' after delete[] expression");
+
+	var node = new_node(NodeType::DELETE_ARRAY, keyword);
+	node.deconstructor.value = expr;
+	node.deconstructor.shouldDeconstruct = false;
+	return node;
+}
+
 function Parser.parse_statement(): Node* {
 	if(this.match(TokenType::BREAK)) {
 		var pos = this.previous;
@@ -1083,6 +1147,12 @@ function Parser.parse_statement(): Node* {
 		this.consume(TokenType::SEMICOLON, "Expected ';' after 'continue'");
 		var kontinue = new_node(NodeType::CONTINUE, pos);
 		return kontinue;
+	}
+	else if(this.match(TokenType::DELETE)) {
+		return this.parse_delete_statement();
+	}
+	else if(this.match(TokenType::DELETE_ARRAY)) {
+		return this.parse_delete_array_statement();
 	}
 	else if(this.match(TokenType::DO)) {
 		return this.parse_do_while_statement();
@@ -1448,7 +1518,7 @@ function Parser.parse_import() {
 	var path = this.consume(TokenType::STRING, "Expected import path");
 	this.consume(TokenType::SEMICOLON, "Expected ';' after import");
 
-	var spath = malloc(path.length - 2 + 1);
+	var spath: i8* = malloc(path.length - 2 + 1);
 	memcpy(spath, &path.start[1], path.length - 2);
 	spath[path.length - 2] = 0;
 

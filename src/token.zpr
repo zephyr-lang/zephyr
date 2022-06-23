@@ -65,6 +65,8 @@ enum TokenType {
 	BREAK,
 	CONST,
 	CONTINUE,
+	DELETE,
+	DELETE_ARRAY,
 	DO,
 	ELSE,
 	ENUM,
@@ -79,6 +81,7 @@ enum TokenType {
 	FOR,
 	FUNCTION,
 	NAMESPACE,
+	NEW,
 	RETURN,
 	SIZEOF,
 	STRUCT,
@@ -166,6 +169,8 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::BREAK -> return "break";
 		TokenType::CONST -> return "const";
 		TokenType::CONTINUE -> return "continue";
+		TokenType::DELETE -> return "delete";
+		TokenType::DELETE_ARRAY -> return "delete-array";
 		TokenType::DO -> return "do";
 		TokenType::ELSE -> return "else";
 		TokenType::ELSE -> return "enum";
@@ -180,6 +185,7 @@ function token_type_to_string(type: TokenType): i8* {
 		TokenType::FOR -> return "for";
 		TokenType::FUNCTION -> return "function";
 		TokenType::NAMESPACE -> return "namespace";
+		TokenType::NEW -> return "new";
 		TokenType::RETURN -> return "return";
 		TokenType::SIZEOF -> return "sizeof";
 		TokenType::STRUCT -> return "struct";
@@ -240,7 +246,7 @@ function synthetic_token(type: TokenType, value: i8*): Token* {
 }
 
 function Token.name_to_str(): i8* {
-	var name = malloc(this.length + 1);
+	var name: i8* = malloc(this.length + 1);
 	memcpy(name, this.start, this.length);
 	name[this.length] = 0;
 	return name;
