@@ -896,6 +896,29 @@ function print_ast_depth(node: Node*, depth: int) {
 				print_ast_depth(node.nameSpace.body.block.children.at(i), depth + 1);
 			}
 		}
+		NodeType::NEW -> {
+			puts("new "); puts(type_to_string(node.constructor.type));
+			for(var i = 0; i < node.constructor.arguments.size; ++i) {
+				if(i == 0) putln();
+				var arg: Node* = node.constructor.arguments.at(i);
+				print_ast_depth(arg, depth + 1);
+				if(i != node.constructor.arguments.size -1) putln();
+			}
+		}
+		NodeType::NEW_ARRAY -> {
+			puts("new[] "); putsln(type_to_string(node.constructor.type));
+			print_ast_depth(node.constructor.array.length, depth + 1);
+		}
+		NodeType::DELETE -> {
+			putsln("delete");
+			print_ast_depth(node.deconstructor.value, depth + 1);
+			putln();
+		}
+		NodeType::DELETE_ARRAY -> {
+			putsln("delete[]");
+			print_ast_depth(node.deconstructor.value, depth + 1);
+			putln();
+		}
 		else -> {
 			eputs("Cannot handle type in print_ast_depth - "); eputsln(node_type_to_string(node.type));
 		}
