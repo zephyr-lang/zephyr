@@ -98,7 +98,19 @@ function Parser.dce_expression(expr: Node*) {
 				mallocFunc.funktion.dced = true;
 				this.dce_function(mallocFunc);
 			}
-			this.dce_expression(expr.constructor.length);
+			this.dce_expression(expr.constructor.array.length);
+
+			if(expr.constructor.array.shouldConstruct) {
+				var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+				var constructorName: Name;
+				this.bind_name(&constructorName, constructorTok);
+
+				var constructor = expr.constructor.type.lookup_method(&constructorName);
+				if(!constructor.funktion.dced) {
+					constructor.funktion.dced = true;
+					this.dce_function(constructor);
+				}
+			}
 		}
 		NodeType::SIZEOF,
 		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::UINT_LITERAL, NodeType::ACCESS_VAR -> {}

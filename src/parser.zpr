@@ -445,7 +445,8 @@ function Parser.parse_new(): Node* {
 		var length = this.parse_expression();
 		this.consume(TokenType::RIGHT_SQBR, "Expected ']' after array length");
 		node.type = NodeType::NEW_ARRAY;
-		node.constructor.length = length;
+		node.constructor.array.length = length;
+		node.constructor.array.shouldConstruct = false;
 	}
 
 	return node;

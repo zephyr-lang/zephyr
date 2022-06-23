@@ -427,32 +427,34 @@ function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arg
 		generate_expr(parent, out);
 	out.putsln("    mov rdi, rax");
 
-	for(var i = 0; i < arguments.size; ++i) {
-		var arg: Node* = arguments.at(i);
+	if(arguments != null) {
+		for(var i = 0; i < arguments.size; ++i) {
+			var arg: Node* = arguments.at(i);
 
-		if(arg.expr_type().is_float()) {
-			if(localFloatRegUse < FLOAT_ARG_COUNT) {
-				generate_expr(arg, out);
-				out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
-				++floatRegistersInUse;
-				++localFloatRegUse;
+			if(arg.expr_type().is_float()) {
+				if(localFloatRegUse < FLOAT_ARG_COUNT) {
+					generate_expr(arg, out);
+					out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[localFloatRegUse]); out.putsln(", xmm0");
+					++floatRegistersInUse;
+					++localFloatRegUse;
+				}
+				else {
+					generate_expr(arg, out);
+					out.putsln("    sub rsp, 8");
+					out.putsln("    movsd [rsp], xmm0");
+				}
 			}
 			else {
-				generate_expr(arg, out);
-				out.putsln("    sub rsp, 8");
-				out.putsln("    movsd [rsp], xmm0");
-			}
-		}
-		else {
-			if(localIntRegUse < INT_ARG_COUNT) {
-				generate_expr(arg, out);
-				out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
-				++intRegistersInUse;
-				++localIntRegUse;
-			}
-			else {
-				generate_expr(arg, out);
-				out.putsln("    push rax");
+				if(localIntRegUse < INT_ARG_COUNT) {
+					generate_expr(arg, out);
+					out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
+					++intRegistersInUse;
+					++localIntRegUse;
+				}
+				else {
+					generate_expr(arg, out);
+					out.putsln("    push rax");
+				}
 			}
 		}
 	}
@@ -682,10 +684,66 @@ function generate_new(expr: Node*, out: File*) {
 
 function generate_new_array(expr: Node*, out: File*) {
 	// Typecheck should verify that malloc exists with the correct signature
-	generate_expr(expr.constructor.length, out);
+	generate_expr(expr.constructor.array.length, out);
+	if(expr.constructor.array.shouldConstruct) {
+		out.putsln("    push rax");
+	}
 	out.puts("    imul rax, "); out.putu(expr.constructor.type.size()); out.putln();
 	out.putsln("    mov rdi, rax");
 	out.putsln("    call _FZmalloc");
+
+	// Construct a for-loop inline
+	if(expr.constructor.array.shouldConstruct) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		parser.bind_name(&constructorName, constructorTok);
+
+		var loopStart = ++labelCount;
+		var loopEnd = ++labelCount;
+
+		out.putsln("    mov rdx, [rsp]"); // Capture the length in rdx
+		out.putsln("    push rax");       // push the malloc'd address (changes)
+		out.putsln("    push rax");       // push the malloc'd address (static, final result)
+
+		out.putsln("    mov rcx, 0");
+		out.putsln("    push rcx");       // push 'i' initialised to 0
+
+		// At the beginning of each iteration, the top of the stack appears as such:
+		// - i (iteration)
+		// - address (result)
+		// - address (offsetted)
+		// - length of array
+
+		out.puts(".l"); out.putu(loopStart); out.putsln(":");
+		out.putsln("    cmp rcx, rdx");
+		out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
+
+		// address (offsetted) is already in rax at this point
+		generate_method_call(null, expr.constructor.type, &constructorName, null, out);
+
+		// Set registers as such:
+		// rcx - i
+		// rax - address (offsetted)
+		// rdx - length
+		out.putsln("    mov rcx, [rsp]");
+		out.putsln("    mov rax, [rsp+16]");
+		out.putsln("    mov rdx, [rsp+24]");
+
+		// Increment (and store) i (by 1) and the offsetted address (by the size of an element)
+		out.putsln("    add rcx, 1");
+		out.putsln("    mov [rsp], rcx");
+		out.puts("    add rax, "); out.putu(expr.constructor.type.size()); out.putln();
+		out.putsln("    mov [rsp+16], rax");
+
+		// complete the loop
+		out.puts("    jmp .l"); out.putu(loopStart); out.putln();
+
+		out.puts(".l"); out.putu(loopEnd); out.putsln(":");
+		// Set rax to the final result address (which is the same as the one malloc originally returned)
+		// then pop the values from the stack
+		out.putsln("    mov rax, [rsp+8]");
+		out.putsln("    add rsp, 32");
+	}
 }
 
 function generate_expr(expr: Node*, out: File*) {

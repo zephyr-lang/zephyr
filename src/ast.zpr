@@ -248,7 +248,10 @@ struct Node {
 			type: Type*;
 			union {
 				arguments: Vector*;
-				length: Node*;
+				array: struct {
+					length: Node*;
+					shouldConstruct: bool;
+				};
 			};
 		};
 	};

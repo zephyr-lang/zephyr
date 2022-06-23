@@ -876,7 +876,7 @@ function Parser.type_check_new(expr: Node*) {
 		exit(1);
 	}
 
-	// A constructor is specified
+	// Constructing an object
 	if(expr.constructor.type.type == DataType::STRUCT && expr.constructor.type.indirection == 0) {
 		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
 		var constructorName: Name;
@@ -935,7 +935,20 @@ function Parser.type_check_new_array(expr: Node*) {
 		exit(1);
 	}
 
-	this.type_check_expr(expr.constructor.length);
+	if(expr.constructor.type.type == DataType::STRUCT && expr.constructor.type.indirection == 0) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructor = expr.constructor.type.lookup_method(&constructorName);
+		// Perform default operation if constructor does not exist
+		// (for now, ) creating via an array does not care if a constructor with more arguments is the only option
+		if(constructor != null && constructor.funktion.arguments.size - 1 == 0) {
+			expr.constructor.array.shouldConstruct = true;
+		}
+	}
+
+	this.type_check_expr(expr.constructor.array.length);
 	var length: Type* = typeStack.pop();
 
 	if(!length.assignable(INT_TYPE)) {
