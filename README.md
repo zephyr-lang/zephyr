@@ -78,3 +78,6 @@ Running the bash scripts in ./tests can be used to test the language.
 
 Running ./tests/all.sh will run all the tests and give a count of the
 successful, total, and skipped tests.
+
+### Note:
+Due to git, you may need to change the line endings of each test file to LF instead of CRLF.
