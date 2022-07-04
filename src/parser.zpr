@@ -1449,14 +1449,19 @@ function Parser.parse_union_definition(member: int): Node* {
 function Parser.parse_const_declaration(): Node* {
 	var name = this.consume(TokenType::IDENTIFIER, "Expected constant name");
 
+	var constant = new_node(NodeType::DEFINE_CONST, name);
+	this.namespace_name(&constant.constant.name, name);
+
+	if(this.lookup_constant(&constant.constant.name) != null) {
+		this.error("Redeclaration of constant");
+	}
+
 	this.consume(TokenType::EQ, "Expected '=' after constant name");
 
 	var val = this.parse_constant();
 
 	this.consume(TokenType::SEMICOLON, "Expected ';' after constant declaration");
 
-	var constant = new_node(NodeType::DEFINE_CONST, name);
-	this.namespace_name(&constant.constant.name, name);
 	constant.constant.value = val;
 
 	this.constants.push(constant);
