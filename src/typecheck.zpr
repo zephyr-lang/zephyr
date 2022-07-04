@@ -1712,6 +1712,11 @@ function Parser.type_check_top_level_declaration(node: Node*) {
 		this.type_check_global_var(node);
 	}
 	else if(node.type == NodeType::DEFINE_CONST) {
+		if(this.lookup_global_variable(&node.constant.name) != null || this.lookup_constant(&node.constant.name) != null) {
+			node.print_position();
+			eputs("Redeclaration of constant '"); node.constant.name.eput(); eputsln("'");
+			exit(1);
+		}
 		// Do nothing - parser verifies that this is an integer
 	}
 	else if(node.type == NodeType::ENUM) {
