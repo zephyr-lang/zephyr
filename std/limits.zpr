@@ -1,0 +1,17 @@
+import "std/linux.zpr";
+
+const RLIMIT_AS = 9;
+const RLIM_INFINITY = -1;
+
+struct rlimit {
+	rlim_cur: u64;
+	rlim_max: u64;
+}
+
+function getrlimit(resource: int, rlim: rlimit*): int {
+	return syscall2(SYS_getrlimit, resource, rlim);
+}
+
+function setrlimit(resource: int, rlim: rlimit*): int {
+	return syscall2(SYS_setrlimit, resource, rlim);
+}

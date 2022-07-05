@@ -18,11 +18,11 @@ var m_dumpAst: bool;
 function usage_exit(out: int, code: int) {
 	fputsln(out, "Possible Arguments:");
 	fputsln(out, "zephyr <options> <source>");
-	fputsln(out, "    -c => Provide a source string directly on the CLI");
-	fputsln(out, "          Cannot specify with a source file");
-	fputsln(out, "    -d => Display an AST dump");
-	fputsln(out, "    -h => Print this help message");
-	fputsln(out, "    -o => Specify the output file");
+	fputsln(out, "    -c   => Provide a source string directly on the CLI");
+	fputsln(out, "            Cannot specify with a source file");
+	fputsln(out, "    -d   => Display an AST dump");
+	fputsln(out, "    -h   => Print this help message");
+	fputsln(out, "    -o   => Specify the output file");
 
 	exit(code);
 }

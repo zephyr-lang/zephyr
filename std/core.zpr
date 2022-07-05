@@ -1,4 +1,5 @@
 import "std/linux.zpr";
+import "std/limits.zpr";
 
 alias bool int;
 const true = 1;
@@ -61,12 +62,15 @@ namespace std::internal::malloc {
 		return prev;
 	}
 
+	const MALLOC_MMAP_THRESHOLD = 128 * 1024;
+
 	// Header of each block allocated by malloc
 	// TODO: Collapse `free` into the LSB of size
 	struct __malloc_header {
 		reqsize: uint;
 		size: uint;
 		free: uint;
+		mmapped: uint;
 
 		previousBlock: __malloc_header*;
 
@@ -85,6 +89,31 @@ namespace std::internal::malloc {
 	var __free_blocks_base: __malloc_header* = null;
 	// The last item of the free blocks linked list
 	var __free_blocks_last: __malloc_header* = null;
+
+	var __total_memory_alloc: u64 = 0;
+	var __brk_max_size: u64;
+	var __malloc_initialized: bool = false;
+
+	function mmap(address: any*, length: u64, protect: int, flags: int, filedes: int, offset: uint): any* {
+		return syscall6(SYS_mmap, address, length, protect, flags, filedes, offset) as any*;
+	}
+
+	function munmap(address: any*, length: u64): int {
+		return syscall2(SYS_munmap, address, length);
+	}
+
+	function __init_malloc() {
+		__malloc_initialized = true;
+
+		var lim: rlimit;
+		getrlimit(RLIMIT_AS, &lim);
+		__brk_max_size = lim.rlim_max;
+	}
+
+	function set_malloc_brk_segment_size(size: u64) {
+		if(!__malloc_initialized) __init_malloc();
+		__brk_max_size = size;
+	}
 
 	// Locate a block within the free block linked list which has enough size for a block of the specified `size`
 	// returns null if such a block is not found
@@ -108,23 +137,40 @@ namespace std::internal::malloc {
 	}
 
 	function _malloc(reqsize: uint): any* {
-		var size = ((sizeof(__malloc_header) + reqsize - 1)|7) + 1;
+		if(!__malloc_initialized) __init_malloc();
+		var size: u64 = ((sizeof(__malloc_header) + reqsize - 1)|7) + 1;
 		
 		var block: __malloc_header*;
 
 		if(__malloc_base == null) {
-			block = sbrk(size);
-			__malloc_base = block;
-			__malloc_last = block;
-			block.previousBlock = null;
+			if(size >= MALLOC_MMAP_THRESHOLD || __brk_max_size <= __total_memory_alloc + size) {
+				// Use mmap when out of brk memory
+				block = mmap(null, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+				block.mmapped = true;
+			}
+			else {
+				block = sbrk(size);
+				__malloc_base = block;
+				__malloc_last = block;
+				block.previousBlock = null;
+				__total_memory_alloc += size;
+			}
 		}
 		else {
 			var last = __malloc_base;
 			var found = __find_malloc_block(&last, size);
 			if(found == null) {
-				block = sbrk(size);
-				block.previousBlock = __malloc_last;
-				__malloc_last = block;
+				if(size >= MALLOC_MMAP_THRESHOLD || __brk_max_size <= __total_memory_alloc + size) {
+					// Use mmap when out of brk memory
+					block = mmap(null, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+					block.mmapped = true;
+				}
+				else {
+					block = sbrk(size);
+					block.previousBlock = __malloc_last;
+					__malloc_last = block;
+					__total_memory_alloc += size;
+				}
 			}
 			else {
 				block = found;
@@ -184,6 +230,11 @@ namespace std::internal::malloc {
 		var header = __get_malloc_header_ptr(ptr);
 		header.free = 1;
 		
+		if(header.mmapped) {
+			munmap(header, header.size);
+			return;
+		}
+
 		if(__free_blocks_base == null) {
 			__free_blocks_base = header;
 			__free_blocks_last = header;

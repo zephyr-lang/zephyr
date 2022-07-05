@@ -323,3 +323,8 @@ const O_NONBLOCK = 2048;
 const SEEK_SET = 0;
 const SEEK_CUR = 1;
 const SEEK_END = 2;
+
+const PROT_READ = 1;
+const PROT_WRITE = 2;
+const MAP_PRIVATE = 2;
+const MAP_ANONYMOUS = 32;
