@@ -1371,8 +1371,16 @@ function Parser.parse_member_definition(type: Type*) {
 function Parser.parse_struct_definition(member: int): Node* {
 	var name: Token*;
 
+	var strukt = new_node(NodeType::STRUCT, name);
+
 	if(!member) {
 		name = this.consume(TokenType::IDENTIFIER, "Expected struct name");
+		this.namespace_name(&strukt.variable.name, name);
+		
+		var redef = Typecheck::lookup_type_defined(&strukt.variable.name, this.definedTypes, this.namespaceStack);
+		if(redef != null) {
+			this.error("Redeclaration of type");
+		}
 	}
 
 	this.consume(TokenType::LEFT_BRACE, "Expected '{' before struct body");
@@ -1408,11 +1416,9 @@ function Parser.parse_struct_definition(member: int): Node* {
 
 	this.consume(TokenType::RIGHT_BRACE, "Expected '}' after struct body");
 
-	var strukt = new_node(NodeType::STRUCT, name);
 	strukt.computedType = structType;
 
 	if(!member) {
-		this.namespace_name(&strukt.variable.name, name);
 		this.definedTypes.push(structType);
 	}
 
@@ -1421,9 +1427,17 @@ function Parser.parse_struct_definition(member: int): Node* {
 
 function Parser.parse_union_definition(member: int): Node* {
 	var name: Token*;
+
+	var vnion = new_node(NodeType::UNION, name);
 	
 	if(!member) {
 		name = this.consume(TokenType::IDENTIFIER, "Expected union name");
+		this.namespace_name(&vnion.variable.name, name);
+
+		var redef = Typecheck::lookup_type_defined(&vnion.variable.name, this.definedTypes, this.namespaceStack);
+		if(redef != null) {
+			this.error("Redeclaration of type");
+		}
 	}
 
 	this.consume(TokenType::LEFT_BRACE, "Expected '{' before union body");
@@ -1444,12 +1458,9 @@ function Parser.parse_union_definition(member: int): Node* {
 
 	this.consume(TokenType::RIGHT_BRACE, "Expected '}' after union body");
 
-	var vnion = new_node(NodeType::UNION, name);
 	vnion.computedType = unionType;
 
 	if(!member) {
-		this.namespace_name(&vnion.variable.name, name);
-
 		this.definedTypes.push(unionType);
 	}
 
@@ -1524,6 +1535,10 @@ function Parser.parse_enum_declaration(): Node* {
 	this.namespace_name(&alius.name, name);
 	alius.aliased = INT_TYPE;
 
+	if(Typecheck::lookup_type_defined(&alius.name, this.definedTypes, this.namespaceStack) != null) {
+		this.error_at_token(name, "Redeclaration of type");
+	}
+
 	this.definedTypes.push(alius);
 
 	return namespaceNode;
@@ -1581,6 +1596,10 @@ function Parser.parse_alias() {
 	alius.type = DataType::ALIAS;
 	this.namespace_name(&alius.name, aliasName);
 	alius.aliased = aliasType;
+
+	if(Typecheck::lookup_type_defined(&alius.name, this.definedTypes, this.namespaceStack) != null) {
+		this.error_at_token(aliasName, "Redeclaration of type");
+	}
 
 	this.definedTypes.push(alius);
 }
