@@ -1253,8 +1253,6 @@ function Parser.parse_function(): Node* {
 		thisNode.variable.type = type;
 
 		funktion.funktion.arguments.push(thisNode);
-
-		parent.methods.push(funktion);
 		
 		name = methodName;
 	}
@@ -1264,8 +1262,20 @@ function Parser.parse_function(): Node* {
 
 	if(!funktion.funktion.isMethod) {
 		this.namespace_name(&funktion.funktion.name, name);
+
+		var redef = this.lookup_function(&funktion.funktion.name);
+		if(redef != null) {
+			this.error("Redeclaration of function");
+		}
 	} else {
 		this.bind_name(&funktion.funktion.name, name);
+
+		var redef = funktion.funktion.parentType.lookup_method(&funktion.funktion.name);
+		if(redef != null) {
+			this.error("Redeclaration of method");
+		}
+
+		funktion.funktion.parentType.methods.push(funktion);
 	}
 	
 	this.consume(TokenType::LEFT_PAREN, "Expected '(' after function name");
