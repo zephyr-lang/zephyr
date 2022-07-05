@@ -1996,3 +1996,82 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Redeclarations: "
+
+assert_compilation_error "
+struct X {
+	y: int;
+}
+
+struct X {
+	z: i8;
+}
+
+function main(): int { return 0; }
+"
+
+assert_compilation_error "
+union X {
+	y: int;
+}
+
+union X {
+	z: i8;
+}
+
+function main(): int { return 0; }
+"
+
+assert_compilation_error "
+enum Type {
+	A
+}
+
+enum Type {
+	B
+}
+
+function main(): int { return 0; }
+"
+
+assert_compilation_error "
+alias A int;
+alias A f64;
+
+function main(): int { return 0; }
+"
+
+assert_compilation_error "
+function x() {}
+
+function x() {}
+
+function main(): int { return 0; }
+"
+
+assert_compilation_error "
+struct Y {
+	z: int;
+}
+
+function Y.x() {}
+
+function Y.x() {}
+
+function main(): int { return 0; }
+"
+
+assert_compilation_error "
+struct X {
+	y: int;
+}
+
+union X {
+	z: i8;
+}
+
+function main(): int { return 0; }
+"
+
+echo " Done"
