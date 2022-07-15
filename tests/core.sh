@@ -2075,3 +2075,251 @@ function main(): int { return 0; }
 "
 
 echo " Done"
+
+echo -n "Stack Construct/Deconstruct: "
+
+assert_stdout "Hi, I'm Alice!" "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var alice: Person(\"Alice\");
+
+	alice.say_hi();
+
+	return 0;
+}
+"
+
+assert_compilation_error "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var alice: Person();
+
+	alice.say_hi();
+
+	return 0;
+}
+"
+
+assert_compilation_error "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var alice: Person;
+
+	alice.say_hi();
+
+	return 0;
+}
+"
+
+assert_stdout "Hi, I'm Bob!" "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor() {
+	this.name = \"Bob\";
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var person: Person;
+
+	person.say_hi();
+
+	return 0;
+}
+"
+
+assert_compilation_error "
+
+function main(): int {
+	var my_int: int();
+
+	return 0;
+}
+"
+
+assert_stdout "Hi, I'm Louis!
+Goodbye, I've been Louis" "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.deconstructor() {
+	puts(\"Goodbye, I've been \"); putsln(this.name);
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var person: Person(\"Louis\");
+
+	person.say_hi();
+
+	return 0;
+}
+"
+
+assert_stdout "Hi, I'm Louis!
+Hi, I'm Alice!
+Goodbye, I've been Alice
+Goodbye, I've been Louis" "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.deconstructor() {
+	puts(\"Goodbye, I've been \"); putsln(this.name);
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var person: Person(\"Louis\");
+	var person2: Person(\"Alice\");
+
+	person.say_hi();
+	person2.say_hi();
+
+	return 0;
+}
+"
+
+assert_stdout "Goodbye, I've been Dave
+Goodbye, I've been Calli
+Goodbye, I've been Bob
+Goodbye, I've been Alice" "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.deconstructor() {
+	puts(\"Goodbye, I've been \"); putsln(this.name);
+}
+
+
+function f() {
+	var p1: Person(\"Alice\");
+
+	{
+		var p2: Person(\"Bob\");
+		var p3: Person(\"Calli\");
+		{
+			var p4: Person(\"Dave\");
+		}
+	}
+}
+
+function main(): int {
+	f();
+
+	return 0;
+}
+"
+
+assert_stdout "Goodbye, I've been Dave
+Goodbye, I've been Calli
+Goodbye, I've been Bob
+Goodbye, I've been Alice" "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.deconstructor() {
+	puts(\"Goodbye, I've been \"); putsln(this.name);
+}
+
+function f() {
+	var p1: Person(\"Alice\");
+
+	{
+		var p2: Person(\"Bob\");
+		var p3: Person(\"Calli\");
+		{
+			var p4: Person(\"Dave\");
+			
+			return;
+		}
+	}
+}
+
+function main(): int {
+	f();
+
+	return 0;
+}
+"
+
+echo " Done"
