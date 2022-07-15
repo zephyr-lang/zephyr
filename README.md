@@ -1,3 +1,5 @@
+![Zephyr Logo](https://repository-images.githubusercontent.com/492445571/f5f3eacd-1d80-47c4-aa1f-eedd8cac4cf0)
+
 # Zephyr Programming Language
 
 Zephyr is a statically, [strongly](https://en.wikipedia.org/wiki/Strong_and_weak_typing) typed language which compiles to assembly.
