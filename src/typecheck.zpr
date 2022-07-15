@@ -1492,28 +1492,32 @@ function Parser.type_check_delete_array_statement(stmt: Node*) {
 }
 
 function Parser.type_check_return(stmt: Node*) {
-		var returnType: Type*;
+	var returnType: Type*;
 
-		if(stmt.ret.value != null) {
-			this.type_check_expr(stmt.ret.value);
-			returnType = typeStack.pop();
-		}
-		else {
-			returnType = VOID_TYPE;
-		}
+	if(stmt.ret.value != null) {
+		this.type_check_expr(stmt.ret.value);
+		returnType = typeStack.pop();
+	}
+	else {
+		returnType = VOID_TYPE;
+	}
 
-		var expectedType = this.currentFunction.funktion.returnType;
-		if(!returnType.assignable(expectedType)) {
-			stmt.print_position();
-			eputs("Cannot return type "); eputs(type_to_string(returnType)); eputs(" from function expecting "); eputs(type_to_string(expectedType));
-			eputln();
-			exit(1);
-		}
+	var expectedType = this.currentFunction.funktion.returnType;
+	if(!returnType.assignable(expectedType)) {
+		stmt.print_position();
+		eputs("Cannot return type "); eputs(type_to_string(returnType)); eputs(" from function expecting "); eputs(type_to_string(expectedType));
+		eputln();
+		exit(1);
+	}
 
-		if(this.currentBlock.block.variables.size > 0) {
-			stmt.ret.variables = new_vector();
-			for(var i = 0; i < this.currentBlock.block.variables.size; ++i) {
-				var variable: Node* = this.currentBlock.block.variables.at(i);
+	if(this.currentBlock.block.variables.size > 0) {
+		stmt.ret.variables = new_vector();
+		
+		var block = this.currentBlock;
+
+		while(block != null) {
+			for(var i = block.block.variables.size - 1; i >= 0; --i) {
+				var variable: Node* = block.block.variables.at(i);
 
 				if(variable.variable.type.type != DataType::STRUCT || variable.variable.type.indirection != 0) {
 					continue;
@@ -1522,9 +1526,12 @@ function Parser.type_check_return(stmt: Node*) {
 				// Deconstructor is verified by type_check_block
 				stmt.ret.variables.push(variable);
 			}
-		}
 
-		this.currentBlock.block.hasReturned = true;
+			block = block.block.parent;
+		}
+	}
+
+	this.currentBlock.block.hasReturned = true;
 }
 
 function Parser.type_check_statement(stmt: Node*) {
@@ -1669,6 +1676,11 @@ function Parser.type_check_function(funktion: Node*) {
 		if(funktion.funktion.returnType.is_void()) {
 			var tok = synthetic_token(TokenType::RETURN, "return");
 			var implReturn = new_node(NodeType::RETURN, tok);
+
+			this.currentBlock = funktion.funktion.body;
+			this.type_check_return(implReturn);
+			this.currentBlock = funktion.funktion.body.block.parent;
+
 			funktion.funktion.body.add_child(implReturn);
 		}
 		else {

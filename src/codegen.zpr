@@ -1135,7 +1135,7 @@ function generate_delete_array(stmt: Node*, out: File*) {
 
 function generate_return(stmt: Node*, out: File*) {
 	if(stmt.ret.variables != null) {
-		for(var i = stmt.ret.variables.size - 1; i >= 0; --i) {
+		for(var i = 0; i < stmt.ret.variables.size; ++i) {
 			var variable: Node* = stmt.ret.variables.at(i);
 
 			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
@@ -1225,7 +1225,7 @@ function generate_block(block: Node*, out: File*) {
 			var deconstructor = variable.variable.type.lookup_method(&deconstructorName);
 
 			if(deconstructor != null) {
-				out.puts("    lea rax, [rbp-"); out.putd(variable.variable.stackOffset); out.putsln("]");
+				out.puts("    lea rdi, [rbp-"); out.putd(variable.variable.stackOffset); out.putsln("]");
 				out.puts("    call _M"); out.put_name(&variable.variable.type.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
 			}
 		}
