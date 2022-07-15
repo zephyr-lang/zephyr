@@ -1009,7 +1009,7 @@ function Parser.parse_return_statement(): Node* {
 	var returnStmt = new_node(NodeType::RETURN, this.previous);
 
 	if(!this.check(TokenType::SEMICOLON))
-		returnStmt.unary = this.parse_expression();
+		returnStmt.ret.value = this.parse_expression();
 
 	this.consume(TokenType::SEMICOLON, "Expected ';' after return statement");
 
