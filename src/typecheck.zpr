@@ -886,6 +886,7 @@ function Parser.type_check_new(expr: Node*) {
 		// Perform default operation if constructor does not exist and there are no arguments
 		if(constructor == null) {
 			if(expr.constructor.arguments.size != 0) {
+				expr.print_position();
 				eputs("Type "); eputs(type_to_string(expr.constructor.type)); eputs(" has no constructor: expected 0 arguments, got "); 
 				eputd(expr.constructor.arguments.size); eputln();
 				exit(1);
@@ -1147,6 +1148,56 @@ function Parser.type_check_define_var(stmt: Node*) {
 			eputs("Cannot assign type "); eputs(type_to_string(valueType)); eputs(" to variable expecting "); eputs(type_to_string(declType));
 			eputln();
 			exit(1);
+		}
+	}
+
+	if(stmt.variable.arguments != null) {
+		if(stmt.variable.type.type != DataType::STRUCT || stmt.variable.type.indirection != 0) {
+			stmt.print_position();
+			eputs("Cannot construct type "); eputs(type_to_string(stmt.variable.type)); eputsln(" on the stack");
+			exit(1);
+		}
+
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructor = stmt.variable.type.lookup_method(&constructorName);
+		// Perform default operation if constructor does not exist and there are no arguments
+		if(constructor == null) {
+			if(stmt.variable.arguments.size != 0) {
+				stmt.print_position();
+				eputs("Type "); eputs(type_to_string(stmt.variable.type)); eputs(" has no constructor: expected 0 arguments, got "); 
+				eputd(stmt.variable.arguments.size); eputln();
+				exit(1);
+			}
+			// Indicate to codegen to not generate a call to the constructor
+			stmt.variable.arguments = null;
+		}
+		else {
+			// Type check as if it were a method call
+			if(constructor.funktion.arguments.size - 1 != stmt.variable.arguments.size) {
+				stmt.print_position();
+				eputs("Call expected "); eputd(constructor.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(stmt.variable.arguments.size); eputln();
+				exit(1);
+			}
+
+			for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
+				var arg: Node* = stmt.variable.arguments.at(i - 1);
+				this.type_check_expr(arg);
+
+				var argType: Type* = typeStack.pop();
+				
+				var param: Node* = constructor.funktion.arguments.at(i);
+				var paramType = param.variable.type;
+
+				if(!argType.assignable(paramType)) {
+					stmt.print_position();
+					eputs("Function argument "); eputd(i + 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
+					eputs(type_to_string(argType)); eputln();
+					exit(1);
+				}
+			}
 		}
 	}
 

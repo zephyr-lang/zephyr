@@ -1039,23 +1039,39 @@ function Parser.parse_var_declaration(): Node* {
 		type = this.parse_type();
 	}
 
-	var value: Node* = null;
-
-	if(this.match(TokenType::EQ)) {
-		if(type.isArray && this.match(TokenType::LEFT_SQBR)) {
-			value = this.parse_array_initialization();
-		}
-		else {
-			value = this.parse_expression();
-		}
-	}
-
-	this.consume(TokenType::SEMICOLON, "Expected ';' after variable declaration");
-
 	var variable = new_node(NodeType::DEFINE_VAR, name);
 	this.bind_name(&variable.variable.name, name);
 	variable.variable.type = type;
-	variable.variable.value = value;
+	variable.variable.value = null;
+	variable.variable.arguments = null;
+
+	if(this.match(TokenType::EQ)) {
+		if(type.isArray && this.match(TokenType::LEFT_SQBR)) {
+			variable.variable.value = this.parse_array_initialization();
+		}
+		else {
+			variable.variable.value = this.parse_expression();
+		}
+	}
+
+	else if(type != VOID_TYPE && this.match(TokenType::LEFT_PAREN)) {
+		variable.variable.arguments = new_vector();
+		if(!this.check(TokenType::RIGHT_PAREN)) {
+			var arg = this.parse_expression();
+
+			variable.variable.arguments.push(arg);
+
+			while(this.match(TokenType::COMMA)) {
+				var arg = this.parse_expression();
+
+				variable.variable.arguments.push(arg);
+			}
+		}
+
+		this.consume(TokenType::RIGHT_PAREN, "Expected ')' after constructor arguments");
+	}
+
+	this.consume(TokenType::SEMICOLON, "Expected ';' after variable declaration");
 
 	return variable;
 }

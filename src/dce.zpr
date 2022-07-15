@@ -158,6 +158,21 @@ function Parser.dce_statement(stmt: Node*) {
 		NodeType::DEFINE_VAR -> {
 			if(stmt.variable.value != null)
 				this.dce_expression(stmt.variable.value);
+			if(stmt.variable.arguments != null) {
+				var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+				var constructorName: Name;
+				this.bind_name(&constructorName, constructorTok);
+
+				var constructor = stmt.variable.type.lookup_method(&constructorName);
+				if(!constructor.funktion.dced) {
+					constructor.funktion.dced = true;
+					this.dce_function(constructor);
+				}
+
+				for(var i = 0; i < stmt.variable.arguments.size; ++i) {
+					this.dce_expression(stmt.variable.arguments.at(i));
+				}
+			}
 		}
 		NodeType::BLOCK -> {
 			this.dce_block(stmt);
