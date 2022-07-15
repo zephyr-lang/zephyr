@@ -1201,6 +1201,26 @@ function Parser.type_check_define_var(stmt: Node*) {
 		}
 	}
 
+	if(stmt.variable.value == null && stmt.variable.arguments == null 
+	   && stmt.variable.type.type == DataType::STRUCT && stmt.variable.type.indirection == 0) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructor = stmt.variable.type.lookup_method(&constructorName);
+
+		if(constructor != null) {
+			if(constructor.funktion.arguments.size - 1 > 0) {
+				stmt.print_position();
+				eputs("Constructor expected "); eputd(constructor.funktion.arguments.size - 1); eputsln(" arguments but got 0");
+				exit(1);
+			}
+			else {
+				stmt.variable.arguments = new_vector();
+			}
+		}
+	}
+
 	this.currentBlock.block.variables.push(stmt);
 }
 
