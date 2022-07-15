@@ -76,13 +76,16 @@ struct Person {
 	name: i8*;
 }
 
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
 function Person.say_hi() {
 	puts("Hi, I'm "); puts(this.name); putsln("!"); // f"Hi, I'm {name}!\n"
 }
 
 function main(): int {
-	var alice: Person;
-	alice.name = "Alice";
+	var alice: Person("Alice");
 
 	alice.say_hi();
 
