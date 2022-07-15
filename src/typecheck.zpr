@@ -886,6 +886,7 @@ function Parser.type_check_new(expr: Node*) {
 		// Perform default operation if constructor does not exist and there are no arguments
 		if(constructor == null) {
 			if(expr.constructor.arguments.size != 0) {
+				expr.print_position();
 				eputs("Type "); eputs(type_to_string(expr.constructor.type)); eputs(" has no constructor: expected 0 arguments, got "); 
 				eputd(expr.constructor.arguments.size); eputln();
 				exit(1);
@@ -1150,6 +1151,76 @@ function Parser.type_check_define_var(stmt: Node*) {
 		}
 	}
 
+	if(stmt.variable.arguments != null) {
+		if(stmt.variable.type.type != DataType::STRUCT || stmt.variable.type.indirection != 0) {
+			stmt.print_position();
+			eputs("Cannot construct type "); eputs(type_to_string(stmt.variable.type)); eputsln(" on the stack");
+			exit(1);
+		}
+
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructor = stmt.variable.type.lookup_method(&constructorName);
+		// Perform default operation if constructor does not exist and there are no arguments
+		if(constructor == null) {
+			if(stmt.variable.arguments.size != 0) {
+				stmt.print_position();
+				eputs("Type "); eputs(type_to_string(stmt.variable.type)); eputs(" has no constructor: expected 0 arguments, got "); 
+				eputd(stmt.variable.arguments.size); eputln();
+				exit(1);
+			}
+			// Indicate to codegen to not generate a call to the constructor
+			stmt.variable.arguments = null;
+		}
+		else {
+			// Type check as if it were a method call
+			if(constructor.funktion.arguments.size - 1 != stmt.variable.arguments.size) {
+				stmt.print_position();
+				eputs("Call expected "); eputd(constructor.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(stmt.variable.arguments.size); eputln();
+				exit(1);
+			}
+
+			for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
+				var arg: Node* = stmt.variable.arguments.at(i - 1);
+				this.type_check_expr(arg);
+
+				var argType: Type* = typeStack.pop();
+				
+				var param: Node* = constructor.funktion.arguments.at(i);
+				var paramType = param.variable.type;
+
+				if(!argType.assignable(paramType)) {
+					stmt.print_position();
+					eputs("Function argument "); eputd(i + 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
+					eputs(type_to_string(argType)); eputln();
+					exit(1);
+				}
+			}
+		}
+	}
+
+	if(stmt.variable.value == null && stmt.variable.arguments == null 
+	   && stmt.variable.type.type == DataType::STRUCT && stmt.variable.type.indirection == 0) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructor = stmt.variable.type.lookup_method(&constructorName);
+
+		if(constructor != null) {
+			if(constructor.funktion.arguments.size - 1 > 0) {
+				stmt.print_position();
+				eputs("Constructor expected "); eputd(constructor.funktion.arguments.size - 1); eputsln(" arguments but got 0");
+				exit(1);
+			}
+			else {
+				stmt.variable.arguments = new_vector();
+			}
+		}
+	}
+
 	this.currentBlock.block.variables.push(stmt);
 }
 
@@ -1345,7 +1416,7 @@ function Parser.type_check_delete_statement(stmt: Node*) {
 			if(deconstructor.funktion.arguments.size - 1 != 0) {
 				stmt.print_position();
 				eputs("The deconstructor of type "); eputs(type_to_string(targetType)); eputs(" must have 0 arguments (has "); 
-				eputu(deconstructor.funktion.arguments.size); eputsln(")");
+				eputu(deconstructor.funktion.arguments.size - 1); eputsln(")");
 				exit(1);
 			}
 		}
@@ -1420,6 +1491,49 @@ function Parser.type_check_delete_array_statement(stmt: Node*) {
 	}
 }
 
+function Parser.type_check_return(stmt: Node*) {
+	var returnType: Type*;
+
+	if(stmt.ret.value != null) {
+		this.type_check_expr(stmt.ret.value);
+		returnType = typeStack.pop();
+	}
+	else {
+		returnType = VOID_TYPE;
+	}
+
+	var expectedType = this.currentFunction.funktion.returnType;
+	if(!returnType.assignable(expectedType)) {
+		stmt.print_position();
+		eputs("Cannot return type "); eputs(type_to_string(returnType)); eputs(" from function expecting "); eputs(type_to_string(expectedType));
+		eputln();
+		exit(1);
+	}
+
+	if(this.currentBlock.block.variables.size > 0) {
+		stmt.ret.variables = new_vector();
+		
+		var block = this.currentBlock;
+
+		while(block != null) {
+			for(var i = block.block.variables.size - 1; i >= 0; --i) {
+				var variable: Node* = block.block.variables.at(i);
+
+				if(variable.variable.type.type != DataType::STRUCT || variable.variable.type.indirection != 0) {
+					continue;
+				}
+
+				// Deconstructor is verified by type_check_block
+				stmt.ret.variables.push(variable);
+			}
+
+			block = block.block.parent;
+		}
+	}
+
+	this.currentBlock.block.hasReturned = true;
+}
+
 function Parser.type_check_statement(stmt: Node*) {
 	if(stmt.type == NodeType::IF) {
 		this.type_check_if_statement(stmt);
@@ -1437,23 +1551,7 @@ function Parser.type_check_statement(stmt: Node*) {
 		this.type_check_when_statement(stmt);
 	}
 	else if(stmt.type == NodeType::RETURN) {
-		var returnType: Type*;
-		if(stmt.unary != null) {
-			this.type_check_expr(stmt.unary);
-			returnType = typeStack.pop();
-		}
-		else {
-			returnType = VOID_TYPE;
-		}
-
-		var expectedType = this.currentFunction.funktion.returnType;
-		if(!returnType.assignable(expectedType)) {
-			stmt.print_position();
-			eputs("Cannot return type "); eputs(type_to_string(returnType)); eputs(" from function expecting "); eputs(type_to_string(expectedType));
-			eputln();
-			exit(1);
-		}
-		this.currentBlock.block.hasReturned = true;
+		this.type_check_return(stmt);
 	}
 	else if(stmt.type == NodeType::DEFINE_VAR) {
 		this.type_check_define_var(stmt);
@@ -1505,6 +1603,30 @@ function Parser.type_check_block(block: Node*) {
 		this.type_check_statement(block.block.children.at(i));
 	}
 
+	for(var i = 0; i < block.block.variables.size; ++i) {
+		var stmt: Node* = block.block.variables.at(i);
+
+		if(stmt.variable.type.type != DataType::STRUCT || stmt.variable.type.indirection != 0) {
+			continue;
+		}
+
+		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+		var deconstructorName: Name;
+		this.bind_name(&deconstructorName, deconstructorTok);
+
+		var deconstructor = stmt.variable.type.lookup_method(&deconstructorName);
+
+		if(deconstructor != null) {
+			stmt.deconstructor.shouldDeconstruct = true;
+			if(deconstructor.funktion.arguments.size - 1 != 0) {
+				stmt.print_position();
+				eputs("The deconstructor of type "); eputs(type_to_string(stmt.variable.type)); eputs(" must have 0 arguments (has "); 
+				eputu(deconstructor.funktion.arguments.size - 1); eputsln(")");
+				exit(1);
+			}
+		}
+	}
+
 	this.currentBlock = block.block.parent;
 }
 
@@ -1554,6 +1676,11 @@ function Parser.type_check_function(funktion: Node*) {
 		if(funktion.funktion.returnType.is_void()) {
 			var tok = synthetic_token(TokenType::RETURN, "return");
 			var implReturn = new_node(NodeType::RETURN, tok);
+
+			this.currentBlock = funktion.funktion.body;
+			this.type_check_return(implReturn);
+			this.currentBlock = funktion.funktion.body.block.parent;
+
 			funktion.funktion.body.add_child(implReturn);
 		}
 		else {
@@ -1621,6 +1748,12 @@ function Parser.type_check_global_var(stmt: Node*) {
 			eputln();
 			exit(1);
 		}
+	}
+
+	if(stmt.variable.arguments != null) {
+		stmt.print_position();
+		eputsln("Constructing a global variable is not supported");
+		exit(1);
 	}
 
 	this.globalVars.push(stmt);

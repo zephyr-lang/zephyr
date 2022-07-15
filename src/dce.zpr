@@ -126,6 +126,24 @@ function Parser.dce_block(block: Node*) {
 	for(var i = 0; i < block.block.children.size; ++i) {
 		this.dce_statement(block.block.children.at(i));
 	}
+
+	for(var i = 0; i < block.block.variables.size; ++i) {
+		var variable: Node* = block.block.variables.at(i);
+		if(variable.variable.type.type != DataType::STRUCT || variable.variable.type.indirection != 0) {
+			continue;
+		}
+
+		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+		var deconstructorName: Name;
+		this.bind_name(&deconstructorName, deconstructorTok);
+
+		var deconstructor = variable.variable.type.lookup_method(&deconstructorName);
+
+		if(deconstructor != null && !deconstructor.funktion.dced) {
+			deconstructor.funktion.dced = true;
+			this.dce_function(deconstructor);
+		}
+	}
 }
 
 function Parser.dce_statement(stmt: Node*) {
@@ -158,6 +176,21 @@ function Parser.dce_statement(stmt: Node*) {
 		NodeType::DEFINE_VAR -> {
 			if(stmt.variable.value != null)
 				this.dce_expression(stmt.variable.value);
+			if(stmt.variable.arguments != null) {
+				var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+				var constructorName: Name;
+				this.bind_name(&constructorName, constructorTok);
+
+				var constructor = stmt.variable.type.lookup_method(&constructorName);
+				if(!constructor.funktion.dced) {
+					constructor.funktion.dced = true;
+					this.dce_function(constructor);
+				}
+
+				for(var i = 0; i < stmt.variable.arguments.size; ++i) {
+					this.dce_expression(stmt.variable.arguments.at(i));
+				}
+			}
 		}
 		NodeType::BLOCK -> {
 			this.dce_block(stmt);
@@ -166,8 +199,9 @@ function Parser.dce_statement(stmt: Node*) {
 			this.dce_expression(stmt.unary);
 		}
 		NodeType::RETURN -> {
-			if(stmt.unary != null)
-				this.dce_expression(stmt.unary);
+			if(stmt.ret.value != null)
+				this.dce_expression(stmt.ret.value);
+			// Variables are dce'd by dce_block
 		}
 		NodeType::DELETE -> {
 			var freeFunc = this.resolve_free_function();
@@ -229,9 +263,7 @@ function Parser.dce_statement(stmt: Node*) {
 function Parser.dce_function(funktion: Node*) {
 	funktion.funktion.used = true;
 	if(!funktion.funktion.hasImplicitBody)
-		for(var i = 0; i < funktion.funktion.body.block.children.size; ++i) {
-			this.dce_statement(funktion.funktion.body.block.children.at(i));
-		}
+		this.dce_block(funktion.funktion.body);
 }
 
 function Parser.dce() {

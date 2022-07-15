@@ -205,7 +205,9 @@ struct Node {
 			
 			name: Name;
 			type: Type*;
+
 			value: Node*;
+			arguments: Vector*;
 
 			stackOffset: int;
 			unionField: int;
@@ -260,6 +262,11 @@ struct Node {
 			value: Node*;
 			elementType: Type*;
 			shouldDeconstruct: bool;
+		};
+
+		ret: struct {
+			value: Node*;
+			variables: Vector*;
 		};
 	};
 }

@@ -1025,7 +1025,7 @@ function generate_define_var(stmt: Node*, out: File*) {
 		generate_expr(stmt.variable.value, out);
 
 		if(stmt.variable.type.is_structural()) {
-			out.puts("lea rcx, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
+			out.puts("    lea rcx, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
 			generate_copy(stmt.variable.type.fields, 0, out);
 		}
 		else if(stmt.variable.type.is_float()) {
@@ -1035,6 +1035,16 @@ function generate_define_var(stmt: Node*, out: File*) {
 			out.puts("    mov "); out.puts(stmt.variable.type.qualifier()); out.puts(" [rbp-"); out.putd(stmt.variable.stackOffset);
 			out.puts("], "); out.putsln(stmt.variable.type.rax_subregister());
 		}
+	}
+
+	if(stmt.variable.arguments != null) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		parser.bind_name(&constructorName, constructorTok);
+
+		out.puts("    lea rax, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
+
+		generate_method_call(null, stmt.variable.type, &constructorName, stmt.variable.arguments, out);
 	}
 }
 
@@ -1123,6 +1133,30 @@ function generate_delete_array(stmt: Node*, out: File*) {
 	out.putsln("    call _FZfree");
 }
 
+function generate_return(stmt: Node*, out: File*) {
+	if(stmt.ret.variables != null) {
+		for(var i = 0; i < stmt.ret.variables.size; ++i) {
+			var variable: Node* = stmt.ret.variables.at(i);
+
+			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+			var deconstructorName: Name;
+			parser.bind_name(&deconstructorName, deconstructorTok);
+
+			var deconstructor = variable.variable.type.lookup_method(&deconstructorName);
+
+			if(deconstructor != null) {
+				out.puts("    lea rdi, [rbp-"); out.putd(variable.variable.stackOffset); out.putsln("]");
+				out.puts("    call _M"); out.put_name(&variable.variable.type.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
+			}
+		}
+	}
+
+	if(stmt.ret.value != null)
+		generate_expr(stmt.ret.value, out);
+	out.putsln("    leave");
+	out.putsln("    ret");
+}
+
 function generate_statement(stmt: Node*, out: File*) {
 	when(stmt.type) {
 		NodeType::IF -> {
@@ -1141,10 +1175,7 @@ function generate_statement(stmt: Node*, out: File*) {
 			generate_when_statement(stmt, out);
 		}
 		NodeType::RETURN -> {
-			if(stmt.unary != null)
-				generate_expr(stmt.unary, out);
-			out.putsln("    leave");
-			out.putsln("    ret");
+			generate_return(stmt, out);
 		}
 		NodeType::DEFINE_VAR -> {
 			generate_define_var(stmt, out);
@@ -1177,6 +1208,27 @@ function generate_statement(stmt: Node*, out: File*) {
 function generate_block(block: Node*, out: File*) {
 	for(var i = 0; i < block.block.children.size; ++i) {
 		generate_statement(block.block.children.at(i), out);
+	}
+
+	if(!block.block.hasReturned) {
+		for(var i = block.block.variables.size - 1; i >= 0; --i) {
+			var variable: Node* = block.block.variables.at(i);
+
+			if(variable.variable.type.type != DataType::STRUCT || variable.variable.type.indirection != 0) {
+				continue;
+			}
+
+			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+			var deconstructorName: Name;
+			parser.bind_name(&deconstructorName, deconstructorTok);
+
+			var deconstructor = variable.variable.type.lookup_method(&deconstructorName);
+
+			if(deconstructor != null) {
+				out.puts("    lea rdi, [rbp-"); out.putd(variable.variable.stackOffset); out.putsln("]");
+				out.puts("    call _M"); out.put_name(&variable.variable.type.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
+			}
+		}
 	}
 }
 
