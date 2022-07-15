@@ -15,13 +15,13 @@ Firstly, you must have [yasm](https://yasm.tortall.net/) installed into your `$P
 
 ### Note:
 To sync the bootstrap files you may need to run:
-```
+```console
 $ git lfs pull
 ```
 
 ### With make
 
-```
+```console
 $ make bootstrap
 
 $ ./build/zephyr -o ./build/zephyr ./src/main.zpr
@@ -33,7 +33,7 @@ $ ...
 ### Without make
 
 ```console
-$ yasm -felf64 -o ./bootstrap/bootstrap_x86_64_linux ./bootstrap/bootstrap_x86_64_linux.yasm
+$ yasm -felf64 -o ./bootstrap/bootstrap_x86_64_linux.o ./bootstrap/bootstrap_x86_64_linux.yasm
 $ ld -o ./bootstrap/bootstrap_x86_64_linux ./bootstrap/bootstrap_x86_64_linux.o
 
 $ ./bootstrap/bootstrap_x86_64_linux -o ./build/zephyr ./src/main.zpr
@@ -64,6 +64,28 @@ function main(): int {
 	var file = fopen("./myfile.txt", 'w');
 	file.putsln("Hello, Zephyr FileIO!");
 	file.close();
+	return 0;
+}
+```
+
+### Struct Methods
+```
+import "std/io.zpr";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.say_hi() {
+	puts("Hi, I'm "); puts(this.name); putsln("!"); // f"Hi, I'm {name}!\n"
+}
+
+function main(): int {
+	var alice: Person;
+	alice.name = "Alice";
+
+	alice.say_hi();
+
 	return 0;
 }
 ```
