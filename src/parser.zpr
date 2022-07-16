@@ -103,8 +103,6 @@ function Parser.get_function(name: Name*, found: bool*): Vector* {
 
 	var list = this.functions.get(nameStr, found) as Vector*;
 
-	delete[] nameStr;
-
 	return list;
 }
 
@@ -1309,11 +1307,6 @@ function Parser.parse_function(): Node* {
 		this.add_function(funktion);
 	} else {
 		this.bind_name(&funktion.funktion.name, name);
-
-		var redef = funktion.funktion.parentType.lookup_method(&funktion.funktion.name);
-		if(redef != null) {
-			this.error("Redeclaration of method");
-		}
 
 		funktion.funktion.parentType.add_method(funktion);
 	}

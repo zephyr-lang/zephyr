@@ -433,8 +433,6 @@ function Type.get_method(name: Name*, found: bool*): Vector* {
 
 	var list = this.methods.get(nameStr, found) as Vector*;
 
-	delete[] nameStr;
-
 	return list;
 }
 

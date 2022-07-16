@@ -183,6 +183,7 @@ function Parser.dce_statement(stmt: Node*) {
 				var constructorName: Name;
 				this.bind_name(&constructorName, constructorTok);
 
+				//TODO THIS IS NULL
 				var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, stmt.variable.argTypes);
 				if(!constructor.funktion.dced) {
 					constructor.funktion.dced = true;

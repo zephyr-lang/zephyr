@@ -441,7 +441,7 @@ function generate_call(expr: Node*, out: File*) {
 	}
 }
 
-function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arguments: Vector*, out: File*) {
+function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arguments: Vector*, argTypes: Vector*, out: File*) {
 	for(var i = 0; i < intRegistersInUse; ++i) {
 		out.puts("    push "); out.putsln(INT_ARG_REGISTERS[i]);
 	}
@@ -493,7 +493,9 @@ function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arg
 	intRegistersInUse -= localIntRegUse;
 	floatRegistersInUse -= localFloatRegUse;
 
-	out.puts("    call _M"); out.put_name(&parentType.name); out.puts("_"); out.put_name(name);
+	out.puts("    call _M"); 
+	if(argTypes != null) out.put_arguments(argTypes);
+	out.put_name(&parentType.name); out.puts("_"); out.put_name(name);
 	out.putln();
 
 	for(var i = 0; i < intRegistersInUse; ++i) {
@@ -507,7 +509,7 @@ function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arg
 }
 
 function generate_call_method(expr: Node*, out: File*) {
-	generate_method_call(expr.funktion.parent, expr.funktion.parentType, &expr.funktion.name, expr.funktion.arguments, out);
+	generate_method_call(expr.funktion.parent, expr.funktion.parentType, &expr.funktion.name, expr.funktion.arguments, expr.funktion.argTypes, out);
 }
 
 function generate_ternary(expr: Node*, out: File*) {
@@ -708,7 +710,7 @@ function generate_new(expr: Node*, out: File*) {
 		parser.bind_name(&constructorName, constructorTok);
 
 		out.putsln("    push rax");
-		generate_method_call(null, expr.constructor.type, &constructorName, expr.constructor.arguments, out);
+		generate_method_call(null, expr.constructor.type, &constructorName, expr.constructor.arguments, expr.constructor.argTypes, out);
 		out.putsln("    pop rax");
 	}
 }
@@ -750,7 +752,7 @@ function generate_new_array(expr: Node*, out: File*) {
 		out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
 
 		// address (offsetted) is already in rax at this point
-		generate_method_call(null, expr.constructor.type, &constructorName, null, out);
+		generate_method_call(null, expr.constructor.type, &constructorName, null, null, out);
 
 		// Set registers as such:
 		// rcx - i
@@ -1075,7 +1077,7 @@ function generate_define_var(stmt: Node*, out: File*) {
 
 		out.puts("    lea rax, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
 
-		generate_method_call(null, stmt.variable.type, &constructorName, stmt.variable.arguments, out);
+		generate_method_call(null, stmt.variable.type, &constructorName, stmt.variable.arguments, stmt.variable.argTypes, out);
 	}
 }
 
@@ -1134,7 +1136,7 @@ function generate_delete_array(stmt: Node*, out: File*) {
 		out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
 
 		// address (offsetted) is already in rax at this point
-		generate_method_call(null, stmt.deconstructor.elementType, &deconstructorName, null, out);
+		generate_method_call(null, stmt.deconstructor.elementType, &deconstructorName, null, null, out);
 
 		// Set registers as such:
 		// rcx - i
@@ -1269,10 +1271,10 @@ function generate_function(funktion: Node*, out: File*) {
 		out.puts("_F"); out.put_arguments(funktion.funktion.argTypes); out.put_name(&funktion.funktion.name); out.putsln(":");
 	}
 	else {
-		out.puts("global _M"); out.put_name(&funktion.funktion.parentType.name); 
+		out.puts("global _M"); out.put_arguments(funktion.funktion.argTypes); out.put_name(&funktion.funktion.parentType.name); 
 		out.puts("_"); out.put_name(&funktion.funktion.name); out.putln();
 
-		out.puts("_M"); out.put_name(&funktion.funktion.parentType.name);
+		out.puts("_M"); out.put_arguments(funktion.funktion.argTypes); out.put_name(&funktion.funktion.parentType.name);
 		out.puts("_"); out.put_name(&funktion.funktion.name); out.putsln(":");
 	}
 

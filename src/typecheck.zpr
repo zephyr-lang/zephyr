@@ -468,6 +468,37 @@ function Type.lookup_method_with_arguments(name: Name*, arguments: Vector*): Nod
 	return null;
 }
 
+function Type.count_method_with_arguments(name: Name*, arguments: Vector*): int {
+	var list = this.lookup_method(name);
+	if(list == null) return 0;
+
+	var count = 0;
+
+	for(var i = 0; i < list.size; ++i) {
+		var method: Node* = list.at(i);
+
+		if(method.funktion.arguments.size - 1 != arguments.size) continue;
+
+		var match = true;
+
+		for(var arg = 1; arg < method.funktion.arguments.size; ++arg) {
+			var defArg: Node* = method.funktion.arguments.at(arg);
+			var givenType: Type* = arguments.at(arg - 1);
+
+			if(!givenType.assignable(defArg.variable.type)) {
+				match = false;
+				break;
+			}
+		}
+
+		if(match) {
+			++count;
+		}
+	}
+
+	return count;
+}
+
 function eput_argument_types(argTypes: Vector*) {
 	eputs("(");
 	for(var i = 0; i < argTypes.size; ++i) {
@@ -1312,6 +1343,8 @@ function Parser.type_check_define_var(stmt: Node*) {
 				eputs("Could not resolve default constructor of type "); eputsln(type_to_string(stmt.variable.type));
 				exit(1);
 			}
+
+			stmt.variable.argTypes = argTypes;
 		}
 	}
 
@@ -1751,6 +1784,28 @@ function Parser.type_check_function(funktion: Node*) {
 			if(count != 1) {
 				funktion.print_position();
 				eputsln("Redeclaration of function accepting same arguments");
+				exit(1);
+			}
+		}
+	}
+	else {
+		var methodList = funktion.funktion.parentType.lookup_method(&funktion.funktion.name);
+
+		var paramTypes = new_vector();
+		for(var i = 1; i < funktion.funktion.arguments.size; ++i) {
+			var arg: Node* = funktion.funktion.arguments.at(i);
+
+			paramTypes.push(arg.variable.type);
+		}
+
+		funktion.funktion.argTypes = paramTypes;
+
+		if(methodList.size != 1) {
+			var count = funktion.funktion.parentType.count_method_with_arguments(&funktion.funktion.name, paramTypes);
+
+			if(count != 1) {
+				funktion.print_position();
+				eputsln("Redeclaration of method accepting same arguments");
 				exit(1);
 			}
 		}
