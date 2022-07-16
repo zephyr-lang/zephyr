@@ -289,7 +289,6 @@ function Parser.lookup_function_with_arguments(name: Name*, arguments: Vector*):
 	for(var i = 0; i < list.size; ++i) {
 		var func: Node* = list.at(i);
 
-		if(func.funktion.isMethod) continue;
 		if(func.funktion.arguments.size != arguments.size) continue;
 
 		var match = true;
@@ -321,7 +320,6 @@ function Parser.count_function_with_arguments(name: Name*, arguments: Vector*): 
 	for(var i = 0; i < list.size; ++i) {
 		var func: Node* = list.at(i);
 
-		if(func.funktion.isMethod) continue;
 		if(func.funktion.arguments.size != arguments.size) continue;
 
 		var match = true;

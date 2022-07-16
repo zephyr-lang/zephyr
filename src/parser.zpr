@@ -1303,11 +1303,8 @@ function Parser.parse_function(): Node* {
 
 	if(!funktion.funktion.isMethod) {
 		this.namespace_name(&funktion.funktion.name, name);
-
-		var funcList = this.lookup_function(&funktion.funktion.name);
-		if(funcList != null) {
-			var func: Node* = funcList.at(0);
-		}
+		
+		this.add_function(funktion);
 	} else {
 		this.bind_name(&funktion.funktion.name, name);
 
@@ -1351,8 +1348,6 @@ function Parser.parse_function(): Node* {
 	funktion.funktion.returnType = type;
 
 	this.currentFunction = funktion;
-
-	this.add_function(funktion);
 
 	var body = this.parse_block();
 
