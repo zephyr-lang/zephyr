@@ -103,6 +103,8 @@ function Parser.get_function(name: Name*, found: bool*): Vector* {
 
 	var list = this.functions.get(nameStr, found) as Vector*;
 
+	delete[] nameStr;
+
 	return list;
 }
 
@@ -1313,7 +1315,7 @@ function Parser.parse_function(): Node* {
 			this.error("Redeclaration of method");
 		}
 
-		funktion.funktion.parentType.methods.push(funktion);
+		funktion.funktion.parentType.add_method(funktion);
 	}
 	
 	this.consume(TokenType::LEFT_PAREN, "Expected '(' after function name");
@@ -1431,7 +1433,7 @@ function Parser.parse_struct_definition(member: int): Node* {
 		this.bind_name(&structType.name, name);
 
 	structType.fields = new_vector();
-	structType.methods = new_vector();
+	structType.methods = new std::map::HashMap;
 
 	do {
 		if(this.match(TokenType::UNION)) {
