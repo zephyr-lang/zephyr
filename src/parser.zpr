@@ -1,4 +1,5 @@
 import "std/core.zpr";
+import "std/map.zpr";
 import "src/types.zpr";
 import "src/lexer.zpr";
 import "src/ast.zpr";
@@ -12,7 +13,7 @@ struct Parser {
 	currentFunction: Node*;
 	currentBlock: Node*;
 
-	functions: Vector*;
+	functions: std::map::HashMap*;
 
 	globalVars: Vector*;
 
@@ -36,7 +37,7 @@ struct Parser {
 function new_parser(lexer: Lexer*): Parser* {
 	var parser: Parser* = malloc(sizeof(Parser));
 	parser.lexer = lexer;
-	parser.functions = new_vector();
+	parser.functions = new std::map::HashMap();
 	parser.globalVars = new_vector();
 	parser.strings = new_vector();
 	parser.floats = new_vector();
@@ -79,6 +80,30 @@ function Parser.bind_namespace(name: Name*) {
 
 function bind_to_namespace(name: Name*, namespaceName: Namespace*) {
 	name.namespaceName = namespaceName;
+}
+
+function Parser.add_function(funktion: Node*) {
+	var nameStr = funktion.funktion.name.to_string();
+
+	var found = false;
+	var list = this.functions.get(nameStr, &found) as Vector*;
+
+	if(found) {
+		list.push(funktion);
+	}
+	else {
+		list = new_vector();
+		list.push(funktion);
+		this.functions.set(nameStr, list);
+	}
+}
+
+function Parser.get_function(name: Name*, found: bool*): Vector* {
+	var nameStr = name.to_string();
+
+	var list = this.functions.get(nameStr, found) as Vector*;
+
+	return list;
 }
 
 function allow_expr_stmt(expr: Node*): int {
@@ -1279,9 +1304,9 @@ function Parser.parse_function(): Node* {
 	if(!funktion.funktion.isMethod) {
 		this.namespace_name(&funktion.funktion.name, name);
 
-		var redef = this.lookup_function(&funktion.funktion.name);
-		if(redef != null) {
-			this.error("Redeclaration of function");
+		var funcList = this.lookup_function(&funktion.funktion.name);
+		if(funcList != null) {
+			var func: Node* = funcList.at(0);
 		}
 	} else {
 		this.bind_name(&funktion.funktion.name, name);
@@ -1327,7 +1352,7 @@ function Parser.parse_function(): Node* {
 
 	this.currentFunction = funktion;
 
-	this.functions.push(funktion);
+	this.add_function(funktion);
 
 	var body = this.parse_block();
 
@@ -1698,7 +1723,7 @@ function Parser.parse_program(): Node* {
 	var builtins = parser_builtin_functions();
 
 	for(var i = 0; i < builtins.size; ++i) {
-		this.functions.push(builtins.at(i));
+		this.add_function(builtins.at(i));
 	}
 
 	this.lexerStack.push(this.lexer);

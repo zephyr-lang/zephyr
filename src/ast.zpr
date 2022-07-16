@@ -164,6 +164,7 @@ struct Node {
 			parentType: Type*;
 
 			arguments: Vector*;
+			argTypes: Vector*;
 
 			localVariableStackOffset: int;
 

@@ -107,6 +107,37 @@ function ucmp_suffix(type: int): i8* {
 	return null;
 }
 
+function File.put_arguments(arguments: Vector*) {
+	for(var i = 0; i < arguments.size; ++i) {
+		var type: Type* = arguments.at(i);
+
+		when(type.type) {
+			DataType::VOID -> this.puts("V");
+			DataType::INT -> this.puts("I");
+			DataType::I8 -> this.puts("j");
+			DataType::I16 -> this.puts("J");
+			DataType::I32 -> this.puts("l");
+			DataType::I64 -> this.puts("L");
+			DataType::UINT -> this.puts("U");
+			DataType::U8 -> this.puts("v");
+			DataType::U16 -> this.puts("V");
+			DataType::U32 -> this.puts("w");
+			DataType::U64 -> this.puts("W");
+			DataType::F64 -> this.puts("F");
+			DataType::ANY -> this.puts("A");
+			DataType::STRUCT, DataType::UNION -> {
+				this.put_name(&type.name);
+				this.puts("$");
+			}
+			else -> {
+				assert(0, "Unreachable - File.put_arguments");
+			}
+		}
+
+		for(var p = 0; p < type.indirection; ++p) this.puts("P");
+	}
+}
+
 function generate_addrof(expr: Node*, out: File*) {
 	when(expr.unary.lvalue) {
 		LValue::LOCAL -> {
@@ -398,7 +429,7 @@ function generate_call(expr: Node*, out: File*) {
 	intRegistersInUse -= localIntRegUse;
 	floatRegistersInUse -= localFloatRegUse;
 
-	out.puts("    call _F"); out.put_name(&expr.funktion.name); out.putln();
+	out.puts("    call _F"); out.put_arguments(expr.funktion.argTypes); out.put_name(&expr.funktion.name); out.putln();
 
 	for(var i = 0; i < intRegistersInUse; ++i) {
 		out.puts("    pop "); out.putsln(INT_ARG_REGISTERS[intRegistersInUse - i - 1]);
@@ -669,7 +700,7 @@ function generate_post_decrement(expr: Node*, out: File*) {
 function generate_new(expr: Node*, out: File*) {
 	// Typecheck should verify that malloc exists with the correct signature
 	out.puts("    mov rdi, "); out.putu(expr.constructor.type.size()); out.putln();
-	out.putsln("    call _FZmalloc");
+	out.putsln("    call _FUZmalloc");
 
 	if(expr.constructor.shouldConstruct) {
 		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
@@ -690,7 +721,7 @@ function generate_new_array(expr: Node*, out: File*) {
 	}
 	out.puts("    imul rax, "); out.putu(expr.constructor.type.size()); out.putln();
 	out.putsln("    mov rdi, rax");
-	out.putsln("    call _FZmalloc");
+	out.putsln("    call _FUZmalloc");
 
 	// Construct a for-loop inline
 	if(expr.constructor.shouldConstruct) {
@@ -1051,7 +1082,7 @@ function generate_define_var(stmt: Node*, out: File*) {
 function generate_delete(stmt: Node*, out: File*) {
 	generate_expr(stmt.deconstructor.value, out);
 	out.putsln("    mov rdi, rax");
-	out.putsln("    call _FZfree");
+	out.putsln("    call _FAPZfree");
 
 	if(stmt.deconstructor.shouldDeconstruct) {
 		var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
@@ -1076,7 +1107,7 @@ function generate_delete_array(stmt: Node*, out: File*) {
 		var arrayLengthFunc = parser.resolve_get_array_length_function();
 		out.putsln("mov rdi, rax");
 		out.puts("mov rsi, "); out.putu(stmt.deconstructor.elementType.size()); out.putln();
-		out.puts("call _F"); out.put_name(&arrayLengthFunc.funktion.name); out.putln();
+		out.puts("call _FAPU"); out.put_name(&arrayLengthFunc.funktion.name); out.putln();
 
 		out.putsln("push rax");
 
@@ -1130,7 +1161,7 @@ function generate_delete_array(stmt: Node*, out: File*) {
 	}
 	
 	out.putsln("    mov rdi, rax");
-	out.putsln("    call _FZfree");
+	out.putsln("    call _FAPZfree");
 }
 
 function generate_return(stmt: Node*, out: File*) {
@@ -1234,8 +1265,8 @@ function generate_block(block: Node*, out: File*) {
 
 function generate_function(funktion: Node*, out: File*) {
 	if(!funktion.funktion.isMethod) {
-		out.puts("global _F"); out.put_name(&funktion.funktion.name); out.putln();
-		out.puts("_F"); out.put_name(&funktion.funktion.name); out.putsln(":");
+		out.puts("global _F"); out.put_arguments(funktion.funktion.argTypes); out.put_name(&funktion.funktion.name); out.putln();
+		out.puts("_F"); out.put_arguments(funktion.funktion.argTypes); out.put_name(&funktion.funktion.name); out.putsln(":");
 	}
 	else {
 		out.puts("global _M"); out.put_name(&funktion.funktion.parentType.name); 
@@ -1414,7 +1445,14 @@ function Parser.generate_program(ast: Node*, out: File*) {
 	out.putsln("    pop rdi");
 	out.putsln("    mov rsi, rsp");
 
-	out.putsln("    call _FZmain");
+	// Required as main's signature may vary
+	var mainTok = synthetic_token(TokenType::IDENTIFIER, "main");
+	var mainName: Name;
+	this.bind_name(&mainName, mainTok);
+	var mainFuncs = this.lookup_function(&mainName);
+	var main: Node* = mainFuncs.at(0);
+
+	out.puts("    call _F"); out.put_arguments(main.funktion.argTypes); out.putsln("Zmain");
 	out.putsln("    mov rdi, rax");
 	out.putsln("    mov rax, 60");
 	out.putsln("    syscall");

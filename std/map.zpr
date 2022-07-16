@@ -84,7 +84,7 @@ namespace std::map {
 
 		var item = this.find_item(key, hash, this.items, this.capacity);
 
-		if(item == null) {
+		if(item.key == null) {
 			if(found != null) *found = false;
 			return 0;
 		}
