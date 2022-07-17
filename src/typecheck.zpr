@@ -2007,10 +2007,85 @@ function Parser.type_check_global_var(stmt: Node*) {
 		}
 	}
 
+	// A constructor was invoked
 	if(stmt.variable.arguments != null) {
-		stmt.print_position();
-		eputsln("Constructing a global variable is not supported");
-		exit(1);
+		if(stmt.variable.type.type != DataType::STRUCT || stmt.variable.type.indirection != 0) {
+			stmt.print_position();
+			eputs("Cannot construct type "); eputs(type_to_string(stmt.variable.type)); eputsln(" as a global");
+			exit(1);
+		}
+
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructor = stmt.variable.type.lookup_method(&constructorName);
+		// Perform default operation if constructor does not exist and there are no arguments
+		if(constructor == null) {
+			if(stmt.variable.arguments.size != 0) {
+				stmt.print_position();
+				eputs("Type "); eputs(type_to_string(stmt.variable.type)); eputs(" has no constructor: expected 0 arguments, got "); 
+				eputd(stmt.variable.arguments.size); eputln();
+				exit(1);
+			}
+			// Indicate to codegen to not generate a call to the constructor
+			stmt.variable.arguments = null;
+		}
+		else {
+			var argTypes = new_vector();
+			for(var i = 0; i < stmt.variable.arguments.size; ++i) {
+				var arg: Node* = stmt.variable.arguments.at(i);
+				this.type_check_expr(arg);
+
+				var argType: Type* = typeStack.pop();
+				argTypes.push(argType);
+			}
+
+			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, argTypes);
+
+			if(constructor == null) {
+				stmt.print_position();
+				eputs("Failed to resolve constructor"); eputs(" of type "); eputsln(type_to_string(stmt.variable.type));
+				eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+				exit(1);
+			}
+
+			var paramTypes = constructor.funktion.argTypes;
+			if(paramTypes == null) {
+				paramTypes = new_vector();
+				for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
+					var type: Type* = (constructor.funktion.arguments.at(i) as Node*).variable.type;
+					resolve_type(type);
+					paramTypes.push(type);
+				}
+			}
+			stmt.variable.argTypes = paramTypes;
+		}
+	}
+
+	// Neither a value nor a constructor was given - attempt to call the default constructor
+	if(stmt.variable.value == null && stmt.variable.arguments == null 
+	   && stmt.variable.type.type == DataType::STRUCT && stmt.variable.type.indirection == 0) {
+		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+		var constructorName: Name;
+		this.bind_name(&constructorName, constructorTok);
+
+		var constructors = stmt.variable.type.lookup_method(&constructorName);
+
+		if(constructors != null) {
+			stmt.variable.arguments = new_vector();
+			
+			var argTypes = new_vector();
+			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, argTypes);
+
+			if(constructor == null) {
+				stmt.print_position();
+				eputs("Could not resolve default constructor of type "); eputsln(type_to_string(stmt.variable.type));
+				exit(1);
+			}
+
+			stmt.variable.argTypes = argTypes;
+		}
 	}
 
 	this.globalVars.push(stmt);

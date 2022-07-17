@@ -1476,6 +1476,16 @@ function Parser.generate_program(ast: Node*, out: File*) {
 				out.puts("], "); out.putsln(type.rax_subregister());
 			}
 		}
+
+		if(variable.variable.arguments != null) {
+			var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+			var constructorName: Name;
+			parser.bind_name(&constructorName, constructorTok);
+
+			out.puts("    lea rax, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
+
+			generate_method_call(null, variable.variable.type, &constructorName, variable.variable.arguments, variable.variable.argTypes, out);
+		}
 	}
 
 	out.putsln("    pop rdi");

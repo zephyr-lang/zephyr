@@ -327,5 +327,21 @@ function Parser.dce() {
 
 		if(gvar.variable.value != null)
 			this.dce_expression(gvar.variable.value);
+
+		if(gvar.variable.arguments != null) {
+			var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+			var constructorName: Name;
+			this.bind_name(&constructorName, constructorTok);
+
+			var constructor = gvar.variable.type.lookup_method_with_arguments(&constructorName, gvar.variable.argTypes);
+			if(!constructor.funktion.dced) {
+				constructor.funktion.dced = true;
+				this.dce_function(constructor);
+			}
+
+			for(var i = 0; i < gvar.variable.arguments.size; ++i) {
+				this.dce_expression(gvar.variable.arguments.at(i));
+			}
+		}
 	}
 }
