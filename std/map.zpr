@@ -19,6 +19,13 @@ namespace std::map {
 		memset(this.items, 0, this.capacity * sizeof(HashItem));
 	}
 
+	function HashMap.constructor(initialCapacity: uint) {
+		this.count = 0;
+		this.capacity = initialCapacity;
+		this.items = new HashItem[this.capacity];
+		memset(this.items, 0, this.capacity * sizeof(HashItem));
+	}
+
 	function HashMap.deconstructor() {
 		delete[] this.items;
 	}
