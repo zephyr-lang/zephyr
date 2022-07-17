@@ -2322,6 +2322,30 @@ function main(): int {
 }
 "
 
+assert_stdout "10
+15" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.constructor(x: int, y: int) {
+	this.x = x;
+	this.y = y;
+}
+
+var gpoint: Point(10, 15);
+
+function main(): int {
+	putd(gpoint.x); putln();
+	putd(gpoint.y); putln();
+
+	return 0;
+}
+"
+
 echo " Done"
 
 echo -n "Function Overloading: "
@@ -2528,6 +2552,150 @@ function Person.say_hi() {
 function main(): int {
 	var person: Person(\"Alice\");
 	person.say_hi();
+
+	return 0;
+}
+"
+
+echo " Done"
+
+echo -n "Copy Constructors: "
+
+assert_stdout "Cool Program
+Hello, World!" "
+import \"std/io.zpr\";
+
+struct String {
+	chars: i8*;
+	length: uint;
+}
+
+function String.constructor() {
+	this.chars = \"\";
+	this.length = 0;
+}
+
+function String.constructor(str: i8*) {
+	this.set(str);
+}
+
+function String.deconstructor() {
+	delete[] this.chars;
+}
+
+function String.copy(other: String*) {
+	this.chars = new i8[other.length + 1];
+	memcpy(this.chars, other.chars, other.length + 1);
+	this.length = other.length;
+}
+
+function String.set(str: i8*) {
+	this.length = strlen(str);
+	this.chars = new i8[this.length + 1];
+	memcpy(this.chars, str, this.length + 1);
+}
+
+function main(): int {
+	var str: String(\"Hello, World!\");
+	var str2 = str;
+
+	str.set(\"Cool Program\");
+
+	putsln(str.chars);
+	putsln(str2.chars);
+
+	return 0;
+}
+"
+
+assert_stdout "Cool Program
+Hello, World!
+Hello, World!" "
+import \"std/io.zpr\";
+
+struct String {
+	chars: i8*;
+	length: uint;
+}
+
+function String.constructor() {
+	this.chars = \"\";
+	this.length = 0;
+}
+
+function String.constructor(str: i8*) {
+	this.set(str);
+}
+
+function String.deconstructor() {
+	delete[] this.chars;
+}
+
+function String.copy(other: String*) {
+	this.chars = new i8[other.length + 1];
+	memcpy(this.chars, other.chars, other.length + 1);
+	this.length = other.length;
+}
+
+function String.set(str: i8*) {
+	this.length = strlen(str);
+	this.chars = new i8[this.length + 1];
+	memcpy(this.chars, str, this.length + 1);
+}
+
+function check_eq(a1: any*, a2: any*) {
+	if(a1 != a2) {
+		putsln(\"Not equal!\");
+	}
+}
+
+function main(): int {
+	var str: String(\"Hello, World!\");
+	var str2: String;
+
+	var str3 = str2 = str;
+
+	str.set(\"Cool Program\");
+
+	putsln(str.chars);
+	putsln(str2.chars);
+	putsln(str3.chars);
+
+	return 0;
+}
+"
+
+assert_stdout "Copied!
+5
+6
+5
+6" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.constructor(x: int, y: int) {
+	this.x = x;
+	this.y = y;
+}
+
+function Point.copy(o: Point*) {
+	this.x = o.x;
+	this.y = o.y;
+	putsln(\"Copied!\");
+}
+
+var gpoint: Point(5, 6);
+var gpoint2 = gpoint;
+
+function main(): int {
+	putd(gpoint.x); putln();
+	putd(gpoint.y); putln();
+	putd(gpoint2.x); putln();
+	putd(gpoint2.y); putln();
 
 	return 0;
 }

@@ -39,6 +39,7 @@ enum NodeType {
 	FLOAT_TO_INT,
 
 	RELATIVE,
+	OVERLOAD,
 	INT_LITERAL,
 	UINT_LITERAL,
 	CHAR_LITERAL,
@@ -211,6 +212,7 @@ struct Node {
 			value: Node*;
 			arguments: Vector*;
 			argTypes: Vector*;
+			copyConstructor: bool;
 
 			stackOffset: int;
 			unionField: int;
@@ -272,6 +274,13 @@ struct Node {
 			value: Node*;
 			variables: Vector*;
 		};
+
+		overload: struct {
+			value: Node*;
+			lhsType: Type*;
+			rhsType: Type*;
+			op: Token*;
+		};
 	};
 }
 
@@ -303,6 +312,11 @@ function Name.eput() {
 
 function Name.put() {
 	this.fput(stdout);
+}
+
+function bind_name(name: Name*, token: Token*) {
+	name.name = token;
+	name.namespaceName = null;
 }
 
 function Name.print_position() {
@@ -573,6 +587,7 @@ function node_type_to_string(type: NodeType): i8* {
 		NodeType::STRING -> return "string";
 		NodeType::CALL -> return "call";
 		NodeType::CALL_METHOD -> return "call method";
+		NodeType::OVERLOAD -> return "overload";
 		NodeType::DEFINE_CONST -> return "define const";
 		NodeType::DEFINE_VAR -> return "define var";
 		NodeType::ACCESS_VAR -> return "access var";

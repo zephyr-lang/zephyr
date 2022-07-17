@@ -24,6 +24,16 @@ function strcat(dst: i8*, src: i8*): i8* {
 	return dst;
 }
 
+function strcpy(src: i8*): i8* {
+	var length = strlen(src);
+	var dst = new i8[length + 1];
+	for(var i = 0; src[i]; ++i) {
+		dst[i] = src[i];
+	}
+	dst[length] = '\0';
+	return dst;
+}
+
 function str_reverse(str: i8*, length: int) {
 	var start = 0;
 	var end = length - 1;

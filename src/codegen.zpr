@@ -649,6 +649,20 @@ function generate_assign(expr: Node*, out: File*) {
 	if(expr.assignment.op.type != TokenType::EQ) {
 		expr.assignment.rhs.binary.lhs.type = NodeType::RELATIVE;
 	}
+
+	if(expr.assignment.rhs.type == NodeType::OVERLOAD) {
+		generate_expr(expr.assignment.rhs.overload.value, out);
+		out.putsln("    mov rsi, rax");
+		out.putsln("    mov rax, QWORD [rsp]");
+
+		var args = new_vector();
+		args.push(expr.assignment.rhs.overload.rhsType);
+
+		generate_method_call(null, expr.assignment.rhs.overload.lhsType, Typecheck::get_name_from_overload(expr.assignment.rhs.overload.op), null, args, out);
+		out.putsln("    pop rax");
+		return;
+	}
+
 	generate_expr(expr.assignment.rhs, out);
 	out.putsln("    pop rcx");
 
@@ -1058,8 +1072,25 @@ function generate_define_var(stmt: Node*, out: File*) {
 		generate_expr(stmt.variable.value, out);
 
 		if(stmt.variable.type.is_structural()) {
-			out.puts("    lea rcx, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
-			generate_copy(stmt.variable.type.fields, 0, out);
+			if(stmt.variable.copyConstructor) {
+				var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+				var copyName: Name;
+				parser.bind_name(&copyName, copyTok);
+
+				var args = new_vector();
+				var typePtr = copy_type(stmt.variable.type);
+				typePtr.indirection = 1;
+				args.push(typePtr);
+
+				out.puts("    lea rdi, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
+				out.putsln("    mov rsi, rax");
+				out.puts("    call _M"); out.put_arguments(args);
+				out.put_name(&stmt.variable.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
+			}
+			else {
+				out.puts("    lea rcx, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
+				generate_copy(stmt.variable.type.fields, 0, out);
+			}
 		}
 		else if(stmt.variable.type.is_float()) {
 			out.puts("    movsd [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("], xmm0");
@@ -1383,7 +1414,10 @@ function Parser.generate_string(str: Node*, out: File*) {
 		out.putc('\"');
 	}
 
-	out.putsln(", 0");
+	if(first)
+		out.putsln("0");
+	else
+		out.putsln(", 0");
 }
 
 function Parser.generate_program(ast: Node*, out: File*) {
@@ -1434,13 +1468,40 @@ function Parser.generate_program(ast: Node*, out: File*) {
 			generate_expr(variable.variable.value, out);
 
 			if(type.is_structural()) {
-				out.puts("    lea rcx, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
-				generate_copy(type.fields, 0, out);
+				if(variable.variable.copyConstructor) {
+					var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+					var copyName: Name;
+					parser.bind_name(&copyName, copyTok);
+
+					var args = new_vector();
+					var typePtr = copy_type(variable.variable.type);
+					typePtr.indirection = 1;
+					args.push(typePtr);
+
+					out.puts("    lea rdi, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
+					out.putsln("    mov rsi, rax");
+					out.puts("    call _M"); out.put_arguments(args);
+					out.put_name(&variable.variable.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
+				}
+				else {
+					out.puts("    lea rcx, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
+					generate_copy(type.fields, 0, out);
+				}
 			}
 			else {
 				out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_G"); out.put_name(&variable.variable.name);
 				out.puts("], "); out.putsln(type.rax_subregister());
 			}
+		}
+
+		if(variable.variable.arguments != null) {
+			var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
+			var constructorName: Name;
+			parser.bind_name(&constructorName, constructorTok);
+
+			out.puts("    lea rax, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
+
+			generate_method_call(null, variable.variable.type, &constructorName, variable.variable.arguments, variable.variable.argTypes, out);
 		}
 	}
 
@@ -1475,6 +1536,9 @@ function Parser.generate_program(ast: Node*, out: File*) {
 				var subType = copy_type(type);
 				subType.indirection = type.indirection - 1;
 				out.puts(subType.reserve()); out.puts(" "); out.putd(type.arrayLength); out.putln();
+			}
+			else if(type.type == DataType::STRUCT && type.indirection == 0 && type.size() > 8) {
+				out.puts("resb "); out.putd(type.size()); out.putln();
 			}
 			else {
 				out.puts(variable.variable.type.reserve()); out.putsln(" 1");
