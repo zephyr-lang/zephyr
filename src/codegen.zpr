@@ -649,6 +649,20 @@ function generate_assign(expr: Node*, out: File*) {
 	if(expr.assignment.op.type != TokenType::EQ) {
 		expr.assignment.rhs.binary.lhs.type = NodeType::RELATIVE;
 	}
+
+	if(expr.assignment.rhs.type == NodeType::OVERLOAD) {
+		generate_expr(expr.assignment.rhs.overload.value, out);
+		out.putsln("    mov rsi, rax");
+		out.putsln("    mov rax, QWORD [rsp]");
+
+		var args = new_vector();
+		args.push(expr.assignment.rhs.overload.rhsType);
+
+		generate_method_call(null, expr.assignment.rhs.overload.lhsType, Typecheck::get_name_from_overload(expr.assignment.rhs.overload.op), null, args, out);
+		out.putsln("    pop rax");
+		return;
+	}
+
 	generate_expr(expr.assignment.rhs, out);
 	out.putsln("    pop rcx");
 
@@ -1400,7 +1414,10 @@ function Parser.generate_string(str: Node*, out: File*) {
 		out.putc('\"');
 	}
 
-	out.putsln(", 0");
+	if(first)
+		out.putsln("0");
+	else
+		out.putsln(", 0");
 }
 
 function Parser.generate_program(ast: Node*, out: File*) {

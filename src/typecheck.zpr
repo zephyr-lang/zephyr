@@ -499,6 +499,28 @@ function Type.count_method_with_arguments(name: Name*, arguments: Vector*): int 
 	return count;
 }
 
+function get_name_from_overload(op: Token*): Name* {
+	var funcName: i8*;
+	when(op.type) {
+		TokenType::EQ -> funcName = "copy";
+	}
+
+	var nameTok = synthetic_token(TokenType::IDENTIFIER, funcName);
+	var name = new Name;
+	bind_name(name, nameTok);
+	return name;
+}
+
+function get_overload_function(lhs: Type*, rhs: Type*, op: Token*): Node* {
+	var name = get_name_from_overload(op);
+
+	var args = new_vector();
+	args.push(rhs);
+
+	var copy = lhs.lookup_method_with_arguments(name, args);
+	return copy;
+}
+
 function eput_argument_types(argTypes: Vector*) {
 	eputs("(");
 	for(var i = 0; i < argTypes.size; ++i) {
@@ -920,6 +942,32 @@ function Parser.type_check_assign(expr: Node*) {
 		eputs("Cannot assign type "); eputs(type_to_string(rhs)); eputs(" to type "); eputs(type_to_string(lhs));
 		eputln();
 		exit(1);
+	}
+
+	if(expr.assignment.op.type == TokenType::EQ) {
+		// lhs and rhs are the same structure
+		if(lhs.type == DataType::STRUCT && lhs.indirection == 0) {
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			this.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(lhs);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			var copy = lhs.lookup_method_with_arguments(&copyName, args);
+
+			if(copy != null) {
+				var overload = new_node(NodeType::OVERLOAD, expr.position);
+				overload.overload.value = expr.assignment.rhs;
+				overload.overload.lhsType = lhs;
+				overload.overload.rhsType = typePtr;
+				overload.overload.op = expr.assignment.op;
+				
+				expr.assignment.rhs = overload;
+			}
+		}
 	}
 
 	expr.computedType = lhs;
@@ -1948,6 +1996,13 @@ function Parser.type_check_global_var(stmt: Node*) {
 			stmt.print_position();
 			eputs("Cannot assign type "); eputs(type_to_string(valueType)); eputs(" to variable expecting "); eputs(type_to_string(declType));
 			eputln();
+			exit(1);
+		}
+
+		// valueType and declType refer to the same struct
+		if(declType.type == DataType::STRUCT && declType.indirection == 0) {
+			stmt.print_position();
+			eputsln("Copying to a global variable is not supported");
 			exit(1);
 		}
 	}

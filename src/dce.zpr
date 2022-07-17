@@ -113,6 +113,14 @@ function Parser.dce_expression(expr: Node*) {
 				}
 			}
 		}
+		NodeType::OVERLOAD -> {
+			this.dce_expression(expr.overload.value);
+			var func = Typecheck::get_overload_function(expr.overload.lhsType, expr.overload.rhsType, expr.overload.op);
+			if(!func.funktion.dced) {
+				func.funktion.dced = true;
+				this.dce_function(func);
+			}
+		}
 		NodeType::SIZEOF,
 		NodeType::CHAR_LITERAL, NodeType::INT_LITERAL, NodeType::UINT_LITERAL, NodeType::ACCESS_VAR -> {}
 		else -> {
