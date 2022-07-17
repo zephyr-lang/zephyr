@@ -1468,8 +1468,25 @@ function Parser.generate_program(ast: Node*, out: File*) {
 			generate_expr(variable.variable.value, out);
 
 			if(type.is_structural()) {
-				out.puts("    lea rcx, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
-				generate_copy(type.fields, 0, out);
+				if(variable.variable.copyConstructor) {
+					var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+					var copyName: Name;
+					parser.bind_name(&copyName, copyTok);
+
+					var args = new_vector();
+					var typePtr = copy_type(variable.variable.type);
+					typePtr.indirection = 1;
+					args.push(typePtr);
+
+					out.puts("    lea rdi, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
+					out.putsln("    mov rsi, rax");
+					out.puts("    call _M"); out.put_arguments(args);
+					out.put_name(&variable.variable.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
+				}
+				else {
+					out.puts("    lea rcx, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
+					generate_copy(type.fields, 0, out);
+				}
 			}
 			else {
 				out.puts("    mov "); out.puts(type.qualifier()); out.puts(" [_G"); out.put_name(&variable.variable.name);
@@ -1519,6 +1536,9 @@ function Parser.generate_program(ast: Node*, out: File*) {
 				var subType = copy_type(type);
 				subType.indirection = type.indirection - 1;
 				out.puts(subType.reserve()); out.puts(" "); out.putd(type.arrayLength); out.putln();
+			}
+			else if(type.type == DataType::STRUCT && type.indirection == 0 && type.size() > 8) {
+				out.puts("resb "); out.putd(type.size()); out.putln();
 			}
 			else {
 				out.puts(variable.variable.type.reserve()); out.putsln(" 1");

@@ -2001,9 +2001,20 @@ function Parser.type_check_global_var(stmt: Node*) {
 
 		// valueType and declType refer to the same struct
 		if(declType.type == DataType::STRUCT && declType.indirection == 0) {
-			stmt.print_position();
-			eputsln("Copying to a global variable is not supported");
-			exit(1);
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			this.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(declType);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			var copy = declType.lookup_method_with_arguments(&copyName, args);
+
+			if(copy != null) {
+				stmt.variable.copyConstructor = true;
+			}
 		}
 	}
 

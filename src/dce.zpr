@@ -325,8 +325,23 @@ function Parser.dce() {
 	for(var i = 0; i < this.globalVars.size; ++i) {
 		var gvar: Node* = this.globalVars.at(i);
 
-		if(gvar.variable.value != null)
+		if(gvar.variable.value != null) {
 			this.dce_expression(gvar.variable.value);
+
+			if(gvar.variable.copyConstructor) {
+				var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+				var copyName: Name;
+				this.bind_name(&copyName, copyTok);
+
+				var args = new_vector();
+				var typePtr = copy_type(gvar.variable.type);
+				typePtr.indirection = 1;
+				args.push(typePtr);
+
+				var copy = gvar.variable.type.lookup_method_with_arguments(&copyName, args);
+				this.dce_function(copy);
+			}
+		}
 
 		if(gvar.variable.arguments != null) {
 			var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
