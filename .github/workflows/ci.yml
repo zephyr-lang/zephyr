@@ -1,0 +1,23 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [ master ]
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2.4.2
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -qq yasm
+      - name: Bootstrap compiler
+        run: |
+          mkdir -p ./build
+          yasm -felf64 -o ./bootstrap/bootstrap_x86_64_linux.o ./bootstrap/bootstrap_x86_64_linux.yasm
+          ld -o ./bootstrap/bootstrap_x86_64_linux ./bootstrap/bootstrap_x86_64_linux.o
+          ./bootstrap/bootstrap_x86_64_linux -o ./build/zephyr ./src/main.zpr
+      - name: Run tests
+        run: |
+          ./tests/all.sh
