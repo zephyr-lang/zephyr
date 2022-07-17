@@ -14,6 +14,7 @@ jobs:
           sudo apt-get install -qq yasm
       - name: Bootstrap compiler
         run: |
+          git lfs pull
           mkdir -p ./build
           yasm -felf64 -o ./bootstrap/bootstrap_x86_64_linux.o ./bootstrap/bootstrap_x86_64_linux.yasm
           ld -o ./bootstrap/bootstrap_x86_64_linux ./bootstrap/bootstrap_x86_64_linux.o
