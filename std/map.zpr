@@ -27,7 +27,24 @@ namespace std::map {
 	}
 
 	function HashMap.deconstructor() {
+		for(var i = 0; i < this.capacity; ++i) {
+			var item = this.items[i];
+			if(item.key != null) {
+				delete item.key;
+			}
+		}
 		delete[] this.items;
+	}
+
+	function HashMap.copy(other: HashMap*) {
+		this.count = other.count;
+		this.capacity = other.capacity;
+		this.items = new HashItem[this.capacity];
+		for(var i = 0; i < this.capacity; ++i) {
+			var item = other.items[i];
+			this.items[i].key = item.key == null ? null : strcpy(item.key);
+			this.items[i].value = item.value;
+		}
 	}
 
 	function HashMap.adjustCapacity() {
@@ -82,7 +99,7 @@ namespace std::map {
 			++this.count;
 		}
 
-		item.key = key;
+		item.key = strcpy(key);
 		item.value = value;
 	}
 
