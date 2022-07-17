@@ -13,7 +13,7 @@ function add_implicit_printu_function(): Node* {
 	var valTok = synthetic_token(TokenType::IDENTIFIER, "value");
 	var val = new_node(NodeType::DEFINE_VAR, valTok);
 	val.variable.name.name = valTok;
-	val.variable.type = INT_TYPE;
+	val.variable.type = UINT_TYPE;
 	funktion.funktion.arguments.push(val);
 
 	funktion.funktion.returnType = VOID_TYPE;
@@ -70,7 +70,7 @@ function parser_builtin_functions(): Vector* {
 }
 
 function generate_implicit_printu_impl(out: File*) {
-	out.putsln("_FZprintu:");
+	out.putsln("_FUZprintu:");
 	out.putsln("		sub     rsp, 40");
 	out.putsln("		mov     eax, 10");
 	out.putsln("		mov     esi, 19");
@@ -114,9 +114,14 @@ function generate_builtin_functions(out: File*) {
 	for(var i = 0; i <= 5; ++i) {
 		if(!(builtinFunctions.at(i + 1) as Node*).funktion.used) continue;
 
-		out.puts("_FZsyscall"); out.putd(i); out.putsln(":");
+		out.puts("_F"); out.puts("I");
+		for(var arg = 0; arg < i; ++arg) {
+			out.puts("A");
+		}
+		out.puts("Zsyscall");
+		out.putd(i); out.putsln(":");
 
-		for(var arg = 0; arg <= i; arg = arg + 1) {
+		for(var arg = 0; arg <= i; ++arg) {
 			out.puts("    mov "); out.puts(SYS_REGISTERS[arg]); out.puts(", "); out.putsln(ARG_REGISTERS[arg]);
 		}
 		out.putsln("    syscall");
@@ -125,7 +130,7 @@ function generate_builtin_functions(out: File*) {
 
 	if(!(builtinFunctions.at(6 + 1) as Node*).funktion.used) return;
 
-	out.putsln("_FZsyscall6:");
+	out.putsln("_FIAAAAAAZsyscall6:");
 	out.putsln("    push rbp");
 	out.putsln("    mov rbp, rsp");
 

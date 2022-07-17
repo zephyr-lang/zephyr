@@ -1,0 +1,114 @@
+import "std/core.zpr";
+
+namespace std::map {
+	struct HashItem {
+		key: i8*;
+		value: any;
+	}
+
+	struct HashMap {
+		items: HashItem*;
+		capacity: uint;
+		count: uint;
+	}
+
+	function HashMap.constructor() {
+		this.count = 0;
+		this.capacity = 8;
+		this.items = new HashItem[this.capacity];
+		memset(this.items, 0, this.capacity * sizeof(HashItem));
+	}
+
+	function HashMap.constructor(initialCapacity: uint) {
+		this.count = 0;
+		this.capacity = initialCapacity;
+		this.items = new HashItem[this.capacity];
+		memset(this.items, 0, this.capacity * sizeof(HashItem));
+	}
+
+	function HashMap.deconstructor() {
+		delete[] this.items;
+	}
+
+	function HashMap.adjustCapacity() {
+		var newCapacity = this.capacity * 2;
+
+		var items = new HashItem[newCapacity];
+		memset(items, 0, newCapacity * sizeof(HashItem));
+
+		this.count = 0;
+		for(var i = 0; i < this.capacity; ++i) {
+			var item = &this.items[i];
+			if(item.key == null) continue;
+
+			var hash = hash_string(item.key);
+			var dest = this.find_item(item.key, hash, items, newCapacity);
+			dest.key = item.key;
+			dest.value = item.value;
+			++this.count;
+		}
+
+		delete[] this.items;
+		this.items = items;
+		this.capacity = newCapacity;
+	}
+
+	function HashMap.find_item(key: i8*, hash: uint, items: HashItem*, capacity: uint): HashItem* {
+		var idx = hash & (capacity - 1);
+
+		for(;;) {
+			var item = &items[idx];
+
+			if(item.key == null || streq(item.key, key)) {
+				return item;
+			}
+
+			idx = (idx + 1) & (capacity - 1);
+		}
+
+		return null;
+	}
+
+	function HashMap.set(key: i8*, value: any) {
+		var hash = hash_string(key);
+
+		if(this.count + 1 > this.capacity * 0.75) {
+			this.adjustCapacity();
+		}
+
+		var item = this.find_item(key, hash, this.items, this.capacity);
+
+		if(item.key == null) {
+			++this.count;
+		}
+
+		item.key = key;
+		item.value = value;
+	}
+
+	function HashMap.get(key: i8*, found: bool*): any {
+		var hash = hash_string(key);
+
+		var item = this.find_item(key, hash, this.items, this.capacity);
+
+		if(item.key == null) {
+			if(found != null) *found = false;
+			return 0;
+		}
+
+		if(found != null) *found = true;
+		return item.value;
+	}
+
+	function hash_string(str: i8*): uint {
+		var hash = 5381u;
+		var c: i8;
+
+		while(c = *str) {
+			hash = ((hash << 5) + hash) + c;
+			str = (str as uint + 1) as i8*;
+		}
+
+		return hash;
+	}
+}

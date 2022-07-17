@@ -2323,3 +2323,214 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Function Overloading: "
+
+assert_stdout "15
+6.2" "
+import \"std/io.zpr\";
+
+function add(a: int, b: int): int {
+	return a + b;
+}
+
+function add(a: f64, b: f64): f64 {
+	return a + b;
+}
+
+function main(): int {
+	var i = add(5, 10);
+	var f = add(2.5, 3.7);
+
+	putd(i); putln();
+	putft(f); putln();
+	
+	return 0;
+}
+"
+
+assert_stdout "(30, 16)" "
+import \"std/io.zpr\";
+
+struct Vector2i {
+	x: int;
+	y: int;
+}
+
+function Vector2i.constructor(x: int, y: int) {
+	this.x = x;
+	this.y = y;
+}
+
+function Vector2i.mul(scalar: int) {
+	this.x *= scalar;
+	this.y *= scalar;
+}
+
+function Vector2i.mul(vec: Vector2i*) {
+	this.x *= vec.x;
+	this.y *= vec.y;
+}
+
+function Vector2i.put() {
+	puts(\"(\"); putd(this.x); puts(\", \"); putd(this.y); puts(\")\");
+}
+
+function main(): int {
+	var vec1: Vector2i(5, 2);
+	vec1.mul(2);
+
+	var vec2: Vector2i(3, 4);
+	vec1.mul(&vec2);
+
+	vec1.put(); putln();
+
+	return 0;
+}
+"
+
+assert_compilation_error "
+import \"std/io.zpr\";
+
+function add(a: int, b: int): int {
+	return a + b;
+}
+
+function add(a: int, b: int): f64 {
+	return a + b;
+}
+
+function main(): int {
+	return 0;
+}
+"
+
+assert_compilation_error "
+import \"std/io.zpr\";
+
+struct Vector2i {
+	x: int;
+	y: int;
+}
+
+function Vector2i.mul(scalar: int): int {
+	this.x *= scalar;
+	this.y *= scalar;
+	return this.x * this.y;
+}
+
+function Vector2i.mul(scalar: int) {
+	this.x *= scalar;
+	this.y *= scalar;
+}
+
+function main(): int {
+	return 0;
+}
+"
+
+assert_stdout "Hi, I'm Bob!
+Hi, I'm Poppy!" "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor() {
+	this.name = \"Bob\";
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var person: Person;
+	person.say_hi();
+
+	var poppy: Person(\"Poppy\");
+	poppy.say_hi();
+	
+	return 0;
+}
+"
+
+assert_compilation_error "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var person: Person;
+	person.say_hi();
+
+	return 0;
+}
+"
+
+assert_compilation_error "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.deconstructor(name: i8*) {
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var person: Person;
+	person.say_hi();
+
+	return 0;
+}
+"
+
+assert_stdout "Hi, I'm Alice!" "
+import \"std/io.zpr\";
+
+struct Person {
+	name: i8*;
+}
+
+function Person.constructor(name: i8*) {
+	this.name = name;
+}
+
+function Person.deconstructor() {}
+
+function Person.deconstructor(name: i8*) {
+}
+
+function Person.say_hi() {
+	puts(\"Hi, I'm \"); puts(this.name); putsln(\"!\");
+}
+
+function main(): int {
+	var person: Person(\"Alice\");
+	person.say_hi();
+
+	return 0;
+}
+"
+
+echo " Done"

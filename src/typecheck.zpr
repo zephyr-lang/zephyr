@@ -256,38 +256,90 @@ function Parser.lookup_variable(name: Name*): Node* {
 	var global = this.lookup_global_variable(name);
 	if(global != null) return global;
 
-	var funktion = this.lookup_function(name);
-	if(funktion != null) return funktion;
-
 	return null;
 }
 
-function Parser.lookup_function(name: Name*): Node* {
+function Parser.lookup_function(name: Name*): Vector* {
 	if(name.namespaceName == null) {
 		for(var ni = namespaces.size - 1; ni >= 0; --ni) {
 			var nameSpace: Namespace* = namespaces.at(ni);
 
-			for(var i = 0; i < this.functions.size; ++i) {
-				var func: Node* = this.functions.at(i);
+			bind_to_namespace(name, nameSpace);
 
-				bind_to_namespace(name, nameSpace);
+			var found = false;
+			var funcList = this.get_function(name, &found);
 
-				if(func.funktion.name.equals(name) && !func.funktion.isMethod) {
-					return func;
-				}
+			if(found) {
+				return funcList;
 			}
 		}
 		name.namespaceName = null;
 	}
 
-	for(var i = 0; i < this.functions.size; ++i) {
-		var func: Node* = this.functions.at(i);
-		if(func.funktion.name.equals(name) && !func.funktion.isMethod) {
+	var found = false;
+	var funcList = this.get_function(name, &found);
+
+	return funcList;
+}
+
+function Parser.lookup_function_with_arguments(name: Name*, arguments: Vector*): Node* {
+	var list = this.lookup_function(name);
+	if(list == null) return null;
+
+	for(var i = 0; i < list.size; ++i) {
+		var func: Node* = list.at(i);
+
+		if(func.funktion.arguments.size != arguments.size) continue;
+
+		var match = true;
+
+		for(var arg = 0; arg < arguments.size; ++arg) {
+			var defArg: Node* = func.funktion.arguments.at(arg);
+			var givenType: Type* = arguments.at(arg);
+
+			if(!givenType.assignable(defArg.variable.type)) {
+				match = false;
+				break;
+			}
+		}
+
+		if(match) {
 			return func;
 		}
 	}
 
 	return null;
+}
+
+function Parser.count_function_with_arguments(name: Name*, arguments: Vector*): int {
+	var list = this.lookup_function(name);
+	if(list == null) return 0;
+
+	var count = 0;
+	
+	for(var i = 0; i < list.size; ++i) {
+		var func: Node* = list.at(i);
+
+		if(func.funktion.arguments.size != arguments.size) continue;
+
+		var match = true;
+
+		for(var arg = 0; arg < arguments.size; ++arg) {
+			var defArg: Node* = func.funktion.arguments.at(arg);
+			var givenType: Type* = arguments.at(arg);
+
+			if(!givenType.assignable(defArg.variable.type)) {
+				match = false;
+				break;
+			}
+		}
+
+		if(match) {
+			++count;
+		}
+	}
+
+	return count;
 }
 
 function Parser.lookup_constant(name: Name*): Node* {
@@ -378,18 +430,83 @@ function Type.lookup_field(name: Token*): Node* {
 	return null;
 }
 
-function Type.lookup_method(name: Name*): Node* {
+function Type.lookup_method(name: Name*): Vector* {
 	resolve_type(this);
 
-	for(var i = 0; i < this.methods.size; ++i) {
-		var method: Node* = this.methods.at(i);
+	var found = false;
+	var methodList = this.get_method(name, &found);
 
-		if(method.funktion.name.equals(name)) {
+	return methodList;
+}
+
+function Type.lookup_method_with_arguments(name: Name*, arguments: Vector*): Node* {
+	var list = this.lookup_method(name);
+	if(list == null) return null;
+
+	for(var i = 0; i < list.size; ++i) {
+		var method: Node* = list.at(i);
+
+		if(method.funktion.arguments.size - 1 != arguments.size) continue;
+
+		var match = true;
+
+		for(var arg = 1; arg < method.funktion.arguments.size; ++arg) {
+			var defArg: Node* = method.funktion.arguments.at(arg);
+			var givenType: Type* = arguments.at(arg - 1);
+
+			if(!givenType.assignable(defArg.variable.type)) {
+				match = false;
+				break;
+			}
+		}
+
+		if(match) {
 			return method;
 		}
 	}
 
 	return null;
+}
+
+function Type.count_method_with_arguments(name: Name*, arguments: Vector*): int {
+	var list = this.lookup_method(name);
+	if(list == null) return 0;
+
+	var count = 0;
+
+	for(var i = 0; i < list.size; ++i) {
+		var method: Node* = list.at(i);
+
+		if(method.funktion.arguments.size - 1 != arguments.size) continue;
+
+		var match = true;
+
+		for(var arg = 1; arg < method.funktion.arguments.size; ++arg) {
+			var defArg: Node* = method.funktion.arguments.at(arg);
+			var givenType: Type* = arguments.at(arg - 1);
+
+			if(!givenType.assignable(defArg.variable.type)) {
+				match = false;
+				break;
+			}
+		}
+
+		if(match) {
+			++count;
+		}
+	}
+
+	return count;
+}
+
+function eput_argument_types(argTypes: Vector*) {
+	eputs("(");
+	for(var i = 0; i < argTypes.size; ++i) {
+		var arg: Type* = argTypes.at(i);
+		eputs(uq_type_to_string(arg));
+		if(i != argTypes.size - 1) eputs(", ");
+	}
+	eputs(")");
 }
 
 function assignment_op_to_node_type(op: int): int {
@@ -581,45 +698,45 @@ function Parser.type_check_access_var(expr: Node*) {
 }
 
 function Parser.type_check_call(expr: Node*) {
-	var funktion = this.lookup_variable(&expr.funktion.name);
+	var funcList = this.lookup_function(&expr.funktion.name);
 
-	if(funktion == null) {
+	if(funcList == null) {
 		expr.print_position();
-		eputs("Unknown variable '"); expr.funktion.name.eput(); eputsln("' in current scope");
+		eputs("Unknown function '"); expr.funktion.name.eput(); eputsln("' in current scope");
 		exit(1);
 	}
 
-	if(funktion.type != NodeType::FUNCTION) {
-		expr.print_position();
-		eputsln("Can only call functions");
-		exit(1);
-	}
-
-	if(funktion.funktion.arguments.size != expr.funktion.arguments.size) {
-		expr.print_position();
-		eputs("Call expected "); eputd(funktion.funktion.arguments.size); eputs(" arguments but got "); eputd(expr.funktion.arguments.size); eputln();
-		exit(1);
-	}
-
-	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
+	var argTypes = new_vector();
+	for(var i = 0; i < expr.funktion.arguments.size; ++i) {
 		var arg: Node* = expr.funktion.arguments.at(i);
 		this.type_check_expr(arg);
 
 		var argType: Type* = typeStack.pop();
-		
-		var param: Node* = funktion.funktion.arguments.at(i);
-		var paramType = param.variable.type;
+		argTypes.push(argType);
+	}
 
-		if(!argType.assignable(paramType)) {
-			expr.print_position();
-			eputs("Function argument "); eputd(i + 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
-			eputs(type_to_string(argType)); eputln();
-			exit(1);
+	var func = this.lookup_function_with_arguments(&expr.funktion.name, argTypes);
+
+	if(func == null) {
+		expr.print_position();
+		eputs("Failed to resolve function '"); expr.funktion.name.eput(); eputsln("'");
+		eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+		exit(1);
+	}
+
+	var paramTypes = func.funktion.argTypes;
+	if(paramTypes == null) {
+		paramTypes = new_vector();
+		for(var i = 0; i < func.funktion.arguments.size; ++i) {
+			var type: Type* = (func.funktion.arguments.at(i) as Node*).variable.type;
+			resolve_type(type);
+			paramTypes.push(type);
 		}
 	}
 
-	expr.computedType = funktion.funktion.returnType;
-	typeStack.push(funktion.funktion.returnType);
+	expr.funktion.argTypes = paramTypes;
+	expr.computedType = func.funktion.returnType;
+	typeStack.push(func.funktion.returnType);
 }
 
 function Parser.type_check_method_call(expr: Node*) {
@@ -629,25 +746,13 @@ function Parser.type_check_method_call(expr: Node*) {
 	resolve_type(parentType);
 
 	var name = expr.funktion.name;
-	var funktion: Node*;
 
 	if(parentType.type == DataType::STRUCT && parentType.indirection == 0) {
-		funktion = parentType.lookup_method(&name);
-		if(funktion == null) {
-			name.print_position();
-			eputs("Type "); eputs(type_to_string(parentType)); eputs(" has no method '"); name.eput(); eputsln("'");
-			exit(1);
-		}
+		// Valid case
 	}
 	else if(parentType.type == DataType::STRUCT && parentType.indirection == 1 && !parentType.isArray) {
 		var copy = copy_type(parentType);
 		copy.indirection = copy.indirection - 1;
-		funktion = copy.lookup_method(&name);
-		if(funktion == null) {
-			name.print_position();
-			eputs("Type "); eputs(type_to_string(copy)); eputs(" has no method '"); name.eput(); eputsln("'");
-			exit(1);
-		}
 		parentType = copy;
 	}
 	else {
@@ -658,38 +763,35 @@ function Parser.type_check_method_call(expr: Node*) {
 
 	expr.funktion.parentType = parentType;
 
-	if(funktion == null) {
-		expr.print_position();
-		eputs("Unknown method '"); name.eput(); eputs("'' of type "); eputs(type_to_string(parentType)); eputln();
-		exit(1);
-	}
-
-	if(funktion.type != NodeType::FUNCTION) {
-		expr.print_position();
-		eputsln("Can only call functions");
-		exit(1);
-	}
-
-	if(funktion.funktion.arguments.size - 1 != expr.funktion.arguments.size) {
-		expr.print_position();
-		eputs("Call expected "); eputd(funktion.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(expr.funktion.arguments.size); eputln();
-		exit(1);
-	}
-
-	for(var i = 1; i < funktion.funktion.arguments.size; ++i) {
-		var arg: Node* = expr.funktion.arguments.at(i - 1);
+	var argTypes = new_vector();
+	for(var i = 0; i < expr.funktion.arguments.size; ++i) {
+		var arg: Node* = expr.funktion.arguments.at(i);
 		this.type_check_expr(arg);
 
 		var argType: Type* = typeStack.pop();
-		var paramType = (funktion.funktion.arguments.at(i) as Node*).variable.type;
+		argTypes.push(argType);
+	}
 
-		if(!argType.assignable(paramType)) {
-			expr.print_position();
-			eputs("Function argument "); eputd(i - 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
-			eputs(type_to_string(argType)); eputln();
-			exit(1);
+	var funktion = parentType.lookup_method_with_arguments(&name, argTypes);
+
+	if(funktion == null) {
+		expr.print_position();
+		eputs("Failed to resolve method '"); expr.funktion.name.eput(); eputs("' of type "); eputsln(type_to_string(parentType));
+		eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+		exit(1);
+	}
+
+	var paramTypes = funktion.funktion.argTypes;
+	if(paramTypes == null) {
+		paramTypes = new_vector();
+		for(var i = 1; i < funktion.funktion.arguments.size; ++i) {
+			var type: Type* = (funktion.funktion.arguments.at(i) as Node*).variable.type;
+			resolve_type(type);
+			paramTypes.push(type);
 		}
 	}
+
+	expr.funktion.argTypes = paramTypes;
 
 	expr.computedType = funktion.funktion.returnType;
 	typeStack.push(funktion.funktion.returnType);
@@ -855,13 +957,13 @@ function Parser.resolve_malloc_function(): Node* {
 	var mallocName: Name;
 	this.bind_name(&mallocName, mallocTok);
 
-	var mallocFunc = this.lookup_function(&mallocName);
+	var arguments = new_vector();
+	arguments.push(UINT_TYPE);
+
+	var mallocFunc = this.lookup_function_with_arguments(&mallocName, arguments);
 
 	if(mallocFunc == null) return null;
 	if(mallocFunc.funktion.name.namespaceName != null) return null;
-	if(mallocFunc.funktion.arguments.size != 1) return null;
-	var arg: Node* = mallocFunc.funktion.arguments.at(0);
-	if(arg.variable.type.type != DataType::UINT || arg.variable.type.indirection != 0) return null;
 	if(mallocFunc.funktion.returnType.type != DataType::ANY || mallocFunc.funktion.returnType.indirection != 1) return null;
 
 	return mallocFunc;
@@ -895,29 +997,35 @@ function Parser.type_check_new(expr: Node*) {
 			expr.constructor.arguments = null;
 		}
 		else {
-			// Type check as if it were a method call
-			if(constructor.funktion.arguments.size - 1 != expr.constructor.arguments.size) {
-				expr.print_position();
-				eputs("Call expected "); eputd(constructor.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(expr.constructor.arguments.size); eputln();
-				exit(1);
-			}
-
-			for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
-				var arg: Node* = expr.constructor.arguments.at(i - 1);
+			var argTypes = new_vector();
+			for(var i = 0; i < expr.constructor.arguments.size; ++i) {
+				var arg: Node* = expr.constructor.arguments.at(i);
 				this.type_check_expr(arg);
 
 				var argType: Type* = typeStack.pop();
-				
-				var param: Node* = constructor.funktion.arguments.at(i);
-				var paramType = param.variable.type;
+				argTypes.push(argType);
+			}
 
-				if(!argType.assignable(paramType)) {
-					expr.print_position();
-					eputs("Function argument "); eputd(i + 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
-					eputs(type_to_string(argType)); eputln();
-					exit(1);
+			var constructor = expr.constructor.type.lookup_method_with_arguments(&constructorName, argTypes);
+
+			if(constructor == null) {
+				expr.print_position();
+				eputs("Failed to resolve constructor"); eputs(" of type "); eputsln(type_to_string(expr.constructor.type));
+				eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+				exit(1);
+			}
+
+			var paramTypes = constructor.funktion.argTypes;
+			if(paramTypes == null) {
+				paramTypes = new_vector();
+				for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
+					var type: Type* = (constructor.funktion.arguments.at(i) as Node*).variable.type;
+					resolve_type(type);
+					paramTypes.push(type);
 				}
 			}
+
+			expr.constructor.argTypes = paramTypes;
 			expr.constructor.shouldConstruct = true;
 		}
 	}
@@ -945,7 +1053,17 @@ function Parser.type_check_new_array(expr: Node*) {
 		var constructor = expr.constructor.type.lookup_method(&constructorName);
 		// Perform default operation if constructor does not exist
 		// (for now, ) creating via an array does not care if a constructor with more arguments is the only option
-		if(constructor != null && constructor.funktion.arguments.size - 1 == 0) {
+		if(constructor == null) {
+			expr.constructor.shouldConstruct = false;
+		}
+		else {
+			var argTypes = new_vector();
+			var constructorMethod = expr.constructor.type.lookup_method_with_arguments(&constructorName, argTypes);
+
+			if(constructorMethod == null) {
+				eputs("Failed to resolve default constructor"); eputs(" of type "); eputsln(type_to_string(expr.constructor.type));
+				exit(1);
+			}
 			expr.constructor.shouldConstruct = true;
 		}
 	}
@@ -1175,29 +1293,34 @@ function Parser.type_check_define_var(stmt: Node*) {
 			stmt.variable.arguments = null;
 		}
 		else {
-			// Type check as if it were a method call
-			if(constructor.funktion.arguments.size - 1 != stmt.variable.arguments.size) {
-				stmt.print_position();
-				eputs("Call expected "); eputd(constructor.funktion.arguments.size - 1); eputs(" arguments but got "); eputd(stmt.variable.arguments.size); eputln();
-				exit(1);
-			}
-
-			for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
-				var arg: Node* = stmt.variable.arguments.at(i - 1);
+			var argTypes = new_vector();
+			for(var i = 0; i < stmt.variable.arguments.size; ++i) {
+				var arg: Node* = stmt.variable.arguments.at(i);
 				this.type_check_expr(arg);
 
 				var argType: Type* = typeStack.pop();
-				
-				var param: Node* = constructor.funktion.arguments.at(i);
-				var paramType = param.variable.type;
+				argTypes.push(argType);
+			}
 
-				if(!argType.assignable(paramType)) {
-					stmt.print_position();
-					eputs("Function argument "); eputd(i + 1); eputs(" expected type "); eputs(type_to_string(paramType)); eputs(" but got ");
-					eputs(type_to_string(argType)); eputln();
-					exit(1);
+			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, argTypes);
+
+			if(constructor == null) {
+				stmt.print_position();
+				eputs("Failed to resolve constructor"); eputs(" of type "); eputsln(type_to_string(stmt.variable.type));
+				eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+				exit(1);
+			}
+
+			var paramTypes = constructor.funktion.argTypes;
+			if(paramTypes == null) {
+				paramTypes = new_vector();
+				for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
+					var type: Type* = (constructor.funktion.arguments.at(i) as Node*).variable.type;
+					resolve_type(type);
+					paramTypes.push(type);
 				}
 			}
+			stmt.variable.argTypes = paramTypes;
 		}
 	}
 
@@ -1207,17 +1330,21 @@ function Parser.type_check_define_var(stmt: Node*) {
 		var constructorName: Name;
 		this.bind_name(&constructorName, constructorTok);
 
-		var constructor = stmt.variable.type.lookup_method(&constructorName);
+		var constructors = stmt.variable.type.lookup_method(&constructorName);
 
-		if(constructor != null) {
-			if(constructor.funktion.arguments.size - 1 > 0) {
+		if(constructors != null) {
+			stmt.variable.arguments = new_vector();
+			
+			var argTypes = new_vector();
+			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, argTypes);
+
+			if(constructor == null) {
 				stmt.print_position();
-				eputs("Constructor expected "); eputd(constructor.funktion.arguments.size - 1); eputsln(" arguments but got 0");
+				eputs("Could not resolve default constructor of type "); eputsln(type_to_string(stmt.variable.type));
 				exit(1);
 			}
-			else {
-				stmt.variable.arguments = new_vector();
-			}
+
+			stmt.variable.argTypes = argTypes;
 		}
 	}
 
@@ -1375,13 +1502,13 @@ function Parser.resolve_free_function(): Node* {
 	var freeName: Name;
 	this.bind_name(&freeName, freeTok);
 
-	var freeFunc = this.lookup_function(&freeName);
+	var arguments = new_vector();
+	arguments.push(ANYP_TYPE);
+
+	var freeFunc = this.lookup_function_with_arguments(&freeName, arguments);
 
 	if(freeFunc == null) return null;
 	if(freeFunc.funktion.name.namespaceName != null) return null;
-	if(freeFunc.funktion.arguments.size != 1) return null;
-	var arg: Node* = freeFunc.funktion.arguments.at(0);
-	if(arg.variable.type.type != DataType::ANY || arg.variable.type.indirection != 1) return null;
 	if(freeFunc.funktion.returnType.type != DataType::VOID) return null;
 
 	return freeFunc;
@@ -1409,14 +1536,17 @@ function Parser.type_check_delete_statement(stmt: Node*) {
 		var deconstructorName: Name;
 		this.bind_name(&deconstructorName, deconstructorTok);
 
-		var deconstructor = targetType.lookup_method(&deconstructorName);
+		var argTypes = new_vector();
+		var deconstructors = targetType.lookup_method(&deconstructorName);
 
-		if(deconstructor != null) {
+		if(deconstructors != null) {
 			stmt.deconstructor.shouldDeconstruct = true;
-			if(deconstructor.funktion.arguments.size - 1 != 0) {
+
+			var argTypes = new_vector();
+			var deconstructor = targetType.lookup_method_with_arguments(&deconstructorName, argTypes);
+			if(deconstructor == null) {
 				stmt.print_position();
-				eputs("The deconstructor of type "); eputs(type_to_string(targetType)); eputs(" must have 0 arguments (has "); 
-				eputu(deconstructor.funktion.arguments.size - 1); eputsln(")");
+				eputs("The deconstructor of type "); eputs(type_to_string(targetType)); eputsln(" must have 0 arguments");
 				exit(1);
 			}
 		}
@@ -1438,15 +1568,14 @@ function Parser.resolve_get_array_length_function(): Node* {
 
 	bind_to_namespace(&funcName, nameSpace);
 
-	var func = this.lookup_function(&funcName);
+	var arguments = new_vector();
+	arguments.push(ANYP_TYPE);
+	arguments.push(UINT_TYPE);
+
+	var func = this.lookup_function_with_arguments(&funcName, arguments);
 
 	if(func == null) return null;
-	if(func.funktion.arguments.size != 2) return null;
-	var ptrArg: Node* = func.funktion.arguments.at(0);
-	if(ptrArg.variable.type.type != DataType::ANY || ptrArg.variable.type.indirection != 1) return null;
-	var elmSizeArg: Node* = func.funktion.arguments.at(1);
-	if(elmSizeArg.variable.type.type != DataType::UINT || elmSizeArg.variable.type.indirection != 0) return null;
-	if(func.funktion.returnType.type != DataType::UINT) return null;
+	if(func.funktion.returnType.type != DataType::UINT || func.funktion.returnType.indirection != 0) return null;
 
 	return func;
 }
@@ -1477,13 +1606,15 @@ function Parser.type_check_delete_array_statement(stmt: Node*) {
 		var deconstructorName: Name;
 		this.bind_name(&deconstructorName, deconstructorTok);
 
-		var deconstructor = elementType.lookup_method(&deconstructorName);
+		var deconstructors = elementType.lookup_method(&deconstructorName);
 
-		if(deconstructor != null) {
-			if(deconstructor.funktion.arguments.size - 1 != 0) {
+		if(deconstructors != null) {
+			var argTypes = new_vector();
+			var deconstructor = elementType.lookup_method_with_arguments(&deconstructorName, argTypes);
+
+			if(deconstructor == null) {
 				stmt.print_position();
-				eputs("The deconstructor of type "); eputs(type_to_string(elementType)); eputs(" must have 0 arguments (has "); 
-				eputu(deconstructor.funktion.arguments.size); eputsln(")");
+				eputs("The deconstructor of type "); eputs(type_to_string(elementType)); eputsln(" must have 0 arguments"); 
 				exit(1);
 			}
 			stmt.deconstructor.shouldDeconstruct = true;
@@ -1614,16 +1745,18 @@ function Parser.type_check_block(block: Node*) {
 		var deconstructorName: Name;
 		this.bind_name(&deconstructorName, deconstructorTok);
 
-		var deconstructor = stmt.variable.type.lookup_method(&deconstructorName);
+		var deconstructors = stmt.variable.type.lookup_method(&deconstructorName);
 
-		if(deconstructor != null) {
-			stmt.deconstructor.shouldDeconstruct = true;
-			if(deconstructor.funktion.arguments.size - 1 != 0) {
+		if(deconstructors != null) {
+			var argTypes = new_vector();
+			var deconstructor = stmt.variable.type.lookup_method_with_arguments(&deconstructorName, argTypes);
+
+			if(deconstructor == null) {
 				stmt.print_position();
-				eputs("The deconstructor of type "); eputs(type_to_string(stmt.variable.type)); eputs(" must have 0 arguments (has "); 
-				eputu(deconstructor.funktion.arguments.size - 1); eputsln(")");
+				eputs("The deconstructor of type "); eputs(type_to_string(stmt.variable.type)); eputsln(" must have 0 arguments"); 
 				exit(1);
 			}
+			stmt.deconstructor.shouldDeconstruct = true;
 		}
 	}
 
@@ -1632,6 +1765,51 @@ function Parser.type_check_block(block: Node*) {
 
 function Parser.type_check_function(funktion: Node*) {
 	var stackOffset = 0;
+
+	if(!funktion.funktion.isMethod) {
+		var funcList = this.lookup_function(&funktion.funktion.name);
+
+		var paramTypes = new_vector();
+		for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
+			var arg: Node* = funktion.funktion.arguments.at(i);
+
+			paramTypes.push(arg.variable.type);
+		}
+
+		funktion.funktion.argTypes = paramTypes;
+
+		if(funcList.size != 1) {
+			var count = this.count_function_with_arguments(&funktion.funktion.name, paramTypes);
+
+			if(count != 1) {
+				funktion.print_position();
+				eputsln("Redeclaration of function accepting same arguments");
+				exit(1);
+			}
+		}
+	}
+	else {
+		var methodList = funktion.funktion.parentType.lookup_method(&funktion.funktion.name);
+
+		var paramTypes = new_vector();
+		for(var i = 1; i < funktion.funktion.arguments.size; ++i) {
+			var arg: Node* = funktion.funktion.arguments.at(i);
+
+			paramTypes.push(arg.variable.type);
+		}
+
+		funktion.funktion.argTypes = paramTypes;
+
+		if(methodList.size != 1) {
+			var count = funktion.funktion.parentType.count_method_with_arguments(&funktion.funktion.name, paramTypes);
+
+			if(count != 1) {
+				funktion.print_position();
+				eputsln("Redeclaration of method accepting same arguments");
+				exit(1);
+			}
+		}
+	}
 
 	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
 		var arg: Node* = funktion.funktion.arguments.at(i);

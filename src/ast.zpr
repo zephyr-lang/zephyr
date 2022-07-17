@@ -1,4 +1,5 @@
 import "std/vector.zpr";
+import "std/map.zpr";
 
 // Updating this list requires updating node_type_to_string and print_ast_depth
 enum NodeType {
@@ -105,7 +106,7 @@ struct Type {
 
 	name: Name;
 	fields: Vector*;
-	methods: Vector*;
+	methods: std::map::HashMap*;
 	aliased: Type*;
 
 	built: bool;
@@ -164,6 +165,7 @@ struct Node {
 			parentType: Type*;
 
 			arguments: Vector*;
+			argTypes: Vector*;
 
 			localVariableStackOffset: int;
 
@@ -208,6 +210,7 @@ struct Node {
 
 			value: Node*;
 			arguments: Vector*;
+			argTypes: Vector*;
 
 			stackOffset: int;
 			unionField: int;
@@ -250,6 +253,7 @@ struct Node {
 		constructor: struct {
 			type: Type*;
 			shouldConstruct: bool;
+			argTypes: Vector*;
 			union {
 				arguments: Vector*;
 				array: struct {
@@ -406,6 +410,30 @@ function File.put_namespace_name(namespaceName: Namespace*) {
 		this.put_token_string(namespaceName.parts.at(i));
 		if(i != namespaceName.parts.size - 1) this.puts("_");
 	}
+}
+
+function Type.add_method(method: Node*) {
+	var nameStr = method.funktion.name.to_string();
+
+	var found = false;
+	var list = this.methods.get(nameStr, &found) as Vector*;
+
+	if(found) {
+		list.push(method);
+	}
+	else {
+		list = new_vector();
+		list.push(method);
+		this.methods.set(nameStr, list);
+	}
+}
+
+function Type.get_method(name: Name*, found: bool*): Vector* {
+	var nameStr = name.to_string();
+
+	var list = this.methods.get(nameStr, found) as Vector*;
+
+	return list;
 }
 
 function data_type_to_string(type: DataType): i8* {

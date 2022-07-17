@@ -16,7 +16,7 @@ function Parser.dce_expression(expr: Node*) {
 
 	when(expr.type) {
 		NodeType::CALL -> {
-			var funktion = this.lookup_variable(&expr.funktion.name);
+			var funktion = this.lookup_function_with_arguments(&expr.funktion.name, expr.funktion.argTypes);
 			assert(funktion.type == NodeType::FUNCTION, "Typecheck must verify function call type");
 
 			for(var i = 0; i < expr.funktion.arguments.size; ++i) {
@@ -30,7 +30,7 @@ function Parser.dce_expression(expr: Node*) {
 		}
 		NodeType::CALL_METHOD -> {
 			this.dce_expression(expr.funktion.parent);
-			var funktion = expr.funktion.parentType.lookup_method(&expr.funktion.name);
+			var funktion = expr.funktion.parentType.lookup_method_with_arguments(&expr.funktion.name, expr.funktion.argTypes);
 
 			for(var i = 0; i < expr.funktion.arguments.size; ++i) {
 				this.dce_expression(expr.funktion.arguments.at(i));
@@ -85,7 +85,7 @@ function Parser.dce_expression(expr: Node*) {
 				var constructorName: Name;
 				this.bind_name(&constructorName, constructorTok);
 
-				var constructor = expr.constructor.type.lookup_method(&constructorName);
+				var constructor = expr.constructor.type.lookup_method_with_arguments(&constructorName, expr.constructor.argTypes);
 				if(!constructor.funktion.dced) {
 					constructor.funktion.dced = true;
 					this.dce_function(constructor);
@@ -105,7 +105,8 @@ function Parser.dce_expression(expr: Node*) {
 				var constructorName: Name;
 				this.bind_name(&constructorName, constructorTok);
 
-				var constructor = expr.constructor.type.lookup_method(&constructorName);
+				var argTypes = new_vector();
+				var constructor = expr.constructor.type.lookup_method_with_arguments(&constructorName, argTypes);
 				if(!constructor.funktion.dced) {
 					constructor.funktion.dced = true;
 					this.dce_function(constructor);
@@ -137,7 +138,8 @@ function Parser.dce_block(block: Node*) {
 		var deconstructorName: Name;
 		this.bind_name(&deconstructorName, deconstructorTok);
 
-		var deconstructor = variable.variable.type.lookup_method(&deconstructorName);
+		var argTypes = new_vector();
+		var deconstructor = variable.variable.type.lookup_method_with_arguments(&deconstructorName, argTypes);
 
 		if(deconstructor != null && !deconstructor.funktion.dced) {
 			deconstructor.funktion.dced = true;
@@ -181,7 +183,8 @@ function Parser.dce_statement(stmt: Node*) {
 				var constructorName: Name;
 				this.bind_name(&constructorName, constructorTok);
 
-				var constructor = stmt.variable.type.lookup_method(&constructorName);
+				//TODO THIS IS NULL
+				var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, stmt.variable.argTypes);
 				if(!constructor.funktion.dced) {
 					constructor.funktion.dced = true;
 					this.dce_function(constructor);
@@ -216,7 +219,8 @@ function Parser.dce_statement(stmt: Node*) {
 				var deconstructorName: Name;
 				this.bind_name(&deconstructorName, deconstructorTok);
 
-				var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+				var argTypes = new_vector();
+				var deconstructor = stmt.unary.computedType.lookup_method_with_arguments(&deconstructorName, argTypes);
 
 				if(deconstructor != null && !deconstructor.funktion.dced) {
 					deconstructor.funktion.dced = true;
@@ -243,7 +247,8 @@ function Parser.dce_statement(stmt: Node*) {
 				var deconstructorName: Name;
 				this.bind_name(&deconstructorName, deconstructorTok);
 
-				var deconstructor = stmt.unary.computedType.lookup_method(&deconstructorName);
+				var argTypes = new_vector();
+				var deconstructor = stmt.unary.computedType.lookup_method_with_arguments(&deconstructorName, argTypes);
 
 				if(deconstructor != null && !deconstructor.funktion.dced) {
 					deconstructor.funktion.dced = true;
@@ -271,19 +276,27 @@ function Parser.dce() {
 	var mainName: Name;
 	this.bind_name(&mainName, mainTok);
 
-	var main = this.lookup_variable(&mainName);
-	main.funktion.dced = true;
+	var mainList = this.lookup_function(&mainName);
 
-	if(main == null) {
+	if(mainList == null) {
 		eputsln("A 'main' function must be defined for a zephyr program");
 		exit(1);
 	}
 
-	if(main.type != NodeType::FUNCTION) {
-		main.print_position();
-		eputsln("'main' must be a function");
+	if(mainList.size != 1) {
+		eputsln("A program may only define 1 'main' method");
+		eputsln("'main' defined at:");
+		for(var i = 0; i < mainList.size; ++i) {
+			var func: Node* = mainList.at(i);
+			func.funktion.name.print_position();
+			eputln();
+		}
 		exit(1);
 	}
+
+	var main: Node* = mainList.at(0);
+
+	main.funktion.dced = true;
 
 	this.dce_function(main);
 

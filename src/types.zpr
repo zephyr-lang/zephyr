@@ -7,6 +7,7 @@ var STR_TYPE: Type*;
 var F64_TYPE: Type*;
 var VOID_TYPE: Type*;
 var ANY_TYPE: Type*;
+var ANYP_TYPE: Type*;
 
 function new_type(): Type* {
 	var type: Type* = malloc(sizeof(Type));
@@ -46,4 +47,8 @@ function build_types() {
 
 	ANY_TYPE = new_type();
 	ANY_TYPE.type = DataType::ANY;
+
+	ANYP_TYPE = new_type();
+	ANYP_TYPE.type = DataType::ANY;
+	ANYP_TYPE.indirection = 1;
 }

@@ -245,6 +245,7 @@ namespace std::internal::malloc {
 			// if the list has at least one item, append this block to the end
 			__free_blocks_last.next = header;
 			header.prev = __free_blocks_last;
+			header.next = null;
 			__free_blocks_last = header;
 		}
 
