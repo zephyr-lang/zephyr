@@ -1205,6 +1205,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 
 	var name = stmt.variable.name;
 
+	// Check for Redeclaration
 	var redeclaration = this.lookup_same_scope_variable(&name);
 
 	if(redeclaration != null) {
@@ -1213,6 +1214,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 		exit(1);
 	}
 
+	// Verify types with inference
 	if(declType.type == DataType::VOID && stmt.variable.value == null) {
 		stmt.print_position();
 		eputsln("Cannot infer type to variable without initial value");
@@ -1229,12 +1231,14 @@ function Parser.type_check_define_var(stmt: Node*) {
 
 	resolve_type(stmt.variable.type);
 
+	// Calculate offset from rbp
 	stmt.variable.stackOffset = this.currentBlock.block.currentStackOffset += declType.size_offset();
 
 	if(stmt.variable.stackOffset > this.currentFunction.funktion.localVariableStackOffset) {
 		this.currentFunction.funktion.localVariableStackOffset = stmt.variable.stackOffset;
 	}
 
+	// A value was provided
 	if(stmt.variable.value != null) {
 		if(valueType == null) {
 			if(stmt.variable.value.type == NodeType::ARRAY_INIT) {
@@ -1267,8 +1271,27 @@ function Parser.type_check_define_var(stmt: Node*) {
 			eputln();
 			exit(1);
 		}
+
+		// valueType and declType refer to the same struct
+		if(declType.type == DataType::STRUCT && declType.indirection == 0) {
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			this.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(declType);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			var copy = declType.lookup_method_with_arguments(&copyName, args);
+
+			if(copy != null) {
+				stmt.variable.copyConstructor = true;
+			}
+		}
 	}
 
+	// A constructor was invoked
 	if(stmt.variable.arguments != null) {
 		if(stmt.variable.type.type != DataType::STRUCT || stmt.variable.type.indirection != 0) {
 			stmt.print_position();
@@ -1324,6 +1347,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 		}
 	}
 
+	// Neither a value nor a constructor was given - attempt to call the default constructor
 	if(stmt.variable.value == null && stmt.variable.arguments == null 
 	   && stmt.variable.type.type == DataType::STRUCT && stmt.variable.type.indirection == 0) {
 		var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");

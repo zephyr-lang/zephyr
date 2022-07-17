@@ -211,6 +211,7 @@ struct Node {
 			value: Node*;
 			arguments: Vector*;
 			argTypes: Vector*;
+			copyConstructor: bool;
 
 			stackOffset: int;
 			unionField: int;

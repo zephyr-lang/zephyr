@@ -1058,8 +1058,25 @@ function generate_define_var(stmt: Node*, out: File*) {
 		generate_expr(stmt.variable.value, out);
 
 		if(stmt.variable.type.is_structural()) {
-			out.puts("    lea rcx, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
-			generate_copy(stmt.variable.type.fields, 0, out);
+			if(stmt.variable.copyConstructor) {
+				var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+				var copyName: Name;
+				parser.bind_name(&copyName, copyTok);
+
+				var args = new_vector();
+				var typePtr = copy_type(stmt.variable.type);
+				typePtr.indirection = 1;
+				args.push(typePtr);
+
+				out.puts("    lea rdi, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
+				out.putsln("    mov rsi, rax");
+				out.puts("    call _M"); out.put_arguments(args);
+				out.put_name(&stmt.variable.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
+			}
+			else {
+				out.puts("    lea rcx, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
+				generate_copy(stmt.variable.type.fields, 0, out);
+			}
 		}
 		else if(stmt.variable.type.is_float()) {
 			out.puts("    movsd [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("], xmm0");
