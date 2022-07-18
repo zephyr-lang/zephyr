@@ -1,4 +1,4 @@
-![Zephyr Logo](https://repository-images.githubusercontent.com/492445571/f5f3eacd-1d80-47c4-aa1f-eedd8cac4cf0)
+![Zephyr Logo](https://repository-images.githubusercontent.com/492445571/0fa531e6-78ef-4054-a564-f6673f641ea5)
 
 # Zephyr Programming Language
 
