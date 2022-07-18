@@ -1198,7 +1198,15 @@ function generate_delete_array(stmt: Node*, out: File*) {
 }
 
 function generate_return(stmt: Node*, out: File*) {
+	if(stmt.ret.value != null) {
+		generate_expr(stmt.ret.value, out);
+	}
+	else {
+		out.putsln("    xor rax, rax");
+	}
+
 	if(stmt.ret.variables != null) {
+		out.putsln("    push rax");
 		for(var i = 0; i < stmt.ret.variables.size; ++i) {
 			var variable: Node* = stmt.ret.variables.at(i);
 
@@ -1213,10 +1221,9 @@ function generate_return(stmt: Node*, out: File*) {
 				out.puts("    call _M"); out.put_name(&variable.variable.type.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
 			}
 		}
+		out.putsln("    pop rax");
 	}
 
-	if(stmt.ret.value != null)
-		generate_expr(stmt.ret.value, out);
 	out.putsln("    leave");
 	out.putsln("    ret");
 }
