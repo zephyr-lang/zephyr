@@ -1886,15 +1886,29 @@ function Parser.type_check_function(funktion: Node*) {
 	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
 		var arg: Node* = funktion.funktion.arguments.at(i);
 
+		resolve_type(arg.variable.type);
+
 		if(arg.variable.type.isArray) {
 			arg.print_position();
 			eputsln("Arrays cannot be used as function arguments - consider using a pointer instead");
 			exit(1);
 		}
-		else if(arg.variable.type.is_structural()) {
-			arg.print_position();
-			eputsln("Structs cannot be used as function arguments - consider using a pointer instead");
-			exit(1);
+
+		if(arg.variable.type.type == DataType::STRUCT && arg.variable.type.indirection == 0) {
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			this.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(arg.variable.type);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			var copy = arg.variable.type.lookup_method_with_arguments(&copyName, args);
+
+			if(copy != null) {
+				arg.variable.copyConstructor = true;
+			}
 		}
 
 		//FIXME Have the correct qualifiers and registers used in codegen.zpr for arguments

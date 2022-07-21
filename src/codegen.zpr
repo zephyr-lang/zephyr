@@ -1342,6 +1342,36 @@ function generate_function(funktion: Node*, out: File*) {
 				++stackUse;
 			}
 		}
+		else if(arg.variable.type.is_structural()) {
+			if(intRegUse < INT_ARG_COUNT) {
+				out.puts("    mov rax, "); out.putsln(INT_ARG_REGISTERS[intRegUse]);
+				out.puts("    lea rcx, [rbp-"); out.putd(arg.variable.stackOffset); out.putsln("]");
+				++intRegUse;
+			}
+			else {
+				out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.funktion.arguments.size - (intRegUse + floatRegUse) - stackUse))); out.putsln("]");
+				out.puts("    lea rcx, [rbp-"); out.putd(arg.variable.stackOffset); out.putsln("]");
+				++stackUse;
+			}
+			if(arg.variable.copyConstructor) {
+				var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+				var copyName: Name;
+				parser.bind_name(&copyName, copyTok);
+
+				var args = new_vector();
+				var typePtr = copy_type(arg.variable.type);
+				typePtr.indirection = 1;
+				args.push(typePtr);
+
+				out.putsln("    mov rdi, rcx");
+				out.putsln("    mov rsi, rax");
+				out.puts("    call _M"); out.put_arguments(args);
+				out.put_name(&arg.variable.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
+			}
+			else {
+				generate_copy(arg.variable.type.fields, 0, out);
+			}
+		}
 		else {
 			if(intRegUse < INT_ARG_COUNT) {
 				out.puts("    mov QWORD [rbp-"); out.putd(arg.variable.stackOffset); out.puts("], "); out.putsln(INT_ARG_REGISTERS[intRegUse]);

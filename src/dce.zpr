@@ -288,6 +288,24 @@ function Parser.dce_statement(stmt: Node*) {
 }
 
 function Parser.dce_function(funktion: Node*) {
+	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
+		var arg: Node* = funktion.funktion.arguments.at(i);
+
+		if(arg.variable.copyConstructor) {
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			this.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(arg.variable.type);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			var copy = arg.variable.type.lookup_method_with_arguments(&copyName, args);
+			this.dce_function(copy);
+		}
+	}
+
 	funktion.funktion.used = true;
 	if(!funktion.funktion.hasImplicitBody)
 		this.dce_block(funktion.funktion.body);
