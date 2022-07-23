@@ -14,6 +14,7 @@ var intRegistersInUse = 0;
 var floatRegistersInUse = 0;
 var continueLabel = 0;
 var breakLabel = 0;
+var currentlocalVariableOffset = 0;
 
 var parser: Parser*;
 
@@ -426,6 +427,18 @@ function generate_call(expr: Node*, out: File*) {
 		}
 	}
 
+	if(expr.computedType.is_structural()) {
+		out.puts("    lea rax, [rbp-"); out.putd(currentlocalVariableOffset + expr.funktion.argumentStackOffset); out.putsln("]");
+		if(localIntRegUse < INT_ARG_COUNT) {
+			out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
+			++intRegistersInUse;
+			++localIntRegUse;
+		}
+		else {
+			out.putsln("    push rax");
+		}
+	}
+
 	intRegistersInUse -= localIntRegUse;
 	floatRegistersInUse -= localFloatRegUse;
 
@@ -441,7 +454,7 @@ function generate_call(expr: Node*, out: File*) {
 	}
 }
 
-function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arguments: Vector*, argTypes: Vector*, out: File*) {
+function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arguments: Vector*, argTypes: Vector*, returnType: Type*, argumentOffset: int, out: File*) {
 	for(var i = 0; i < intRegistersInUse; ++i) {
 		out.puts("    push "); out.putsln(INT_ARG_REGISTERS[i]);
 	}
@@ -490,6 +503,18 @@ function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arg
 		}
 	}
 
+	if(returnType != null && returnType.is_structural()) {
+		out.puts("    lea rax, [rbp-"); out.putd(currentlocalVariableOffset + argumentOffset); out.putsln("]");
+		if(localIntRegUse < INT_ARG_COUNT) {
+			out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
+			++intRegistersInUse;
+			++localIntRegUse;
+		}
+		else {
+			out.putsln("    push rax");
+		}
+	}
+
 	intRegistersInUse -= localIntRegUse;
 	floatRegistersInUse -= localFloatRegUse;
 
@@ -509,7 +534,8 @@ function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arg
 }
 
 function generate_call_method(expr: Node*, out: File*) {
-	generate_method_call(expr.funktion.parent, expr.funktion.parentType, &expr.funktion.name, expr.funktion.arguments, expr.funktion.argTypes, out);
+	generate_method_call(expr.funktion.parent, expr.funktion.parentType, &expr.funktion.name, expr.funktion.arguments, expr.funktion.argTypes,
+	expr.computedType, expr.funktion.argumentStackOffset, out);
 }
 
 function generate_ternary(expr: Node*, out: File*) {
@@ -658,7 +684,7 @@ function generate_assign(expr: Node*, out: File*) {
 		var args = new_vector();
 		args.push(expr.assignment.rhs.overload.rhsType);
 
-		generate_method_call(null, expr.assignment.rhs.overload.lhsType, Typecheck::get_name_from_overload(expr.assignment.rhs.overload.op), null, args, out);
+		generate_method_call(null, expr.assignment.rhs.overload.lhsType, Typecheck::get_name_from_overload(expr.assignment.rhs.overload.op), null, args, null, 0, out);
 		out.putsln("    pop rax");
 		return;
 	}
@@ -724,7 +750,7 @@ function generate_new(expr: Node*, out: File*) {
 		parser.bind_name(&constructorName, constructorTok);
 
 		out.putsln("    push rax");
-		generate_method_call(null, expr.constructor.type, &constructorName, expr.constructor.arguments, expr.constructor.argTypes, out);
+		generate_method_call(null, expr.constructor.type, &constructorName, expr.constructor.arguments, expr.constructor.argTypes, null, 0, out);
 		out.putsln("    pop rax");
 	}
 }
@@ -766,7 +792,7 @@ function generate_new_array(expr: Node*, out: File*) {
 		out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
 
 		// address (offsetted) is already in rax at this point
-		generate_method_call(null, expr.constructor.type, &constructorName, null, null, out);
+		generate_method_call(null, expr.constructor.type, &constructorName, null, null, null, 0, out);
 
 		// Set registers as such:
 		// rcx - i
@@ -1108,7 +1134,7 @@ function generate_define_var(stmt: Node*, out: File*) {
 
 		out.puts("    lea rax, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
 
-		generate_method_call(null, stmt.variable.type, &constructorName, stmt.variable.arguments, stmt.variable.argTypes, out);
+		generate_method_call(null, stmt.variable.type, &constructorName, stmt.variable.arguments, stmt.variable.argTypes, null, 0, out);
 	}
 }
 
@@ -1167,7 +1193,7 @@ function generate_delete_array(stmt: Node*, out: File*) {
 		out.puts("    jnb .l"); out.putu(loopEnd); out.putln(); // exit the loop if i >= length
 
 		// address (offsetted) is already in rax at this point
-		generate_method_call(null, stmt.deconstructor.elementType, &deconstructorName, null, null, out);
+		generate_method_call(null, stmt.deconstructor.elementType, &deconstructorName, null, null, null, 0, out);
 
 		// Set registers as such:
 		// rcx - i
@@ -1205,7 +1231,33 @@ function generate_return(stmt: Node*, out: File*) {
 		out.putsln("    xor rax, rax");
 	}
 
-	if(stmt.ret.variables != null) {
+	if(stmt.ret.isStructural) {
+		out.puts("    mov rcx, QWORD [rbp-"); out.putd(stmt.ret.structureVarOffset); out.putsln("]");
+
+		if(stmt.ret.copyConstructor) {
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			parser.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(stmt.ret.type);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			out.putsln("    push rcx");
+			out.putsln("    mov rdi, rcx");
+			out.putsln("    mov rsi, rax");
+			out.puts("    call _M"); out.put_arguments(args);
+			out.put_name(&stmt.ret.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
+			out.putsln("    pop rax");
+		}
+		else {
+			generate_copy(stmt.ret.type.fields, 0, out);
+			out.putsln("    mov rax, rcx");
+		}
+	}
+
+	if(stmt.ret.variables != null && !stmt.ret.variables.empty()) {
 		out.putsln("    push rax");
 		for(var i = 0; i < stmt.ret.variables.size; ++i) {
 			var variable: Node* = stmt.ret.variables.at(i);
@@ -1274,6 +1326,23 @@ function generate_statement(stmt: Node*, out: File*) {
 			exit(1);
 		}
 	}
+
+	if(stmt.temporaries != null) {
+		for(var i = 0; i < stmt.temporaries.size; ++i) {
+			var temp: Node* = stmt.temporaries.at(i);
+			
+			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+			var deconstructorName: Name;
+			parser.bind_name(&deconstructorName, deconstructorTok);
+
+			var deconstructor = temp.computedType.lookup_method(&deconstructorName);
+
+			if(deconstructor != null) {
+				out.puts("    lea rdi, [rbp-"); out.putd(temp.funktion.argumentStackOffset); out.putsln("]");
+				out.puts("    call _M"); out.put_name(&temp.computedType.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
+			}
+		}
+	}
 }
 
 function generate_block(block: Node*, out: File*) {
@@ -1319,10 +1388,12 @@ function generate_function(funktion: Node*, out: File*) {
 	out.putsln("    push rbp");
 	out.putsln("    mov rbp, rsp");
 
-	var stackDepth = ceil_multiple(funktion.funktion.localVariableStackOffset, 16);
+	var stackDepth = ceil_multiple(funktion.funktion.localVariableStackOffset + funktion.funktion.temporaryStackOffset, 16);
 	if(stackDepth != 0) {
 		out.puts("    sub rsp, "); out.putd(stackDepth); out.putln();
 	}
+
+	currentlocalVariableOffset = funktion.funktion.localVariableStackOffset;
 
 	var intRegUse = 0;
 	var floatRegUse = 0;
@@ -1342,6 +1413,36 @@ function generate_function(funktion: Node*, out: File*) {
 				++stackUse;
 			}
 		}
+		else if(arg.variable.type.is_structural()) {
+			if(intRegUse < INT_ARG_COUNT) {
+				out.puts("    mov rax, "); out.putsln(INT_ARG_REGISTERS[intRegUse]);
+				out.puts("    lea rcx, [rbp-"); out.putd(arg.variable.stackOffset); out.putsln("]");
+				++intRegUse;
+			}
+			else {
+				out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.funktion.arguments.size - (intRegUse + floatRegUse) - stackUse))); out.putsln("]");
+				out.puts("    lea rcx, [rbp-"); out.putd(arg.variable.stackOffset); out.putsln("]");
+				++stackUse;
+			}
+			if(arg.variable.copyConstructor) {
+				var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+				var copyName: Name;
+				parser.bind_name(&copyName, copyTok);
+
+				var args = new_vector();
+				var typePtr = copy_type(arg.variable.type);
+				typePtr.indirection = 1;
+				args.push(typePtr);
+
+				out.putsln("    mov rdi, rcx");
+				out.putsln("    mov rsi, rax");
+				out.puts("    call _M"); out.put_arguments(args);
+				out.put_name(&arg.variable.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
+			}
+			else {
+				generate_copy(arg.variable.type.fields, 0, out);
+			}
+		}
 		else {
 			if(intRegUse < INT_ARG_COUNT) {
 				out.puts("    mov QWORD [rbp-"); out.putd(arg.variable.stackOffset); out.puts("], "); out.putsln(INT_ARG_REGISTERS[intRegUse]);
@@ -1352,6 +1453,18 @@ function generate_function(funktion: Node*, out: File*) {
 				out.puts("    mov QWORD [rbp-"); out.putd(arg.variable.stackOffset); out.putsln("], rax");
 				++stackUse;
 			}
+		}
+	}
+
+	if(funktion.funktion.returnType.is_structural()) {
+		if(intRegUse < INT_ARG_COUNT) {
+			out.puts("    mov QWORD [rbp-"); out.putd(funktion.funktion.argumentStackOffset); out.puts("], "); out.putsln(INT_ARG_REGISTERS[intRegUse]);
+			++intRegUse;
+		}
+		else {
+			out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.funktion.arguments.size - (intRegUse + floatRegUse) - stackUse))); out.putsln("]");
+			out.puts("    mov QWORD [rbp-"); out.putd(funktion.funktion.argumentStackOffset); out.putsln("], rax");
+			++stackUse;
 		}
 	}
 
@@ -1508,7 +1621,7 @@ function Parser.generate_program(ast: Node*, out: File*) {
 
 			out.puts("    lea rax, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
 
-			generate_method_call(null, variable.variable.type, &constructorName, variable.variable.arguments, variable.variable.argTypes, out);
+			generate_method_call(null, variable.variable.type, &constructorName, variable.variable.arguments, variable.variable.argTypes, null, 0, out);
 		}
 	}
 

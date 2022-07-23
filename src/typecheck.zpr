@@ -9,6 +9,8 @@ var definedTypes = new_vector();
 var namespaces = new_vector();
 
 var checkingLoop = false;
+var temporaryOffset = 0;
+var temporaries = new_vector();
 
 function Type.is_integral(): bool {
 	return this.indirection == 0 && (
@@ -373,6 +375,8 @@ function Parser.lookup_constant(name: Name*): Node* {
 function Parser.lookup_scope_variable(name: Name*, block: Node*): Node* {
 	for(var i = 0; i < block.block.variables.size; ++i) {
 		var variable: Node* = block.block.variables.at(i);
+
+		if(variable.variable.isArgument) continue;
 
 		if(variable.variable.name.equals(name)) {
 			return variable;
@@ -756,6 +760,30 @@ function Parser.type_check_call(expr: Node*) {
 		}
 	}
 
+	if(func.funktion.returnType.is_structural()) {
+		expr.funktion.argumentStackOffset = temporaryOffset += func.funktion.returnType.size_offset();
+	
+		if(func.funktion.returnType.type == DataType::STRUCT) {
+			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+			var deconstructorName: Name;
+			this.bind_name(&deconstructorName, deconstructorTok);
+
+			var argTypes = new_vector();
+			var deconstructors = func.funktion.returnType.lookup_method(&deconstructorName);
+
+			if(deconstructors != null) {
+				var argTypes = new_vector();
+				var deconstructor = func.funktion.returnType.lookup_method_with_arguments(&deconstructorName, argTypes);
+				if(deconstructor == null) {
+					expr.print_position();
+					eputs("The deconstructor of type "); eputs(type_to_string(func.funktion.returnType)); eputsln(" must have 0 arguments");
+					exit(1);
+				}
+				temporaries.push(expr);
+			}
+		}
+	}
+
 	expr.funktion.argTypes = paramTypes;
 	expr.computedType = func.funktion.returnType;
 	typeStack.push(func.funktion.returnType);
@@ -811,6 +839,10 @@ function Parser.type_check_method_call(expr: Node*) {
 			resolve_type(type);
 			paramTypes.push(type);
 		}
+	}
+
+	if(funktion.funktion.returnType.is_structural()) {
+		expr.funktion.argumentStackOffset = temporaryOffset += funktion.funktion.returnType.size_offset();
 	}
 
 	expr.funktion.argTypes = paramTypes;
@@ -1713,6 +1745,30 @@ function Parser.type_check_return(stmt: Node*) {
 		exit(1);
 	}
 
+	if(expectedType.is_structural()) {
+		stmt.ret.isStructural = true;
+		stmt.ret.structureVarOffset = this.currentFunction.funktion.argumentStackOffset;
+
+		if(expectedType.type == DataType::STRUCT && expectedType.indirection == 0) {
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			this.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(expectedType);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			var copy = expectedType.lookup_method_with_arguments(&copyName, args);
+
+			if(copy != null) {
+				stmt.ret.copyConstructor = true;
+			}
+		}
+	}
+
+	stmt.ret.type = expectedType;
+
 	if(this.currentBlock.block.variables.size > 0) {
 		stmt.ret.variables = new_vector();
 		
@@ -1726,8 +1782,23 @@ function Parser.type_check_return(stmt: Node*) {
 					continue;
 				}
 
-				// Deconstructor is verified by type_check_block
-				stmt.ret.variables.push(variable);
+				var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+				var deconstructorName: Name;
+				this.bind_name(&deconstructorName, deconstructorTok);
+
+				var deconstructors = variable.variable.type.lookup_method(&deconstructorName);
+
+				if(deconstructors != null) {
+					var argTypes = new_vector();
+					var deconstructor = variable.variable.type.lookup_method_with_arguments(&deconstructorName, argTypes);
+
+					if(deconstructor == null) {
+						variable.print_position();
+						eputs("The deconstructor of type "); eputs(type_to_string(variable.variable.type)); eputsln(" must have 0 arguments"); 
+						exit(1);
+					}
+					stmt.ret.variables.push(variable);
+				}
 			}
 
 			block = block.block.parent;
@@ -1738,6 +1809,8 @@ function Parser.type_check_return(stmt: Node*) {
 }
 
 function Parser.type_check_statement(stmt: Node*) {
+	temporaryOffset = 0;
+
 	if(stmt.type == NodeType::IF) {
 		this.type_check_if_statement(stmt);
 	}
@@ -1790,10 +1863,31 @@ function Parser.type_check_statement(stmt: Node*) {
 		eputsln("Unreachable - type_check_statement");
 		exit(1);
 	}
+
+	if(temporaryOffset > this.currentFunction.funktion.temporaryStackOffset) {
+		this.currentFunction.funktion.temporaryStackOffset = temporaryOffset;
+	}
+
+	if(!temporaries.empty()) {
+		var temporariesToDeconstruct = new_vector();
+
+		for(var i = 0; i < temporaries.size; ++i) {
+			var temp: Node* = temporaries.at(i);
+			temporariesToDeconstruct.push(temp);
+		}
+		stmt.temporaries = temporariesToDeconstruct;
+		
+		// Empty the array of temporaries for the next statement
+		temporaries.size = 0;
+	}
 }
 
 function Parser.type_check_block(block: Node*) {
-	block.block.variables = new_vector();
+	this.type_check_block(block, new_vector());
+}
+
+function Parser.type_check_block(block: Node*, variables: Vector*) {
+	block.block.variables = variables;
 	block.block.currentStackOffset = this.currentBlock.block.currentStackOffset;
 	this.currentBlock = block;
 
@@ -1883,24 +1977,42 @@ function Parser.type_check_function(funktion: Node*) {
 		}
 	}
 
+	var arguments = new_vector();
+
 	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
 		var arg: Node* = funktion.funktion.arguments.at(i);
+
+		resolve_type(arg.variable.type);
 
 		if(arg.variable.type.isArray) {
 			arg.print_position();
 			eputsln("Arrays cannot be used as function arguments - consider using a pointer instead");
 			exit(1);
 		}
-		else if(arg.variable.type.is_structural()) {
-			arg.print_position();
-			eputsln("Structs cannot be used as function arguments - consider using a pointer instead");
-			exit(1);
+
+		if(arg.variable.type.type == DataType::STRUCT && arg.variable.type.indirection == 0) {
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			this.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(arg.variable.type);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			var copy = arg.variable.type.lookup_method_with_arguments(&copyName, args);
+
+			if(copy != null) {
+				arg.variable.copyConstructor = true;
+			}
 		}
 
 		//FIXME Have the correct qualifiers and registers used in codegen.zpr for arguments
 		stackOffset += ceil_multiple(arg.variable.type.size(), 8);
 
 		arg.variable.stackOffset = stackOffset;
+		arg.variable.isArgument = true;
+		arguments.push(arg);
 	}
 
 	if(funktion.funktion.returnType.isArray) {
@@ -1909,18 +2021,18 @@ function Parser.type_check_function(funktion: Node*) {
 		exit(1);
 	}
 	else if(funktion.funktion.returnType.is_structural()) {
-		funktion.print_position();
-		eputsln("Structs cannot be used as function return types - consider using a pointer instead");
-		exit(1);
+		// Space for an implicit pointer
+		stackOffset += 8;
 	}
 
+	funktion.funktion.argumentStackOffset = stackOffset;
 	funktion.funktion.body.block.currentStackOffset = stackOffset;
 	funktion.funktion.localVariableStackOffset = stackOffset;
 
 	this.currentFunction = funktion;
 
 	this.currentBlock = funktion.funktion.body;
-	this.type_check_block(funktion.funktion.body);
+	this.type_check_block(funktion.funktion.body, arguments);
 
 	if(!funktion.funktion.body.block.hasReturned) {
 		if(funktion.funktion.returnType.is_void()) {

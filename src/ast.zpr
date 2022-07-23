@@ -127,6 +127,7 @@ struct Node {
 	position: Token*;
 	lvalue: LValue;
 	computedType: Type*;
+	temporaries: Vector*;
 
 	union {
 		unary: Node*;
@@ -169,6 +170,8 @@ struct Node {
 			argTypes: Vector*;
 
 			localVariableStackOffset: int;
+			temporaryStackOffset: int;
+			argumentStackOffset: int;
 
 			used: bool;
 			dced: bool;
@@ -216,6 +219,7 @@ struct Node {
 
 			stackOffset: int;
 			unionField: int;
+			isArgument: bool;
 		};
 
 		constant: struct {
@@ -273,6 +277,10 @@ struct Node {
 		ret: struct {
 			value: Node*;
 			variables: Vector*;
+			isStructural: bool;
+			type: Type*;
+			structureVarOffset: int;
+			copyConstructor: bool;
 		};
 
 		overload: struct {
