@@ -226,6 +226,20 @@ function Parser.dce_statement(stmt: Node*) {
 		NodeType::RETURN -> {
 			if(stmt.ret.value != null)
 				this.dce_expression(stmt.ret.value);
+
+			if(stmt.ret.copyConstructor) {
+				var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+				var copyName: Name;
+				this.bind_name(&copyName, copyTok);
+
+				var args = new_vector();
+				var typePtr = copy_type(stmt.ret.type);
+				typePtr.indirection = 1;
+				args.push(typePtr);
+
+				var copy = stmt.ret.type.lookup_method_with_arguments(&copyName, args);
+				this.dce_function(copy);
+			}
 			// Variables are dce'd by dce_block
 		}
 		NodeType::DELETE -> {

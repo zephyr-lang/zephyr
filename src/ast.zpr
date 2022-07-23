@@ -278,6 +278,7 @@ struct Node {
 			isStructural: bool;
 			type: Type*;
 			structureVarOffset: int;
+			copyConstructor: bool;
 		};
 
 		overload: struct {

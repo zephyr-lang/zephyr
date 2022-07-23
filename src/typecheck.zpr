@@ -1725,6 +1725,23 @@ function Parser.type_check_return(stmt: Node*) {
 	if(expectedType.is_structural()) {
 		stmt.ret.isStructural = true;
 		stmt.ret.structureVarOffset = this.currentFunction.funktion.argumentStackOffset;
+
+		if(expectedType.type == DataType::STRUCT && expectedType.indirection == 0) {
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			this.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(expectedType);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			var copy = expectedType.lookup_method_with_arguments(&copyName, args);
+
+			if(copy != null) {
+				stmt.ret.copyConstructor = true;
+			}
+		}
 	}
 
 	stmt.ret.type = expectedType;

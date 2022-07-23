@@ -1233,10 +1233,28 @@ function generate_return(stmt: Node*, out: File*) {
 
 	if(stmt.ret.isStructural) {
 		out.puts("    mov rcx, QWORD [rbp-"); out.putd(stmt.ret.structureVarOffset); out.putsln("]");
-	
-		generate_copy(stmt.ret.type.fields, 0, out);
 
-		out.putsln("    mov rax, rcx");
+		if(stmt.ret.copyConstructor) {
+			var copyTok = synthetic_token(TokenType::IDENTIFIER, "copy");
+			var copyName: Name;
+			parser.bind_name(&copyName, copyTok);
+
+			var args = new_vector();
+			var typePtr = copy_type(stmt.ret.type);
+			typePtr.indirection = 1;
+			args.push(typePtr);
+
+			out.putsln("    push rcx");
+			out.putsln("    mov rdi, rcx");
+			out.putsln("    mov rsi, rax");
+			out.puts("    call _M"); out.put_arguments(args);
+			out.put_name(&stmt.ret.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
+			out.putsln("    pop rax");
+		}
+		else {
+			generate_copy(stmt.ret.type.fields, 0, out);
+			out.putsln("    mov rax, rcx");
+		}
 	}
 
 	if(stmt.ret.variables != null && !stmt.ret.variables.empty()) {
