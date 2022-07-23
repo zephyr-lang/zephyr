@@ -9,6 +9,7 @@ var definedTypes = new_vector();
 var namespaces = new_vector();
 
 var checkingLoop = false;
+var temporaryOffset = 0;
 
 function Type.is_integral(): bool {
 	return this.indirection == 0 && (
@@ -757,11 +758,7 @@ function Parser.type_check_call(expr: Node*) {
 	}
 
 	if(func.funktion.returnType.is_structural()) {
-		expr.funktion.argumentStackOffset = this.currentBlock.block.currentStackOffset += func.funktion.returnType.size_offset();
-
-		if(expr.funktion.argumentStackOffset > this.currentFunction.funktion.localVariableStackOffset) {
-			this.currentFunction.funktion.localVariableStackOffset = expr.funktion.argumentStackOffset;
-		}
+		expr.funktion.argumentStackOffset = temporaryOffset += func.funktion.returnType.size_offset();
 	}
 
 	expr.funktion.argTypes = paramTypes;
@@ -822,11 +819,7 @@ function Parser.type_check_method_call(expr: Node*) {
 	}
 
 	if(funktion.funktion.returnType.is_structural()) {
-		expr.funktion.argumentStackOffset = this.currentBlock.block.currentStackOffset += funktion.funktion.returnType.size_offset();
-
-		if(expr.funktion.argumentStackOffset > this.currentFunction.funktion.localVariableStackOffset) {
-			this.currentFunction.funktion.localVariableStackOffset = expr.funktion.argumentStackOffset;
-		}
+		expr.funktion.argumentStackOffset = temporaryOffset += funktion.funktion.returnType.size_offset();
 	}
 
 	expr.funktion.argTypes = paramTypes;
@@ -1776,6 +1769,8 @@ function Parser.type_check_return(stmt: Node*) {
 }
 
 function Parser.type_check_statement(stmt: Node*) {
+	temporaryOffset = 0;
+
 	if(stmt.type == NodeType::IF) {
 		this.type_check_if_statement(stmt);
 	}
@@ -1827,6 +1822,10 @@ function Parser.type_check_statement(stmt: Node*) {
 	else {
 		eputsln("Unreachable - type_check_statement");
 		exit(1);
+	}
+
+	if(temporaryOffset > this.currentFunction.funktion.temporaryStackOffset) {
+		this.currentFunction.funktion.temporaryStackOffset = temporaryOffset;
 	}
 }
 

@@ -169,6 +169,7 @@ struct Node {
 			argTypes: Vector*;
 
 			localVariableStackOffset: int;
+			temporaryStackOffset: int;
 			argumentStackOffset: int;
 
 			used: bool;

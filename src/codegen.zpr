@@ -14,6 +14,7 @@ var intRegistersInUse = 0;
 var floatRegistersInUse = 0;
 var continueLabel = 0;
 var breakLabel = 0;
+var currentlocalVariableOffset = 0;
 
 var parser: Parser*;
 
@@ -427,7 +428,7 @@ function generate_call(expr: Node*, out: File*) {
 	}
 
 	if(expr.computedType.is_structural()) {
-		out.puts("    lea rax, [rbp-"); out.putd(expr.funktion.argumentStackOffset); out.putsln("]");
+		out.puts("    lea rax, [rbp-"); out.putd(currentlocalVariableOffset + expr.funktion.argumentStackOffset); out.putsln("]");
 		if(localIntRegUse < INT_ARG_COUNT) {
 			out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
 			++intRegistersInUse;
@@ -503,7 +504,7 @@ function generate_method_call(parent: Node*, parentType: Type*, name: Name*, arg
 	}
 
 	if(returnType != null && returnType.is_structural()) {
-		out.puts("    lea rax, [rbp-"); out.putd(argumentOffset); out.putsln("]");
+		out.puts("    lea rax, [rbp-"); out.putd(currentlocalVariableOffset + argumentOffset); out.putsln("]");
 		if(localIntRegUse < INT_ARG_COUNT) {
 			out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
 			++intRegistersInUse;
@@ -1352,10 +1353,12 @@ function generate_function(funktion: Node*, out: File*) {
 	out.putsln("    push rbp");
 	out.putsln("    mov rbp, rsp");
 
-	var stackDepth = ceil_multiple(funktion.funktion.localVariableStackOffset, 16);
+	var stackDepth = ceil_multiple(funktion.funktion.localVariableStackOffset + funktion.funktion.temporaryStackOffset, 16);
 	if(stackDepth != 0) {
 		out.puts("    sub rsp, "); out.putd(stackDepth); out.putln();
 	}
+
+	currentlocalVariableOffset = funktion.funktion.localVariableStackOffset;
 
 	var intRegUse = 0;
 	var floatRegUse = 0;
