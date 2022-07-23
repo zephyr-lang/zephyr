@@ -2702,3 +2702,310 @@ function main(): int {
 "
 
 echo " Done"
+
+echo -n "Pass Structs: "
+
+assert_stdout "56
+30
+12
+15" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function a(b: Point) {
+	b.x = 56;
+	b.y *= 2;
+
+	putd(b.x);
+	putln();
+	putd(b.y);
+	putln();
+}
+
+function main() {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+
+	a(p);
+
+	putd(p.x);
+	putln();
+	putd(p.y);
+	putln();
+}
+"
+
+assert_stdout "Copying
+56
+30
+12
+15" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.copy(other: Point*) {
+	putsln(\"Copying\");
+	this.x = other.x;
+	this.y = other.y;
+}
+
+function a(b: Point) {
+	b.x = 56;
+	b.y *= 2;
+
+	putd(b.x);
+	putln();
+	putd(b.y);
+	putln();
+}
+
+function main() {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+
+	a(p);
+
+	putd(p.x);
+	putln();
+	putd(p.y);
+	putln();
+}
+"
+
+assert_stdout "56
+30
+12
+15" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function a(a1: int, a2: int, a3: int, a4: int, a5: int, a6: int, b: Point) {
+	b.x = 56;
+	b.y *= 2;
+
+	putd(b.x);
+	putln();
+	putd(b.y);
+	putln();
+}
+
+function main() {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+
+	a(1, 2, 3, 4, 5, 6, p);
+
+	putd(p.x);
+	putln();
+	putd(p.y);
+	putln();
+}
+"
+
+assert_stdout "Copying
+56
+30
+12
+15" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.copy(other: Point*) {
+	putsln(\"Copying\");
+	this.x = other.x;
+	this.y = other.y;
+}
+
+function a(a1: int, a2: int, a3: int, a4: int, a5: int, a6: int, b: Point) {
+	b.x = 56;
+	b.y *= 2;
+
+	putd(b.x);
+	putln();
+	putd(b.y);
+	putln();
+}
+
+function main() {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+
+	a(1, 2, 3, 4, 5, 6, p);
+
+	putd(p.x);
+	putln();
+	putd(p.y);
+	putln();
+}
+"
+
+assert_stdout "12
+15" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function a(): Point {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+	
+	return p;
+}
+
+function b(p: Point) {
+	putd(p.x);
+	putln();
+	putd(p.y);
+	putln();
+}
+
+function main() {
+	b(a());
+}
+"
+
+assert_stdout "12
+15" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+struct X { y: any; }
+
+function X.a(): Point {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+	
+	return p;
+}
+
+function b(p: Point) {
+	putd(p.x);
+	putln();
+	putd(p.y);
+	putln();
+}
+
+function main() {
+	var x: X;
+	b(x.a());
+}
+"
+
+assert_stdout "Copied!
+Copied!
+12
+15" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.copy(other: Point*) {
+	putsln(\"Copied!\");
+	this.x = other.x;
+	this.y = other.y;
+}
+
+function a(): Point {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+	
+	// Copy here
+	return p;
+}
+
+function b(p: Point) {
+	// Copy here
+	putd(p.x);
+	putln();
+	putd(p.y);
+	putln();
+}
+
+function main() {
+	b(a());
+}
+"
+
+assert_stdout "Copied!
+Deconstructed!
+Copied!
+12
+15
+Deconstructed!
+Deconstructed!" "
+import \"std/io.zpr\";
+
+struct Point {
+	x: int;
+	y: int;
+}
+
+function Point.copy(other: Point*) {
+	putsln(\"Copied!\");
+	this.x = other.x;
+	this.y = other.y;
+}
+
+function Point.deconstructor() {
+	putsln(\"Deconstructed!\");
+}
+
+function a(): Point {
+	var p: Point;
+	p.x = 12;
+	p.y = 15;
+	
+	// Copy here
+	return p;
+	// Deconstruct here
+}
+
+function b(p: Point) {
+	// Copy here
+	putd(p.x);
+	putln();
+	putd(p.y);
+	putln();
+	// Deconstruct here
+}
+
+function main() {
+	b(a());
+	// Deconstruct here
+}
+"
+
+echo " Done"
