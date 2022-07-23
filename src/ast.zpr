@@ -169,6 +169,7 @@ struct Node {
 			argTypes: Vector*;
 
 			localVariableStackOffset: int;
+			argumentStackOffset: int;
 
 			used: bool;
 			dced: bool;
@@ -273,6 +274,9 @@ struct Node {
 		ret: struct {
 			value: Node*;
 			variables: Vector*;
+			isStructural: bool;
+			type: Type*;
+			structureVarOffset: int;
 		};
 
 		overload: struct {

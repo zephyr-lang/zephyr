@@ -756,6 +756,14 @@ function Parser.type_check_call(expr: Node*) {
 		}
 	}
 
+	if(func.funktion.returnType.is_structural()) {
+		expr.funktion.argumentStackOffset = this.currentBlock.block.currentStackOffset += func.funktion.returnType.size_offset();
+
+		if(expr.funktion.argumentStackOffset > this.currentFunction.funktion.localVariableStackOffset) {
+			this.currentFunction.funktion.localVariableStackOffset = expr.funktion.argumentStackOffset;
+		}
+	}
+
 	expr.funktion.argTypes = paramTypes;
 	expr.computedType = func.funktion.returnType;
 	typeStack.push(func.funktion.returnType);
@@ -1713,6 +1721,13 @@ function Parser.type_check_return(stmt: Node*) {
 		exit(1);
 	}
 
+	if(expectedType.is_structural()) {
+		stmt.ret.isStructural = true;
+		stmt.ret.structureVarOffset = this.currentFunction.funktion.argumentStackOffset;
+	}
+
+	stmt.ret.type = expectedType;
+
 	if(this.currentBlock.block.variables.size > 0) {
 		stmt.ret.variables = new_vector();
 		
@@ -1726,8 +1741,23 @@ function Parser.type_check_return(stmt: Node*) {
 					continue;
 				}
 
-				// Deconstructor is verified by type_check_block
-				stmt.ret.variables.push(variable);
+				var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+				var deconstructorName: Name;
+				this.bind_name(&deconstructorName, deconstructorTok);
+
+				var deconstructors = variable.variable.type.lookup_method(&deconstructorName);
+
+				if(deconstructors != null) {
+					var argTypes = new_vector();
+					var deconstructor = variable.variable.type.lookup_method_with_arguments(&deconstructorName, argTypes);
+
+					if(deconstructor == null) {
+						variable.print_position();
+						eputs("The deconstructor of type "); eputs(type_to_string(variable.variable.type)); eputsln(" must have 0 arguments"); 
+						exit(1);
+					}
+					stmt.ret.variables.push(variable);
+				}
 			}
 
 			block = block.block.parent;
@@ -1923,11 +1953,11 @@ function Parser.type_check_function(funktion: Node*) {
 		exit(1);
 	}
 	else if(funktion.funktion.returnType.is_structural()) {
-		funktion.print_position();
-		eputsln("Structs cannot be used as function return types - consider using a pointer instead");
-		exit(1);
+		// Space for an implicit pointer
+		stackOffset += 8;
 	}
 
+	funktion.funktion.argumentStackOffset = stackOffset;
 	funktion.funktion.body.block.currentStackOffset = stackOffset;
 	funktion.funktion.localVariableStackOffset = stackOffset;
 

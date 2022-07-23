@@ -426,6 +426,18 @@ function generate_call(expr: Node*, out: File*) {
 		}
 	}
 
+	if(expr.computedType.is_structural()) {
+		out.puts("    lea rax, [rbp-"); out.putd(expr.funktion.argumentStackOffset); out.putsln("]");
+		if(localIntRegUse < INT_ARG_COUNT) {
+			out.puts("    mov "); out.puts(INT_ARG_REGISTERS[localIntRegUse]); out.putsln(", rax");
+			++intRegistersInUse;
+			++localIntRegUse;
+		}
+		else {
+			out.putsln("    push rax");
+		}
+	}
+
 	intRegistersInUse -= localIntRegUse;
 	floatRegistersInUse -= localFloatRegUse;
 
@@ -1205,7 +1217,15 @@ function generate_return(stmt: Node*, out: File*) {
 		out.putsln("    xor rax, rax");
 	}
 
-	if(stmt.ret.variables != null) {
+	if(stmt.ret.isStructural) {
+		out.puts("    mov rcx, QWORD [rbp-"); out.putd(stmt.ret.structureVarOffset); out.putsln("]");
+	
+		generate_copy(stmt.ret.type.fields, 0, out);
+
+		out.putsln("    mov rax, rcx");
+	}
+
+	if(stmt.ret.variables != null && !stmt.ret.variables.empty()) {
 		out.putsln("    push rax");
 		for(var i = 0; i < stmt.ret.variables.size; ++i) {
 			var variable: Node* = stmt.ret.variables.at(i);
@@ -1382,6 +1402,18 @@ function generate_function(funktion: Node*, out: File*) {
 				out.puts("    mov QWORD [rbp-"); out.putd(arg.variable.stackOffset); out.putsln("], rax");
 				++stackUse;
 			}
+		}
+	}
+
+	if(funktion.funktion.returnType.is_structural()) {
+		if(intRegUse < INT_ARG_COUNT) {
+			out.puts("    mov QWORD [rbp-"); out.putd(funktion.funktion.argumentStackOffset); out.puts("], "); out.putsln(INT_ARG_REGISTERS[intRegUse]);
+			++intRegUse;
+		}
+		else {
+			out.puts("    mov rax, QWORD [rbp+"); out.putd(8 + (8 * (funktion.funktion.arguments.size - (intRegUse + floatRegUse) - stackUse))); out.putsln("]");
+			out.puts("    mov QWORD [rbp-"); out.putd(funktion.funktion.argumentStackOffset); out.putsln("], rax");
+			++stackUse;
 		}
 	}
 
