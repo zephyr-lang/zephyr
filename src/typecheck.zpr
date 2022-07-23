@@ -821,6 +821,14 @@ function Parser.type_check_method_call(expr: Node*) {
 		}
 	}
 
+	if(funktion.funktion.returnType.is_structural()) {
+		expr.funktion.argumentStackOffset = this.currentBlock.block.currentStackOffset += funktion.funktion.returnType.size_offset();
+
+		if(expr.funktion.argumentStackOffset > this.currentFunction.funktion.localVariableStackOffset) {
+			this.currentFunction.funktion.localVariableStackOffset = expr.funktion.argumentStackOffset;
+		}
+	}
+
 	expr.funktion.argTypes = paramTypes;
 
 	expr.computedType = funktion.funktion.returnType;
