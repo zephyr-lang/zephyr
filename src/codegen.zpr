@@ -1326,6 +1326,23 @@ function generate_statement(stmt: Node*, out: File*) {
 			exit(1);
 		}
 	}
+
+	if(stmt.temporaries != null) {
+		for(var i = 0; i < stmt.temporaries.size; ++i) {
+			var temp: Node* = stmt.temporaries.at(i);
+			
+			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+			var deconstructorName: Name;
+			parser.bind_name(&deconstructorName, deconstructorTok);
+
+			var deconstructor = temp.computedType.lookup_method(&deconstructorName);
+
+			if(deconstructor != null) {
+				out.puts("    lea rdi, [rbp-"); out.putd(temp.funktion.argumentStackOffset); out.putsln("]");
+				out.puts("    call _M"); out.put_name(&temp.computedType.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
+			}
+		}
+	}
 }
 
 function generate_block(block: Node*, out: File*) {

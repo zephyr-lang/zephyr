@@ -127,6 +127,7 @@ struct Node {
 	position: Token*;
 	lvalue: LValue;
 	computedType: Type*;
+	temporaries: Vector*;
 
 	union {
 		unary: Node*;

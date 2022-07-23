@@ -198,7 +198,9 @@ function Parser.dce_statement(stmt: Node*) {
 					args.push(typePtr);
 
 					var copy = stmt.variable.type.lookup_method_with_arguments(&copyName, args);
-					this.dce_function(copy);
+					if(!copy.funktion.dced) {
+						this.dce_function(copy);
+					}
 				}
 			}
 			if(stmt.variable.arguments != null) {
@@ -238,7 +240,10 @@ function Parser.dce_statement(stmt: Node*) {
 				args.push(typePtr);
 
 				var copy = stmt.ret.type.lookup_method_with_arguments(&copyName, args);
-				this.dce_function(copy);
+
+				if(!copy.funktion.dced) {
+					this.dce_function(copy);
+				}
 			}
 			// Variables are dce'd by dce_block
 		}
@@ -299,6 +304,24 @@ function Parser.dce_statement(stmt: Node*) {
 			exit(1);
 		}
 	}
+
+	if(stmt.temporaries != null && !stmt.temporaries.empty()) {
+		for(var i = 0; i < stmt.temporaries.size; ++i) {
+			var temp: Node* = stmt.temporaries.at(i);
+
+			var deconstructorTok = synthetic_token(TokenType::IDENTIFIER, "deconstructor");
+			var deconstructorName: Name;
+			this.bind_name(&deconstructorName, deconstructorTok);
+
+			var argTypes = new_vector();
+			var deconstructor = temp.computedType.lookup_method_with_arguments(&deconstructorName, argTypes);
+
+			if(deconstructor != null && !deconstructor.funktion.dced) {
+				deconstructor.funktion.dced = true;
+				this.dce_function(deconstructor);
+			}
+		}
+	}
 }
 
 function Parser.dce_function(funktion: Node*) {
@@ -316,7 +339,9 @@ function Parser.dce_function(funktion: Node*) {
 			args.push(typePtr);
 
 			var copy = arg.variable.type.lookup_method_with_arguments(&copyName, args);
-			this.dce_function(copy);
+			if(!copy.funktion.dced) {
+				this.dce_function(copy);
+			}
 		}
 	}
 
@@ -371,7 +396,9 @@ function Parser.dce() {
 				args.push(typePtr);
 
 				var copy = gvar.variable.type.lookup_method_with_arguments(&copyName, args);
-				this.dce_function(copy);
+				if(!copy.funktion.dced) {
+					this.dce_function(copy);
+				}
 			}
 		}
 
