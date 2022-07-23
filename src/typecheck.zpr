@@ -376,6 +376,8 @@ function Parser.lookup_scope_variable(name: Name*, block: Node*): Node* {
 	for(var i = 0; i < block.block.variables.size; ++i) {
 		var variable: Node* = block.block.variables.at(i);
 
+		if(variable.variable.isArgument) continue;
+
 		if(variable.variable.name.equals(name)) {
 			return variable;
 		}
@@ -1881,7 +1883,11 @@ function Parser.type_check_statement(stmt: Node*) {
 }
 
 function Parser.type_check_block(block: Node*) {
-	block.block.variables = new_vector();
+	this.type_check_block(block, new_vector());
+}
+
+function Parser.type_check_block(block: Node*, variables: Vector*) {
+	block.block.variables = variables;
 	block.block.currentStackOffset = this.currentBlock.block.currentStackOffset;
 	this.currentBlock = block;
 
@@ -1971,6 +1977,8 @@ function Parser.type_check_function(funktion: Node*) {
 		}
 	}
 
+	var arguments = new_vector();
+
 	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
 		var arg: Node* = funktion.funktion.arguments.at(i);
 
@@ -2003,6 +2011,8 @@ function Parser.type_check_function(funktion: Node*) {
 		stackOffset += ceil_multiple(arg.variable.type.size(), 8);
 
 		arg.variable.stackOffset = stackOffset;
+		arg.variable.isArgument = true;
+		arguments.push(arg);
 	}
 
 	if(funktion.funktion.returnType.isArray) {
@@ -2022,7 +2032,7 @@ function Parser.type_check_function(funktion: Node*) {
 	this.currentFunction = funktion;
 
 	this.currentBlock = funktion.funktion.body;
-	this.type_check_block(funktion.funktion.body);
+	this.type_check_block(funktion.funktion.body, arguments);
 
 	if(!funktion.funktion.body.block.hasReturned) {
 		if(funktion.funktion.returnType.is_void()) {

@@ -219,6 +219,7 @@ struct Node {
 
 			stackOffset: int;
 			unionField: int;
+			isArgument: bool;
 		};
 
 		constant: struct {
