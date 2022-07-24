@@ -4,13 +4,13 @@ import "std/math.zpr";
 
 namespace Typecheck {
 
-var typeStack = new_vector();
-var definedTypes = new_vector();
-var namespaces = new_vector();
+var typeStack = new Vector();
+var definedTypes: Vector* = new Vector();
+var namespaces: Vector* = new Vector();
 
 var checkingLoop = false;
 var temporaryOffset = 0;
-var temporaries = new_vector();
+var temporaries = new Vector();
 
 function Type.is_integral(): bool {
 	return this.indirection == 0 && (
@@ -518,10 +518,10 @@ function get_name_from_overload(op: Token*): Name* {
 function get_overload_function(lhs: Type*, rhs: Type*, op: Token*): Node* {
 	var name = get_name_from_overload(op);
 
-	var args = new_vector();
+	var args: Vector;
 	args.push(rhs);
 
-	var copy = lhs.lookup_method_with_arguments(name, args);
+	var copy = lhs.lookup_method_with_arguments(name, &args);
 	return copy;
 }
 
@@ -732,7 +732,7 @@ function Parser.type_check_call(expr: Node*) {
 		exit(1);
 	}
 
-	var argTypes = new_vector();
+	var argTypes: Vector;
 	for(var i = 0; i < expr.funktion.arguments.size; ++i) {
 		var arg: Node* = expr.funktion.arguments.at(i);
 		this.type_check_expr(arg);
@@ -741,18 +741,18 @@ function Parser.type_check_call(expr: Node*) {
 		argTypes.push(argType);
 	}
 
-	var func = this.lookup_function_with_arguments(&expr.funktion.name, argTypes);
+	var func = this.lookup_function_with_arguments(&expr.funktion.name, &argTypes);
 
 	if(func == null) {
 		expr.print_position();
 		eputs("Failed to resolve function '"); expr.funktion.name.eput(); eputsln("'");
-		eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+		eputs("Given argument types: "); eput_argument_types(&argTypes); eputln();
 		exit(1);
 	}
 
 	var paramTypes = func.funktion.argTypes;
 	if(paramTypes == null) {
-		paramTypes = new_vector();
+		paramTypes = new Vector();
 		for(var i = 0; i < func.funktion.arguments.size; ++i) {
 			var type: Type* = (func.funktion.arguments.at(i) as Node*).variable.type;
 			resolve_type(type);
@@ -768,12 +768,11 @@ function Parser.type_check_call(expr: Node*) {
 			var deconstructorName: Name;
 			this.bind_name(&deconstructorName, deconstructorTok);
 
-			var argTypes = new_vector();
 			var deconstructors = func.funktion.returnType.lookup_method(&deconstructorName);
 
 			if(deconstructors != null) {
-				var argTypes = new_vector();
-				var deconstructor = func.funktion.returnType.lookup_method_with_arguments(&deconstructorName, argTypes);
+				var argTypes: Vector;
+				var deconstructor = func.funktion.returnType.lookup_method_with_arguments(&deconstructorName, &argTypes);
 				if(deconstructor == null) {
 					expr.print_position();
 					eputs("The deconstructor of type "); eputs(type_to_string(func.funktion.returnType)); eputsln(" must have 0 arguments");
@@ -813,7 +812,7 @@ function Parser.type_check_method_call(expr: Node*) {
 
 	expr.funktion.parentType = parentType;
 
-	var argTypes = new_vector();
+	var argTypes: Vector;
 	for(var i = 0; i < expr.funktion.arguments.size; ++i) {
 		var arg: Node* = expr.funktion.arguments.at(i);
 		this.type_check_expr(arg);
@@ -822,18 +821,18 @@ function Parser.type_check_method_call(expr: Node*) {
 		argTypes.push(argType);
 	}
 
-	var funktion = parentType.lookup_method_with_arguments(&name, argTypes);
+	var funktion = parentType.lookup_method_with_arguments(&name, &argTypes);
 
 	if(funktion == null) {
 		expr.print_position();
 		eputs("Failed to resolve method '"); expr.funktion.name.eput(); eputs("' of type "); eputsln(type_to_string(parentType));
-		eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+		eputs("Given argument types: "); eput_argument_types(&argTypes); eputln();
 		exit(1);
 	}
 
 	var paramTypes = funktion.funktion.argTypes;
 	if(paramTypes == null) {
-		paramTypes = new_vector();
+		paramTypes = new Vector();
 		for(var i = 1; i < funktion.funktion.arguments.size; ++i) {
 			var type: Type* = (funktion.funktion.arguments.at(i) as Node*).variable.type;
 			resolve_type(type);
@@ -983,12 +982,12 @@ function Parser.type_check_assign(expr: Node*) {
 			var copyName: Name;
 			this.bind_name(&copyName, copyTok);
 
-			var args = new_vector();
+			var args: Vector;
 			var typePtr = copy_type(lhs);
 			typePtr.indirection = 1;
 			args.push(typePtr);
 
-			var copy = lhs.lookup_method_with_arguments(&copyName, args);
+			var copy = lhs.lookup_method_with_arguments(&copyName, &args);
 
 			if(copy != null) {
 				var overload = new_node(NodeType::OVERLOAD, expr.position);
@@ -1037,10 +1036,10 @@ function Parser.resolve_malloc_function(): Node* {
 	var mallocName: Name;
 	this.bind_name(&mallocName, mallocTok);
 
-	var arguments = new_vector();
+	var arguments: Vector;
 	arguments.push(UINT_TYPE);
 
-	var mallocFunc = this.lookup_function_with_arguments(&mallocName, arguments);
+	var mallocFunc = this.lookup_function_with_arguments(&mallocName, &arguments);
 
 	if(mallocFunc == null) return null;
 	if(mallocFunc.funktion.name.namespaceName != null) return null;
@@ -1077,7 +1076,7 @@ function Parser.type_check_new(expr: Node*) {
 			expr.constructor.arguments = null;
 		}
 		else {
-			var argTypes = new_vector();
+			var argTypes: Vector;
 			for(var i = 0; i < expr.constructor.arguments.size; ++i) {
 				var arg: Node* = expr.constructor.arguments.at(i);
 				this.type_check_expr(arg);
@@ -1086,18 +1085,18 @@ function Parser.type_check_new(expr: Node*) {
 				argTypes.push(argType);
 			}
 
-			var constructor = expr.constructor.type.lookup_method_with_arguments(&constructorName, argTypes);
+			var constructor = expr.constructor.type.lookup_method_with_arguments(&constructorName, &argTypes);
 
 			if(constructor == null) {
 				expr.print_position();
 				eputs("Failed to resolve constructor"); eputs(" of type "); eputsln(type_to_string(expr.constructor.type));
-				eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+				eputs("Given argument types: "); eput_argument_types(&argTypes); eputln();
 				exit(1);
 			}
 
 			var paramTypes = constructor.funktion.argTypes;
 			if(paramTypes == null) {
-				paramTypes = new_vector();
+				paramTypes = new Vector();
 				for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
 					var type: Type* = (constructor.funktion.arguments.at(i) as Node*).variable.type;
 					resolve_type(type);
@@ -1137,8 +1136,8 @@ function Parser.type_check_new_array(expr: Node*) {
 			expr.constructor.shouldConstruct = false;
 		}
 		else {
-			var argTypes = new_vector();
-			var constructorMethod = expr.constructor.type.lookup_method_with_arguments(&constructorName, argTypes);
+			var argTypes: Vector;
+			var constructorMethod = expr.constructor.type.lookup_method_with_arguments(&constructorName, &argTypes);
 
 			if(constructorMethod == null) {
 				eputs("Failed to resolve default constructor"); eputs(" of type "); eputsln(type_to_string(expr.constructor.type));
@@ -1358,12 +1357,12 @@ function Parser.type_check_define_var(stmt: Node*) {
 			var copyName: Name;
 			this.bind_name(&copyName, copyTok);
 
-			var args = new_vector();
+			var args: Vector;
 			var typePtr = copy_type(declType);
 			typePtr.indirection = 1;
 			args.push(typePtr);
 
-			var copy = declType.lookup_method_with_arguments(&copyName, args);
+			var copy = declType.lookup_method_with_arguments(&copyName, &args);
 
 			if(copy != null) {
 				stmt.variable.copyConstructor = true;
@@ -1396,7 +1395,7 @@ function Parser.type_check_define_var(stmt: Node*) {
 			stmt.variable.arguments = null;
 		}
 		else {
-			var argTypes = new_vector();
+			var argTypes: Vector;
 			for(var i = 0; i < stmt.variable.arguments.size; ++i) {
 				var arg: Node* = stmt.variable.arguments.at(i);
 				this.type_check_expr(arg);
@@ -1405,18 +1404,18 @@ function Parser.type_check_define_var(stmt: Node*) {
 				argTypes.push(argType);
 			}
 
-			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, argTypes);
+			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, &argTypes);
 
 			if(constructor == null) {
 				stmt.print_position();
 				eputs("Failed to resolve constructor"); eputs(" of type "); eputsln(type_to_string(stmt.variable.type));
-				eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+				eputs("Given argument types: "); eput_argument_types(&argTypes); eputln();
 				exit(1);
 			}
 
 			var paramTypes = constructor.funktion.argTypes;
 			if(paramTypes == null) {
-				paramTypes = new_vector();
+				paramTypes = new Vector();
 				for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
 					var type: Type* = (constructor.funktion.arguments.at(i) as Node*).variable.type;
 					resolve_type(type);
@@ -1437,9 +1436,9 @@ function Parser.type_check_define_var(stmt: Node*) {
 		var constructors = stmt.variable.type.lookup_method(&constructorName);
 
 		if(constructors != null) {
-			stmt.variable.arguments = new_vector();
+			stmt.variable.arguments = new Vector();
 			
-			var argTypes = new_vector();
+			var argTypes = new Vector();
 			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, argTypes);
 
 			if(constructor == null) {
@@ -1507,7 +1506,7 @@ function Parser.type_check_do_while_statement(stmt: Node*) {
 	if(stmt.conditional.doTrue.type == NodeType::BLOCK) {
 		var block = stmt.conditional.doTrue;
 
-		block.block.variables = new_vector();
+		block.block.variables = new Vector();
 		block.block.currentStackOffset = this.currentBlock.block.currentStackOffset;
 		this.currentBlock = block;
 
@@ -1606,7 +1605,7 @@ function Parser.resolve_free_function(): Node* {
 	var freeName: Name;
 	this.bind_name(&freeName, freeTok);
 
-	var arguments = new_vector();
+	var arguments = new Vector();
 	arguments.push(ANYP_TYPE);
 
 	var freeFunc = this.lookup_function_with_arguments(&freeName, arguments);
@@ -1640,14 +1639,13 @@ function Parser.type_check_delete_statement(stmt: Node*) {
 		var deconstructorName: Name;
 		this.bind_name(&deconstructorName, deconstructorTok);
 
-		var argTypes = new_vector();
 		var deconstructors = targetType.lookup_method(&deconstructorName);
 
 		if(deconstructors != null) {
 			stmt.deconstructor.shouldDeconstruct = true;
 
-			var argTypes = new_vector();
-			var deconstructor = targetType.lookup_method_with_arguments(&deconstructorName, argTypes);
+			var argTypes: Vector;
+			var deconstructor = targetType.lookup_method_with_arguments(&deconstructorName, &argTypes);
 			if(deconstructor == null) {
 				stmt.print_position();
 				eputs("The deconstructor of type "); eputs(type_to_string(targetType)); eputsln(" must have 0 arguments");
@@ -1664,7 +1662,7 @@ function Parser.resolve_get_array_length_function(): Node* {
 	this.bind_name(&funcName, funcTok);
 
 	var nameSpace = new_namespace(null, null);
-	nameSpace.parts = new_vector();
+	nameSpace.parts = new Vector();
 
 	nameSpace.parts.push(synthetic_token(TokenType::IDENTIFIER, "std"));
 	nameSpace.parts.push(synthetic_token(TokenType::IDENTIFIER, "internal"));
@@ -1672,11 +1670,11 @@ function Parser.resolve_get_array_length_function(): Node* {
 
 	bind_to_namespace(&funcName, nameSpace);
 
-	var arguments = new_vector();
+	var arguments: Vector;
 	arguments.push(ANYP_TYPE);
 	arguments.push(UINT_TYPE);
 
-	var func = this.lookup_function_with_arguments(&funcName, arguments);
+	var func = this.lookup_function_with_arguments(&funcName, &arguments);
 
 	if(func == null) return null;
 	if(func.funktion.returnType.type != DataType::UINT || func.funktion.returnType.indirection != 0) return null;
@@ -1713,8 +1711,8 @@ function Parser.type_check_delete_array_statement(stmt: Node*) {
 		var deconstructors = elementType.lookup_method(&deconstructorName);
 
 		if(deconstructors != null) {
-			var argTypes = new_vector();
-			var deconstructor = elementType.lookup_method_with_arguments(&deconstructorName, argTypes);
+			var argTypes: Vector;
+			var deconstructor = elementType.lookup_method_with_arguments(&deconstructorName, &argTypes);
 
 			if(deconstructor == null) {
 				stmt.print_position();
@@ -1754,12 +1752,12 @@ function Parser.type_check_return(stmt: Node*) {
 			var copyName: Name;
 			this.bind_name(&copyName, copyTok);
 
-			var args = new_vector();
+			var args: Vector;
 			var typePtr = copy_type(expectedType);
 			typePtr.indirection = 1;
 			args.push(typePtr);
 
-			var copy = expectedType.lookup_method_with_arguments(&copyName, args);
+			var copy = expectedType.lookup_method_with_arguments(&copyName, &args);
 
 			if(copy != null) {
 				stmt.ret.copyConstructor = true;
@@ -1770,7 +1768,7 @@ function Parser.type_check_return(stmt: Node*) {
 	stmt.ret.type = expectedType;
 
 	if(this.currentBlock.block.variables.size > 0) {
-		stmt.ret.variables = new_vector();
+		stmt.ret.variables = new Vector();
 		
 		var block = this.currentBlock;
 
@@ -1789,8 +1787,8 @@ function Parser.type_check_return(stmt: Node*) {
 				var deconstructors = variable.variable.type.lookup_method(&deconstructorName);
 
 				if(deconstructors != null) {
-					var argTypes = new_vector();
-					var deconstructor = variable.variable.type.lookup_method_with_arguments(&deconstructorName, argTypes);
+					var argTypes: Vector;
+					var deconstructor = variable.variable.type.lookup_method_with_arguments(&deconstructorName, &argTypes);
 
 					if(deconstructor == null) {
 						variable.print_position();
@@ -1869,7 +1867,7 @@ function Parser.type_check_statement(stmt: Node*) {
 	}
 
 	if(!temporaries.empty()) {
-		var temporariesToDeconstruct = new_vector();
+		var temporariesToDeconstruct = new Vector();
 
 		for(var i = 0; i < temporaries.size; ++i) {
 			var temp: Node* = temporaries.at(i);
@@ -1883,7 +1881,8 @@ function Parser.type_check_statement(stmt: Node*) {
 }
 
 function Parser.type_check_block(block: Node*) {
-	this.type_check_block(block, new_vector());
+	var vec = new Vector();
+	this.type_check_block(block, vec);
 }
 
 function Parser.type_check_block(block: Node*, variables: Vector*) {
@@ -1914,8 +1913,8 @@ function Parser.type_check_block(block: Node*, variables: Vector*) {
 		var deconstructors = stmt.variable.type.lookup_method(&deconstructorName);
 
 		if(deconstructors != null) {
-			var argTypes = new_vector();
-			var deconstructor = stmt.variable.type.lookup_method_with_arguments(&deconstructorName, argTypes);
+			var argTypes: Vector;
+			var deconstructor = stmt.variable.type.lookup_method_with_arguments(&deconstructorName, &argTypes);
 
 			if(deconstructor == null) {
 				stmt.print_position();
@@ -1935,7 +1934,7 @@ function Parser.type_check_function(funktion: Node*) {
 	if(!funktion.funktion.isMethod) {
 		var funcList = this.lookup_function(&funktion.funktion.name);
 
-		var paramTypes = new_vector();
+		var paramTypes = new Vector();
 		for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
 			var arg: Node* = funktion.funktion.arguments.at(i);
 
@@ -1957,7 +1956,7 @@ function Parser.type_check_function(funktion: Node*) {
 	else {
 		var methodList = funktion.funktion.parentType.lookup_method(&funktion.funktion.name);
 
-		var paramTypes = new_vector();
+		var paramTypes = new Vector();
 		for(var i = 1; i < funktion.funktion.arguments.size; ++i) {
 			var arg: Node* = funktion.funktion.arguments.at(i);
 
@@ -1977,7 +1976,7 @@ function Parser.type_check_function(funktion: Node*) {
 		}
 	}
 
-	var arguments = new_vector();
+	var arguments = new Vector();
 
 	for(var i = 0; i < funktion.funktion.arguments.size; ++i) {
 		var arg: Node* = funktion.funktion.arguments.at(i);
@@ -1995,12 +1994,12 @@ function Parser.type_check_function(funktion: Node*) {
 			var copyName: Name;
 			this.bind_name(&copyName, copyTok);
 
-			var args = new_vector();
+			var args: Vector;
 			var typePtr = copy_type(arg.variable.type);
 			typePtr.indirection = 1;
 			args.push(typePtr);
 
-			var copy = arg.variable.type.lookup_method_with_arguments(&copyName, args);
+			var copy = arg.variable.type.lookup_method_with_arguments(&copyName, &args);
 
 			if(copy != null) {
 				arg.variable.copyConstructor = true;
@@ -2117,12 +2116,12 @@ function Parser.type_check_global_var(stmt: Node*) {
 			var copyName: Name;
 			this.bind_name(&copyName, copyTok);
 
-			var args = new_vector();
+			var args: Vector;
 			var typePtr = copy_type(declType);
 			typePtr.indirection = 1;
 			args.push(typePtr);
 
-			var copy = declType.lookup_method_with_arguments(&copyName, args);
+			var copy = declType.lookup_method_with_arguments(&copyName, &args);
 
 			if(copy != null) {
 				stmt.variable.copyConstructor = true;
@@ -2155,7 +2154,7 @@ function Parser.type_check_global_var(stmt: Node*) {
 			stmt.variable.arguments = null;
 		}
 		else {
-			var argTypes = new_vector();
+			var argTypes: Vector;
 			for(var i = 0; i < stmt.variable.arguments.size; ++i) {
 				var arg: Node* = stmt.variable.arguments.at(i);
 				this.type_check_expr(arg);
@@ -2164,18 +2163,18 @@ function Parser.type_check_global_var(stmt: Node*) {
 				argTypes.push(argType);
 			}
 
-			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, argTypes);
+			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, &argTypes);
 
 			if(constructor == null) {
 				stmt.print_position();
 				eputs("Failed to resolve constructor"); eputs(" of type "); eputsln(type_to_string(stmt.variable.type));
-				eputs("Given argument types: "); eput_argument_types(argTypes); eputln();
+				eputs("Given argument types: "); eput_argument_types(&argTypes); eputln();
 				exit(1);
 			}
 
 			var paramTypes = constructor.funktion.argTypes;
 			if(paramTypes == null) {
-				paramTypes = new_vector();
+				paramTypes = new Vector();
 				for(var i = 1; i < constructor.funktion.arguments.size; ++i) {
 					var type: Type* = (constructor.funktion.arguments.at(i) as Node*).variable.type;
 					resolve_type(type);
@@ -2196,9 +2195,9 @@ function Parser.type_check_global_var(stmt: Node*) {
 		var constructors = stmt.variable.type.lookup_method(&constructorName);
 
 		if(constructors != null) {
-			stmt.variable.arguments = new_vector();
+			stmt.variable.arguments = new Vector();
 			
-			var argTypes = new_vector();
+			var argTypes = new Vector();
 			var constructor = stmt.variable.type.lookup_method_with_arguments(&constructorName, argTypes);
 
 			if(constructor == null) {
@@ -2327,7 +2326,8 @@ function Parser.type_check_top_level_declaration(node: Node*) {
 
 function Parser.type_check(program: Node*) {
 	definedTypes = this.definedTypes;
-	namespaces = new_vector();
+	delete namespaces;
+	namespaces = new Vector();
 
 	for(var i = 0; i < program.block.children.size; ++i) {
 		var node: Node* = program.block.children.at(i);

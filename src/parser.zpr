@@ -38,14 +38,14 @@ function new_parser(lexer: Lexer*): Parser* {
 	var parser: Parser* = malloc(sizeof(Parser));
 	parser.lexer = lexer;
 	parser.functions = new std::map::HashMap();
-	parser.globalVars = new_vector();
-	parser.strings = new_vector();
-	parser.floats = new_vector();
-	parser.definedTypes = new_vector();
-	parser.lexerStack = new_vector();
-	parser.openedFiles = new_vector();
-	parser.constants = new_vector();
-	parser.namespaceStack = new_vector();
+	parser.globalVars = new Vector();
+	parser.strings = new Vector();
+	parser.floats = new Vector();
+	parser.definedTypes = new Vector();
+	parser.lexerStack = new Vector();
+	parser.openedFiles =  new Vector();
+	parser.constants = new Vector();
+	parser.namespaceStack = new Vector();
 	return parser;
 }
 
@@ -92,7 +92,7 @@ function Parser.add_function(funktion: Node*) {
 		list.push(funktion);
 	}
 	else {
-		list = new_vector();
+		list = new Vector();
 		list.push(funktion);
 		this.functions.set(nameStr, list);
 	}
@@ -252,7 +252,7 @@ function Parser.parse_type_no_array(): Type* {
 			var name = this.previous;
 
 			var nameSpace = new_namespace(null, null);
-			nameSpace.parts = new_vector();
+			nameSpace.parts = new Vector();
 
 			while(this.match(TokenType::COLON_COLON)) {
 				nameSpace.parts.push(name);
@@ -405,7 +405,7 @@ function Parser.parse_constant(): int {
 function Parser.parse_call(name: Token*): Node* {
 	var call = new_node(NodeType::CALL, name);
 	this.bind_name(&call.funktion.name, name);
-	call.funktion.arguments = new_vector();
+	call.funktion.arguments = new Vector();
 
 	if(!this.check(TokenType::RIGHT_PAREN)) {
 		var arg = this.parse_expression();
@@ -428,7 +428,7 @@ function Parser.parse_identifier(): Node* {
 	var name = this.previous;
 
 	var nameSpace = new_namespace(null, null);
-	nameSpace.parts = new_vector();
+	nameSpace.parts = new Vector();
 
 	while(this.match(TokenType::COLON_COLON)) {
 		nameSpace.parts.push(name);
@@ -454,7 +454,7 @@ function Parser.parse_new(): Node* {
 
 	var node = new_node(NodeType::NEW, keyword);
 	node.constructor.type = type;
-	node.constructor.arguments = new_vector();
+	node.constructor.arguments = new Vector();
 
 	if(this.match(TokenType::LEFT_PAREN)) {
 		if(!this.check(TokenType::RIGHT_PAREN)) {
@@ -992,7 +992,7 @@ function Parser.parse_for_statement(): Node* {
 	var forStmt = new_node(NodeType::FOR, this.previous);
 
 	var block = new_node(NodeType::BLOCK, this.previous);
-	block.block.children = new_vector();
+	block.block.children = new Vector();
 	block.block.parent = this.currentBlock;
 	this.currentBlock = block;
 
@@ -1043,7 +1043,7 @@ function Parser.parse_return_statement(): Node* {
 
 function Parser.parse_array_initialization(): Node* {
 	var array = new_node(NodeType::ARRAY_INIT, this.previous);
-	array.block.children = new_vector();
+	array.block.children = new Vector();
 
 	if(!this.check(TokenType::RIGHT_SQBR)) {
 		do {
@@ -1080,7 +1080,7 @@ function Parser.parse_var_declaration(): Node* {
 	}
 
 	else if(type != VOID_TYPE && this.match(TokenType::LEFT_PAREN)) {
-		variable.variable.arguments = new_vector();
+		variable.variable.arguments = new Vector();
 		if(!this.check(TokenType::RIGHT_PAREN)) {
 			var arg = this.parse_expression();
 
@@ -1115,7 +1115,7 @@ function Parser.parse_when_statement(): Node* {
 
 	var vhen = new_node(NodeType::WHEN, vhenTok);
 	vhen.vhen.match = match;
-	vhen.vhen.branches = new_vector();
+	vhen.vhen.branches = new Vector();
 
 	while(!this.check(TokenType::RIGHT_BRACE)) {
 		if(this.match(TokenType::ELSE)) {
@@ -1125,7 +1125,7 @@ function Parser.parse_when_statement(): Node* {
 		}
 
 		var branch = new_node(NodeType::BRANCH, this.current);
-		branch.branch.values = new_vector();
+		branch.branch.values = new Vector();
 
 		var value = this.parse_constant();
 		branch.branch.values.push(value as any*);
@@ -1239,7 +1239,7 @@ function Parser.parse_statement(): Node* {
 
 function Parser.parse_block(): Node* {
 	var block = new_node(NodeType::BLOCK, this.previous);
-	block.block.children = new_vector();
+	block.block.children = new Vector();
 	block.block.parent = this.currentBlock;
 	this.currentBlock = block;
 
@@ -1259,10 +1259,10 @@ function Parser.parse_function(): Node* {
 	var name = this.consume(TokenType::IDENTIFIER, "Expected function name");
 
 	var funktion = new_node(NodeType::FUNCTION, name);
-	funktion.funktion.arguments = new_vector();
+	funktion.funktion.arguments = new Vector();
 
 	var nameSpace = new_namespace(null, null);
-	nameSpace.parts = new_vector();
+	nameSpace.parts = new Vector();
 
 	while(this.match(TokenType::COLON_COLON)) {
 		nameSpace.parts.push(name);
@@ -1425,7 +1425,7 @@ function Parser.parse_struct_definition(member: int): Node* {
 	else
 		this.bind_name(&structType.name, name);
 
-	structType.fields = new_vector();
+	structType.fields = new Vector();
 	structType.methods = new std::map::HashMap;
 
 	do {
@@ -1481,7 +1481,7 @@ function Parser.parse_union_definition(member: int): Node* {
 		this.namespace_name(&unionType.name, name);
 	else
 		this.bind_name(&unionType.name, name);
-	unionType.fields = new_vector();
+	unionType.fields = new Vector();
 
 	do {
 		this.parse_member_definition(unionType);
@@ -1533,11 +1533,11 @@ function Parser.parse_enum_declaration(): Node* {
 	var namespaceNode = new_node(NodeType::NAMESPACE, name);
 	namespaceNode.nameSpace.name = nameSpace;
 	var namespaceBody = new_node(NodeType::BLOCK, name);
-	namespaceBody.block.children = new_vector();
+	namespaceBody.block.children = new Vector();
 	namespaceNode.nameSpace.body = namespaceBody;
 
 	var envm = new_node(NodeType::ENUM, name);
-	envm.block.children = new_vector();
+	envm.block.children = new Vector();
 
 	var count = 0;
 
@@ -1651,7 +1651,7 @@ function Parser.parse_namespace(): Node* {
 	var namespaceNode = new_node(NodeType::NAMESPACE, namespaceName);
 
 	var body = new_node(NodeType::BLOCK, this.previous);
-	body.block.children = new_vector();
+	body.block.children = new Vector();
 
 	namespaceNode.nameSpace.name = nameSpace;
 	namespaceNode.nameSpace.body = body;
@@ -1706,7 +1706,7 @@ function Parser.parse_top_level_declaration(block: Node*) {
 
 function Parser.parse_program(): Node* {
 	var program = new_node(NodeType::PROGRAM, this.current);
-	program.block.children = new_vector();
+	program.block.children = new Vector();
 
 	this.advance();
 

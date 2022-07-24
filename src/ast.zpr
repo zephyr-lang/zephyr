@@ -361,7 +361,7 @@ function File.put_name(name: Name*) {
 
 function Name.to_string(): i8* {
 	var namespaceLength = 0;
-	var parts = new_vector();
+	var parts: Vector;
 
 	if(this.namespaceName != null) {
 		for(var i = 0; i < this.namespaceName.parts.size; ++i) {
@@ -391,14 +391,12 @@ function Name.to_string(): i8* {
 		free(part);
 	}
 
-	free(parts);
-
 	return str;
 }
 
 function new_namespace(name: Token*, parent: Namespace*): Namespace* {
-	var namespaceName: Namespace* = malloc(sizeof(Namespace));
-	namespaceName.parts = new_vector();
+	var namespaceName = new Namespace;
+	namespaceName.parts = new Vector;
 
 	if(parent != null) {
 		for(var i = 0; i < parent.parts.size; ++i) {
@@ -444,7 +442,7 @@ function Type.add_method(method: Node*) {
 		list.push(method);
 	}
 	else {
-		list = new_vector();
+		list = new Vector();
 		list.push(method);
 		this.methods.set(nameStr, list);
 	}

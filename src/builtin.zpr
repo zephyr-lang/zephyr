@@ -8,7 +8,7 @@ function add_implicit_printu_function(): Node* {
 	var funktion = new_node(NodeType::FUNCTION, name);
 	funktion.funktion.name.name = name;
 
-	funktion.funktion.arguments = new_vector();
+	funktion.funktion.arguments = new Vector();
 
 	var valTok = synthetic_token(TokenType::IDENTIFIER, "value");
 	var val = new_node(NodeType::DEFINE_VAR, valTok);
@@ -27,7 +27,7 @@ function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
 	var name = synthetic_token(TokenType::IDENTIFIER, sysName);
 	var funktion = new_node(NodeType::FUNCTION, name);
 	funktion.funktion.name.name = name;
-	funktion.funktion.arguments = new_vector();
+	funktion.funktion.arguments = new Vector();
 
 	var nrTok = synthetic_token(TokenType::IDENTIFIER, "nr");
 	var nr = new_node(NodeType::DEFINE_VAR, nrTok);
@@ -53,7 +53,7 @@ function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
 }
 
 function parser_builtin_functions(): Vector* {
-	var functions = new_vector();
+	var functions = new Vector();
 
 	functions.push(add_implicit_printu_function());
 	functions.push(add_implicit_syscall_function("syscall0", 0));
