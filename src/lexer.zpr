@@ -11,14 +11,11 @@ struct Lexer {
 	filename: i8*;
 }
 
-function new_lexer(filename: i8*, source: i8*): Lexer* {
-	var lexer = new Lexer;
-	lexer.start = source;
-	lexer.current = source;
-	lexer.line = 1;
-	lexer.filename = filename;
-
-	return lexer;
+function Lexer.constructor(filename: i8*, source: i8*) {
+	this.start = source;
+	this.current = source;
+	this.line = 1;
+	this.filename = filename;
 }
 
 function Lexer.is_at_end(): int {

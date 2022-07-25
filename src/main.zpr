@@ -90,11 +90,11 @@ function main(argc: int, argv: i8**): int {
 		sourceFile.close();
 	}
 
-	var lexer = new_lexer(m_filepath == null ? "cli" : m_filepath, source);
+	var lexer = new Lexer(m_filepath == null ? "cli" : m_filepath, source);
 
 	build_types();
 
-	var parser = new_parser(lexer);
+	var parser = new Parser(lexer);
 
 	var ast = parser.parse_program();
 
@@ -126,6 +126,10 @@ function main(argc: int, argv: i8**): int {
 	free_tokens();
 	free_types();
 	free_nodes();
+	parser.free_open_files();
+
+	delete parser;
+	delete lexer;
 
 	var objectFile: i8[1024];
 	strcpy(objectFile, m_outFile);

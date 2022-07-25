@@ -554,7 +554,7 @@ function assignment_op_to_node_type(op: int): int {
 
 function synthetic_binary_op(op: Token*, lhs: Node*, rhs: Node*): Node* {
 	var type = assignment_op_to_node_type(op.type);
-	var node = new_node(type, op);
+	var node = new Node(type, op);
 	node.binary.lhs = lhs;
 	node.binary.rhs = rhs;
 	return node;
@@ -648,7 +648,7 @@ function Parser.type_check_binary(expr: Node*) {
 	// With int <-> float, float always takes priority
 	else if((left.assignable(F64_TYPE) && right.assignable(INT_TYPE)) || (left.assignable(INT_TYPE) && right.assignable(F64_TYPE))) {
 		if(left.assignable(INT_TYPE)) {
-			var cast = new_node(NodeType::INT_TO_FLOAT, expr.binary.lhs.position);
+			var cast = new Node(NodeType::INT_TO_FLOAT, expr.binary.lhs.position);
 			cast.computedType = F64_TYPE;
 			cast.unary = expr.binary.lhs;
 			expr.binary.lhs = cast;
@@ -656,7 +656,7 @@ function Parser.type_check_binary(expr: Node*) {
 		}
 		// Right is an integer
 		else {
-			var cast = new_node(NodeType::INT_TO_FLOAT, expr.binary.rhs.position);
+			var cast = new Node(NodeType::INT_TO_FLOAT, expr.binary.rhs.position);
 			cast.computedType = F64_TYPE;
 			cast.unary = expr.binary.rhs;
 			expr.binary.rhs = cast;
@@ -957,13 +957,13 @@ function Parser.type_check_assign(expr: Node*) {
 	resolve_type(rhs);
 
 	if(lhs.is_integral() && rhs.is_float()) {
-		var cast = new_node(NodeType::FLOAT_TO_INT, expr.assignment.lhs.position);
+		var cast = new Node(NodeType::FLOAT_TO_INT, expr.assignment.lhs.position);
 		cast.computedType = INT_TYPE;
 		cast.unary = expr.assignment.rhs;
 		expr.assignment.rhs = cast;
 	}
 	else if(lhs.is_float() && rhs.is_integral()) {
-		var cast = new_node(NodeType::INT_TO_FLOAT, expr.assignment.lhs.position);
+		var cast = new Node(NodeType::INT_TO_FLOAT, expr.assignment.lhs.position);
 		cast.computedType = INT_TYPE;
 		cast.unary = expr.assignment.rhs;
 		expr.assignment.rhs = cast;
@@ -990,7 +990,7 @@ function Parser.type_check_assign(expr: Node*) {
 			var copy = lhs.lookup_method_with_arguments(&copyName, &args);
 
 			if(copy != null) {
-				var overload = new_node(NodeType::OVERLOAD, expr.position);
+				var overload = new Node(NodeType::OVERLOAD, expr.position);
 				overload.overload.value = expr.assignment.rhs;
 				overload.overload.lhsType = lhs;
 				overload.overload.rhsType = typePtr;
@@ -1333,13 +1333,13 @@ function Parser.type_check_define_var(stmt: Node*) {
 		resolve_type(valueType);
 
 		if(declType.is_integral() && valueType.is_float()) {
-			var cast = new_node(NodeType::FLOAT_TO_INT, stmt.position);
+			var cast = new Node(NodeType::FLOAT_TO_INT, stmt.position);
 			cast.computedType = INT_TYPE;
 			cast.unary = stmt.variable.value;
 			stmt.variable.value = cast;
 		}
 		else if(declType.is_float() && valueType.is_integral()) {
-			var cast = new_node(NodeType::INT_TO_FLOAT, stmt.position);
+			var cast = new Node(NodeType::INT_TO_FLOAT, stmt.position);
 			cast.computedType = INT_TYPE;
 			cast.unary = stmt.variable.value;
 			stmt.variable.value = cast;
@@ -1661,7 +1661,7 @@ function Parser.resolve_get_array_length_function(): Node* {
 	var funcName: Name;
 	this.bind_name(&funcName, funcTok);
 
-	var nameSpace = new_namespace(null, null);
+	var nameSpace = new Namespace(null, null);
 	nameSpace.parts = new Vector();
 
 	nameSpace.parts.push(synthetic_token(TokenType::IDENTIFIER, "std"));
@@ -2036,7 +2036,7 @@ function Parser.type_check_function(funktion: Node*) {
 	if(!funktion.funktion.body.block.hasReturned) {
 		if(funktion.funktion.returnType.is_void()) {
 			var tok = synthetic_token(TokenType::RETURN, "return");
-			var implReturn = new_node(NodeType::RETURN, tok);
+			var implReturn = new Node(NodeType::RETURN, tok);
 
 			this.currentBlock = funktion.funktion.body;
 			this.type_check_return(implReturn);
@@ -2092,13 +2092,13 @@ function Parser.type_check_global_var(stmt: Node*) {
 		resolve_type(valueType);
 
 		if(declType.is_integral() && valueType.is_float()) {
-			var cast = new_node(NodeType::FLOAT_TO_INT, stmt.position);
+			var cast = new Node(NodeType::FLOAT_TO_INT, stmt.position);
 			cast.computedType = INT_TYPE;
 			cast.unary = stmt.variable.value;
 			stmt.variable.value = cast;
 		}
 		else if(declType.is_float() && valueType.is_integral()) {
-			var cast = new_node(NodeType::INT_TO_FLOAT, stmt.position);
+			var cast = new Node(NodeType::INT_TO_FLOAT, stmt.position);
 			cast.computedType = INT_TYPE;
 			cast.unary = stmt.variable.value;
 			stmt.variable.value = cast;

@@ -302,7 +302,10 @@ function free_nodes() {
 	delete __allNodes;
 }
 
-function Node.constructor() {
+function Node.constructor(type: int, position: Token*) {
+	this.type = type;
+	this.position = position;
+
 	if(__allNodes == null) {
 		__allNodes = new Vector;
 	}
@@ -322,18 +325,27 @@ function Node.deconstructor() {
 			delete this.literal.az.string.chars;
 		}
 		NodeType::CALL -> {
+			this.funktion.name.deconstructor();
 			delete this.funktion.arguments;
 			delete this.funktion.argTypes;
 		}
 		NodeType::CALL_METHOD -> {
+			this.funktion.name.deconstructor();
 			delete this.funktion.arguments;
 			delete this.funktion.argTypes;
 		}
 		NodeType::DEFINE_VAR, NodeType::DEFINE_GLOBAL_VAR -> {
+			this.variable.name.deconstructor();
 			if(this.variable.arguments != null)
 				delete this.variable.arguments;
 			if(this.variable.argTypes != null)
 				delete this.variable.argTypes;
+		}
+		NodeType::ACCESS_VAR, NodeType::ACCESS_GLOBAL_VAR -> {
+			this.variable.name.deconstructor();
+		}
+		NodeType::DEFINE_CONST -> {
+			this.constant.name.deconstructor();
 		}
 		NodeType::ARRAY_INIT -> {
 			delete this.block.children;
@@ -351,6 +363,7 @@ function Node.deconstructor() {
 			delete this.branch.values;
 		}
 		NodeType::FUNCTION -> {
+			this.funktion.name.deconstructor();
 			delete this.funktion.arguments;
 			if(this.funktion.argTypes != null)
 				delete this.funktion.argTypes;
@@ -381,6 +394,16 @@ struct Name {
 function Name.init(namespaceName: Namespace*, name: Token*) {
 	this.namespaceName = namespaceName;
 	this.name = name;
+}
+
+function Name.deconstructor() {
+	if(this.namespaceName != null)
+		delete this.namespaceName;
+}
+
+function Namespace.deconstructor() {
+	if(this.parts != null)
+		delete this.parts;
 }
 
 function Name.fput(fd: int) {
@@ -471,19 +494,16 @@ function Name.to_string(): i8* {
 	return str;
 }
 
-function new_namespace(name: Token*, parent: Namespace*): Namespace* {
-	var namespaceName = new Namespace;
-	namespaceName.parts = new Vector;
+function Namespace.constructor(name: Token*, parent: Namespace*) {
+	this.parts = new Vector;
 
 	if(parent != null) {
 		for(var i = 0; i < parent.parts.size; ++i) {
-			namespaceName.parts.push(parent.parts.at(i));
+			this.parts.push(parent.parts.at(i));
 		}
 	}
 
-	if(name != null) namespaceName.parts.push(name);
-
-	return namespaceName;
+	if(name != null) this.parts.push(name);
 }
 
 function Namespace.fput(fd: int) {
@@ -523,6 +543,7 @@ function Type.add_method(method: Node*) {
 		list.push(method);
 		this.methods.set(nameStr, list);
 	}
+	delete nameStr;
 }
 
 function Type.get_method(name: Name*, found: bool*): Vector* {
@@ -530,6 +551,7 @@ function Type.get_method(name: Name*, found: bool*): Vector* {
 
 	var list = this.methods.get(nameStr, found) as Vector*;
 
+	delete nameStr;
 	return list;
 }
 

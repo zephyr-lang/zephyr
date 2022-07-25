@@ -34,30 +34,45 @@ struct Parser {
 	panic: int;
 }
 
-function new_parser(lexer: Lexer*): Parser* {
-	var parser = new Parser;
-	parser.lexer = lexer;
-	parser.functions = new std::map::HashMap();
-	parser.globalVars = new Vector();
-	parser.strings = new Vector();
-	parser.floats = new Vector();
-	parser.definedTypes = new Vector();
-	parser.lexerStack = new Vector();
-	parser.openedFiles =  new Vector();
-	parser.constants = new Vector();
-	parser.namespaceStack = new Vector();
-	return parser;
+function Parser.constructor(lexer: Lexer*) {
+	this.lexer = lexer;
+	this.functions = new std::map::HashMap();
+	this.globalVars = new Vector();
+	this.strings = new Vector();
+	this.floats = new Vector();
+	this.definedTypes = new Vector();
+	this.lexerStack = new Vector();
+	this.openedFiles =  new Vector();
+	this.constants = new Vector();
+	this.namespaceStack = new Vector();
 }
 
-function new_node(type: int, position: Token*): Node* {
-	var node: Node* = new Node;
-	node.type = type;
-	node.position = position;
-	return node;
+function Parser.deconstructor() {
+	delete this.globalVars;
+	delete this.strings;
+	delete this.floats;
+	delete this.definedTypes;
+	delete this.lexerStack;
+	delete this.constants;
+	delete this.namespaceStack;
+
+	for(var i = 0; i < this.functions.capacity; ++i) {
+		var item = this.functions.items[i];
+		if(item.key == null) continue;
+		var vec = item.value as Vector*;
+		delete vec;
+	}
+	delete this.functions;
 }
 
 function Node.add_child(child: Node*) {
 	this.block.children.push(child);
+}
+
+function Parser.free_open_files() {
+	for(var i = 0; i < this.openedFiles.size; ++i) {
+		delete[] this.openedFiles.at(i) as i8*;
+	}
 }
 
 function Parser.namespace_name(name: Name*, token: Token*) {
@@ -96,12 +111,15 @@ function Parser.add_function(funktion: Node*) {
 		list.push(funktion);
 		this.functions.set(nameStr, list);
 	}
+	delete nameStr;
 }
 
 function Parser.get_function(name: Name*, found: bool*): Vector* {
 	var nameStr = name.to_string();
 
 	var list = this.functions.get(nameStr, found) as Vector*;
+
+	delete nameStr;
 
 	return list;
 }
@@ -251,7 +269,7 @@ function Parser.parse_type_no_array(): Type* {
 
 			var name = this.previous;
 
-			var nameSpace = new_namespace(null, null);
+			var nameSpace = new Namespace(null, null);
 			nameSpace.parts = new Vector();
 
 			while(this.match(TokenType::COLON_COLON)) {
@@ -403,7 +421,7 @@ function Parser.parse_constant(): int {
 }
 
 function Parser.parse_call(name: Token*): Node* {
-	var call = new_node(NodeType::CALL, name);
+	var call = new Node(NodeType::CALL, name);
 	this.bind_name(&call.funktion.name, name);
 	call.funktion.arguments = new Vector();
 
@@ -427,7 +445,7 @@ function Parser.parse_call(name: Token*): Node* {
 function Parser.parse_identifier(): Node* {
 	var name = this.previous;
 
-	var nameSpace = new_namespace(null, null);
+	var nameSpace = new Namespace(null, null);
 	nameSpace.parts = new Vector();
 
 	while(this.match(TokenType::COLON_COLON)) {
@@ -441,7 +459,7 @@ function Parser.parse_identifier(): Node* {
 		return call;
 	}
 
-	var access = new_node(NodeType::ACCESS_VAR, name);
+	var access = new Node(NodeType::ACCESS_VAR, name);
 	this.bind_name(&access.variable.name, name);
 	if(nameSpace.parts.size > 0) bind_to_namespace(&access.variable.name, nameSpace);
 	access.lvalue = LValue::LOCAL;
@@ -452,7 +470,7 @@ function Parser.parse_new(): Node* {
 	var keyword = this.previous;
 	var type = this.parse_type_no_array();
 
-	var node = new_node(NodeType::NEW, keyword);
+	var node = new Node(NodeType::NEW, keyword);
 	node.constructor.type = type;
 	node.constructor.arguments = new Vector();
 
@@ -483,7 +501,7 @@ function Parser.parse_value(): Node* {
 		var literal = this.previous;
 		if(this.error) return null;
 
-		var literalNode = new_node(NodeType::INT_LITERAL, literal);
+		var literalNode = new Node(NodeType::INT_LITERAL, literal);
 		literalNode.literal.type = INT_TYPE;
 		literalNode.literal.az.integer = atoi(literal.start);
 
@@ -493,7 +511,7 @@ function Parser.parse_value(): Node* {
 		var literal = this.previous;
 		if(this.error) return null;
 
-		var literalNode = new_node(NodeType::UINT_LITERAL, literal);
+		var literalNode = new Node(NodeType::UINT_LITERAL, literal);
 		literalNode.literal.type = UINT_TYPE;
 		literalNode.literal.az.uinteger = atoui(literal.start);
 
@@ -503,7 +521,7 @@ function Parser.parse_value(): Node* {
 		var literal = this.previous;
 		if(this.error) return null;
 
-		var literalNode = new_node(NodeType::CHAR_LITERAL, literal);
+		var literalNode = new Node(NodeType::CHAR_LITERAL, literal);
 		literalNode.literal.type = I8_TYPE;
 		literalNode.literal.az.integer = this.escape_character(literal);
 
@@ -513,7 +531,7 @@ function Parser.parse_value(): Node* {
 		var literal = this.previous;
 		if(this.error) return null;
 
-		var literalNode = new_node(NodeType::FLOAT_LITERAL, literal);
+		var literalNode = new Node(NodeType::FLOAT_LITERAL, literal);
 		literalNode.literal.type = F64_TYPE;
 
 		var str = new i8[literal.length + 1];
@@ -530,7 +548,7 @@ function Parser.parse_value(): Node* {
 		var literal = this.previous;
 		if(this.error) return null;
 
-		var literalNode = new_node(NodeType::STRING, literal);
+		var literalNode = new Node(NodeType::STRING, literal);
 		literalNode.literal.type = STR_TYPE;
 
 		var buf = new i8[literal.length - 2 + 1];
@@ -554,7 +572,7 @@ function Parser.parse_value(): Node* {
 		return this.parse_identifier();
 	}
 	else if(this.match(TokenType::SIZEOF)) {
-		var expr = new_node(NodeType::SIZEOF, this.previous);
+		var expr = new Node(NodeType::SIZEOF, this.previous);
 		this.consume(TokenType::LEFT_PAREN, "Expected '(' after sizeof");
 		var type = this.parse_type();
 		this.consume(TokenType::RIGHT_PAREN, "Expected ')' after sizeof type");
@@ -585,7 +603,7 @@ function Parser.parse_member_access(): Node* {
 
 			this.consume(TokenType::RIGHT_SQBR, "Expected ']' after subscript index");
 
-			var subscript = new_node(NodeType::ACCESS_SUBSCRIPT, op);
+			var subscript = new Node(NodeType::ACCESS_SUBSCRIPT, op);
 			subscript.binary.lhs = left;
 			subscript.binary.rhs = right;
 			subscript.lvalue = LValue::SUBSCRIPT;
@@ -594,7 +612,7 @@ function Parser.parse_member_access(): Node* {
 		else if(op.type == TokenType::INCREMENT || op.type == TokenType::DECREMENT) {
 			var type = op.type == TokenType::INCREMENT ? NodeType::POST_INCREMENT : NodeType::POST_DECREMENT;
 
-			var postfix = new_node(type, op);
+			var postfix = new Node(type, op);
 			postfix.unary = left;
 			left = postfix;
 			break;
@@ -611,7 +629,7 @@ function Parser.parse_member_access(): Node* {
 				left = call;
 			}
 			else {
-				var member = new_node(NodeType::ACCESS_MEMBER, op);
+				var member = new Node(NodeType::ACCESS_MEMBER, op);
 				member.member.name = memberName;
 				member.member.parent = left;
 				member.lvalue = LValue::MEMBER;
@@ -627,35 +645,35 @@ function Parser.parse_unary(): Node* {
 	if(this.match(TokenType::TILDE)) {
 		var op = this.previous;
 		var expr = this.parse_unary();
-		var bwnot = new_node(NodeType::BWNOT, op);
+		var bwnot = new Node(NodeType::BWNOT, op);
 		bwnot.unary = expr;
 		return bwnot;
 	}
 	else if(this.match(TokenType::MINUS)) {
 		var op = this.previous;
 		var expr = this.parse_unary();
-		var neg = new_node(NodeType::NEG, op);
+		var neg = new Node(NodeType::NEG, op);
 		neg.unary = expr;
 		return neg;
 	}
 	else if(this.match(TokenType::BANG)) {
 		var op = this.previous;
 		var expr = this.parse_unary();
-		var not = new_node(NodeType::NOT, op);
+		var not = new Node(NodeType::NOT, op);
 		not.unary = expr;
 		return not;
 	}
 	else if(this.match(TokenType::AMP)) {
 		var op = this.previous;
 		var expr = this.parse_unary();
-		var addrOf = new_node(NodeType::ADDROF, op);
+		var addrOf = new Node(NodeType::ADDROF, op);
 		addrOf.unary = expr;
 		return addrOf;
 	}
 	else if(this.match(TokenType::STAR)) {
 		var op = this.previous;
 		var expr = this.parse_unary();
-		var deref = new_node(NodeType::DEREF, op);
+		var deref = new Node(NodeType::DEREF, op);
 		deref.unary = expr;
 		deref.lvalue = LValue::DEREF;
 		return deref;
@@ -663,14 +681,14 @@ function Parser.parse_unary(): Node* {
 	else if(this.match(TokenType::INCREMENT)) {
 		var op = this.previous;
 		var expr = this.parse_unary();
-		var increment = new_node(NodeType::PRE_INCREMENT, op);
+		var increment = new Node(NodeType::PRE_INCREMENT, op);
 		increment.unary = expr;
 		return increment;
 	}
 	else if(this.match(TokenType::DECREMENT)) {
 		var op = this.previous;
 		var expr = this.parse_unary();
-		var decrement = new_node(NodeType::PRE_DECREMENT, op);
+		var decrement = new Node(NodeType::PRE_DECREMENT, op);
 		decrement.unary = expr;
 		return decrement;
 	}
@@ -685,7 +703,7 @@ function Parser.parse_as_cast(): Node* {
 		var op = this.previous;
 		var castTo = this.parse_type();
 
-		var cast = new_node(NodeType::CAST, op);
+		var cast = new Node(NodeType::CAST, op);
 		cast.unary = left;
 		cast.computedType = castTo;
 		left = cast;
@@ -707,7 +725,7 @@ function Parser.parse_term(): Node* {
 		else if(op.type == TokenType::SLASH) type = NodeType::DIV;
 		else if(op.type == TokenType::PERCENT) type = NodeType::MOD;
 
-		var binary = new_node(type, op);
+		var binary = new Node(type, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -728,7 +746,7 @@ function Parser.parse_arithmetic(): Node* {
 		if(op.type == TokenType::PLUS) type = NodeType::ADD;
 		else if(op.type == TokenType::MINUS) type = NodeType::SUB;
 
-		var binary = new_node(type, op);
+		var binary = new Node(type, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -749,7 +767,7 @@ function Parser.parse_shift(): Node* {
 		if(op.type == TokenType::LSH) type = NodeType::LSH;
 		else if(op.type == TokenType::RSH) type = NodeType::RSH;
 
-		var binary = new_node(type, op);
+		var binary = new Node(type, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -773,7 +791,7 @@ function Parser.parse_comparison(): Node* {
 		else if(op.type == TokenType::GREATER) type = NodeType::GREATER;
 		else if(op.type == TokenType::GEQ) type = NodeType::GREATER_EQ;
 
-		var binary = new_node(type, op);
+		var binary = new Node(type, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -794,7 +812,7 @@ function Parser.parse_equality(): Node* {
 		if(op.type == TokenType::EQEQ) type = NodeType::EQUAL;
 		else if(op.type == TokenType::BANG_EQ) type = NodeType::NOT_EQUAL;
 
-		var binary = new_node(type, op);
+		var binary = new Node(type, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -811,7 +829,7 @@ function Parser.parse_bwand(): Node* {
 
 		var right = this.parse_equality();
 
-		var binary = new_node(NodeType::BWAND, op);
+		var binary = new Node(NodeType::BWAND, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -828,7 +846,7 @@ function Parser.parse_xor(): Node* {
 
 		var right = this.parse_bwand();
 
-		var binary = new_node(NodeType::XOR, op);
+		var binary = new Node(NodeType::XOR, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -845,7 +863,7 @@ function Parser.parse_bwor(): Node* {
 
 		var right = this.parse_xor();
 
-		var binary = new_node(NodeType::BWOR, op);
+		var binary = new Node(NodeType::BWOR, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -862,7 +880,7 @@ function Parser.parse_and(): Node* {
 
 		var right = this.parse_bwor();
 
-		var binary = new_node(NodeType::AND, op);
+		var binary = new Node(NodeType::AND, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -879,7 +897,7 @@ function Parser.parse_or(): Node* {
 
 		var right = this.parse_and();
 
-		var binary = new_node(NodeType::OR, op);
+		var binary = new Node(NodeType::OR, op);
 		binary.binary.lhs = left;
 		binary.binary.rhs = right;
 		left = binary;
@@ -899,7 +917,7 @@ function Parser.parse_ternary_expression(): Node* {
 
 		var doFalse = this.parse_expression();
 
-		var ternary = new_node(NodeType::TERNARY, op);
+		var ternary = new Node(NodeType::TERNARY, op);
 		ternary.conditional.condition = condition;
 		ternary.conditional.doTrue = doTrue;
 		ternary.conditional.doFalse = doFalse;
@@ -924,7 +942,7 @@ function Parser.parse_assignment_expression(): Node* {
 
 		var right = this.parse_assignment_expression();
 
-		var assign = new_node(NodeType::ASSIGN, left.position);
+		var assign = new Node(NodeType::ASSIGN, left.position);
 		assign.assignment.lhs = left;
 		assign.assignment.rhs = right;
 		assign.assignment.op = op;
@@ -939,7 +957,7 @@ function Parser.parse_expression(): Node* {
 }
 
 function Parser.parse_if_statement(): Node* {
-	var ifStmt = new_node(NodeType::IF, this.previous);
+	var ifStmt = new Node(NodeType::IF, this.previous);
 
 	this.consume(TokenType::LEFT_PAREN, "Expected '(' after if");
 
@@ -957,7 +975,7 @@ function Parser.parse_if_statement(): Node* {
 }
 
 function Parser.parse_while_statement(): Node* {
-	var whileStmt = new_node(NodeType::WHILE, this.previous);
+	var whileStmt = new Node(NodeType::WHILE, this.previous);
 
 	this.consume(TokenType::LEFT_PAREN, "Expected '(' after while");
 
@@ -971,7 +989,7 @@ function Parser.parse_while_statement(): Node* {
 }
 
 function Parser.parse_do_while_statement(): Node* {
-	var doStmt = new_node(NodeType::DO_WHILE, this.previous);
+	var doStmt = new Node(NodeType::DO_WHILE, this.previous);
 
 	doStmt.conditional.doTrue = this.parse_statement();
 
@@ -989,9 +1007,9 @@ function Parser.parse_do_while_statement(): Node* {
 }
 
 function Parser.parse_for_statement(): Node* {
-	var forStmt = new_node(NodeType::FOR, this.previous);
+	var forStmt = new Node(NodeType::FOR, this.previous);
 
-	var block = new_node(NodeType::BLOCK, this.previous);
+	var block = new Node(NodeType::BLOCK, this.previous);
 	block.block.children = new Vector();
 	block.block.parent = this.currentBlock;
 	this.currentBlock = block;
@@ -1031,7 +1049,7 @@ function Parser.parse_for_statement(): Node* {
 }
 
 function Parser.parse_return_statement(): Node* {
-	var returnStmt = new_node(NodeType::RETURN, this.previous);
+	var returnStmt = new Node(NodeType::RETURN, this.previous);
 
 	if(!this.check(TokenType::SEMICOLON))
 		returnStmt.ret.value = this.parse_expression();
@@ -1042,7 +1060,7 @@ function Parser.parse_return_statement(): Node* {
 }
 
 function Parser.parse_array_initialization(): Node* {
-	var array = new_node(NodeType::ARRAY_INIT, this.previous);
+	var array = new Node(NodeType::ARRAY_INIT, this.previous);
 	array.block.children = new Vector();
 
 	if(!this.check(TokenType::RIGHT_SQBR)) {
@@ -1064,7 +1082,7 @@ function Parser.parse_var_declaration(): Node* {
 		type = this.parse_type();
 	}
 
-	var variable = new_node(NodeType::DEFINE_VAR, name);
+	var variable = new Node(NodeType::DEFINE_VAR, name);
 	this.bind_name(&variable.variable.name, name);
 	variable.variable.type = type;
 	variable.variable.value = null;
@@ -1113,7 +1131,7 @@ function Parser.parse_when_statement(): Node* {
 
 	if(this.match(TokenType::RIGHT_BRACE)) this.error("Expected at least one when branch");
 
-	var vhen = new_node(NodeType::WHEN, vhenTok);
+	var vhen = new Node(NodeType::WHEN, vhenTok);
 	vhen.vhen.match = match;
 	vhen.vhen.branches = new Vector();
 
@@ -1124,7 +1142,7 @@ function Parser.parse_when_statement(): Node* {
 			break;
 		}
 
-		var branch = new_node(NodeType::BRANCH, this.current);
+		var branch = new Node(NodeType::BRANCH, this.current);
 		branch.branch.values = new Vector();
 
 		var value = this.parse_constant();
@@ -1157,7 +1175,7 @@ function Parser.parse_delete_statement(): Node* {
 	
 	this.consume(TokenType::SEMICOLON, "Expected ';' after delete expression");
 
-	var node = new_node(NodeType::DELETE, keyword);
+	var node = new Node(NodeType::DELETE, keyword);
 	node.deconstructor.value = expr;
 	node.deconstructor.shouldDeconstruct = false;
 	return node;
@@ -1170,7 +1188,7 @@ function Parser.parse_delete_array_statement(): Node* {
 	
 	this.consume(TokenType::SEMICOLON, "Expected ';' after delete[] expression");
 
-	var node = new_node(NodeType::DELETE_ARRAY, keyword);
+	var node = new Node(NodeType::DELETE_ARRAY, keyword);
 	node.deconstructor.value = expr;
 	node.deconstructor.shouldDeconstruct = false;
 	return node;
@@ -1180,13 +1198,13 @@ function Parser.parse_statement(): Node* {
 	if(this.match(TokenType::BREAK)) {
 		var pos = this.previous;
 		this.consume(TokenType::SEMICOLON, "Expected ';' after 'break'");
-		var breac = new_node(NodeType::BREAK, pos);
+		var breac = new Node(NodeType::BREAK, pos);
 		return breac;
 	}
 	else if(this.match(TokenType::CONTINUE)) {
 		var pos = this.previous;
 		this.consume(TokenType::SEMICOLON, "Expected ';' after 'continue'");
-		var kontinue = new_node(NodeType::CONTINUE, pos);
+		var kontinue = new Node(NodeType::CONTINUE, pos);
 		return kontinue;
 	}
 	else if(this.match(TokenType::DELETE)) {
@@ -1231,14 +1249,14 @@ function Parser.parse_statement(): Node* {
 
 	this.consume(TokenType::SEMICOLON, "Expected ';' after expression");
 
-	var exprStmt = new_node(NodeType::EXPR_STMT, expr.position);
+	var exprStmt = new Node(NodeType::EXPR_STMT, expr.position);
 	exprStmt.unary = expr;
 
 	return exprStmt;
 }
 
 function Parser.parse_block(): Node* {
-	var block = new_node(NodeType::BLOCK, this.previous);
+	var block = new Node(NodeType::BLOCK, this.previous);
 	block.block.children = new Vector();
 	block.block.parent = this.currentBlock;
 	this.currentBlock = block;
@@ -1258,10 +1276,10 @@ function Parser.parse_block(): Node* {
 function Parser.parse_function(): Node* {
 	var name = this.consume(TokenType::IDENTIFIER, "Expected function name");
 
-	var funktion = new_node(NodeType::FUNCTION, name);
+	var funktion = new Node(NodeType::FUNCTION, name);
 	funktion.funktion.arguments = new Vector();
 
-	var nameSpace = new_namespace(null, null);
+	var nameSpace = new Namespace(null, null);
 	nameSpace.parts = new Vector();
 
 	while(this.match(TokenType::COLON_COLON)) {
@@ -1289,7 +1307,7 @@ function Parser.parse_function(): Node* {
 
 		type.indirection = 1;
 
-		var thisNode = new_node(NodeType::DEFINE_VAR, synthThis);
+		var thisNode = new Node(NodeType::DEFINE_VAR, synthThis);
 		this.bind_name(&thisNode.variable.name, synthThis);
 		thisNode.variable.type = type;
 
@@ -1319,7 +1337,7 @@ function Parser.parse_function(): Node* {
 			this.consume(TokenType::COLON, "Expected ':' after parameter name");
 			var type = this.parse_type();
 
-			var arg = new_node(NodeType::DEFINE_VAR, argName);
+			var arg = new Node(NodeType::DEFINE_VAR, argName);
 			this.bind_name(&arg.variable.name, argName);
 			arg.variable.type = type;
 
@@ -1364,7 +1382,7 @@ function Parser.parse_member_definition(type: Type*) {
 		this.bind_name(&vnion.variable.name, memName);
 		this.bind_name(&vnion.computedType.name, memName);
 
-		var member = new_node(NodeType::MEMBER, memName);
+		var member = new Node(NodeType::MEMBER, memName);
 		this.bind_name(&member.variable.name, memName);
 		member.variable.type = vnion.computedType;
 		member.variable.value = vnion;
@@ -1379,7 +1397,7 @@ function Parser.parse_member_definition(type: Type*) {
 		this.bind_name(&strukt.variable.name, memName);
 		this.bind_name(&strukt.computedType.name, memName);
 
-		var member = new_node(NodeType::MEMBER, memName);
+		var member = new Node(NodeType::MEMBER, memName);
 		this.bind_name(&member.variable.name, memName);
 		member.variable.type = strukt.computedType;
 		member.variable.value = strukt;
@@ -1391,7 +1409,7 @@ function Parser.parse_member_definition(type: Type*) {
 
 		this.consume(TokenType::SEMICOLON, "Expected ';' after member declaration");
 
-		var member = new_node(NodeType::MEMBER, memName);
+		var member = new Node(NodeType::MEMBER, memName);
 		this.bind_name(&member.variable.name, memName);
 		member.variable.type = memType;
 
@@ -1402,7 +1420,7 @@ function Parser.parse_member_definition(type: Type*) {
 function Parser.parse_struct_definition(member: int): Node* {
 	var name: Token*;
 
-	var strukt = new_node(NodeType::STRUCT, name);
+	var strukt = new Node(NodeType::STRUCT, name);
 
 	if(!member) {
 		name = this.consume(TokenType::IDENTIFIER, "Expected struct name");
@@ -1459,7 +1477,7 @@ function Parser.parse_struct_definition(member: int): Node* {
 function Parser.parse_union_definition(member: int): Node* {
 	var name: Token*;
 
-	var vnion = new_node(NodeType::UNION, name);
+	var vnion = new Node(NodeType::UNION, name);
 	
 	if(!member) {
 		name = this.consume(TokenType::IDENTIFIER, "Expected union name");
@@ -1501,7 +1519,7 @@ function Parser.parse_union_definition(member: int): Node* {
 function Parser.parse_const_declaration(): Node* {
 	var name = this.consume(TokenType::IDENTIFIER, "Expected constant name");
 
-	var constant = new_node(NodeType::DEFINE_CONST, name);
+	var constant = new Node(NodeType::DEFINE_CONST, name);
 	this.namespace_name(&constant.constant.name, name);
 
 	if(this.lookup_constant(&constant.constant.name) != null) {
@@ -1526,17 +1544,17 @@ function Parser.parse_enum_declaration(): Node* {
 
 	this.consume(TokenType::LEFT_BRACE, "Expected '{' after enum name");
 
-	var nameSpace = new_namespace(name, this.namespaceStack.empty() ? null : this.namespaceStack.top());
+	var nameSpace = new Namespace(name, this.namespaceStack.empty() ? null : this.namespaceStack.top());
 
 	this.namespaceStack.push(nameSpace);
 
-	var namespaceNode = new_node(NodeType::NAMESPACE, name);
+	var namespaceNode = new Node(NodeType::NAMESPACE, name);
 	namespaceNode.nameSpace.name = nameSpace;
-	var namespaceBody = new_node(NodeType::BLOCK, name);
+	var namespaceBody = new Node(NodeType::BLOCK, name);
 	namespaceBody.block.children = new Vector();
 	namespaceNode.nameSpace.body = namespaceBody;
 
-	var envm = new_node(NodeType::ENUM, name);
+	var envm = new Node(NodeType::ENUM, name);
 	envm.block.children = new Vector();
 
 	var count = 0;
@@ -1544,7 +1562,7 @@ function Parser.parse_enum_declaration(): Node* {
 	do {
 		var constantName = this.consume(TokenType::IDENTIFIER, "Expected constant name");
 
-		var constant = new_node(NodeType::DEFINE_CONST, name);
+		var constant = new Node(NodeType::DEFINE_CONST, name);
 		this.namespace_name(&constant.constant.name, constantName);
 		constant.constant.value = count;
 
@@ -1608,7 +1626,7 @@ function Parser.parse_import() {
 	var source = file.slurp(null);
 	file.close();
 
-	var lexer = new_lexer(spath, source);
+	var lexer = new Lexer(spath, source);
 
 	this.lexerStack.push(lexer);
 	this.openedFiles.push(spath);
@@ -1637,7 +1655,7 @@ function Parser.parse_alias() {
 
 function Parser.parse_namespace(): Node* {
 	var namespaceName = this.consume(TokenType::IDENTIFIER, "Expected namespace name");
-	var nameSpace = new_namespace(namespaceName, this.namespaceStack.empty() ? null : this.namespaceStack.top());
+	var nameSpace = new Namespace(namespaceName, this.namespaceStack.empty() ? null : this.namespaceStack.top());
 
 	while(this.match(TokenType::COLON_COLON)) {
 		namespaceName = this.consume(TokenType::IDENTIFIER, "Expected identifier");
@@ -1648,9 +1666,9 @@ function Parser.parse_namespace(): Node* {
 
 	this.consume(TokenType::LEFT_BRACE, "Expected '{' after namespace name");
 
-	var namespaceNode = new_node(NodeType::NAMESPACE, namespaceName);
+	var namespaceNode = new Node(NodeType::NAMESPACE, namespaceName);
 
-	var body = new_node(NodeType::BLOCK, this.previous);
+	var body = new Node(NodeType::BLOCK, this.previous);
 	body.block.children = new Vector();
 
 	namespaceNode.nameSpace.name = nameSpace;
@@ -1705,7 +1723,7 @@ function Parser.parse_top_level_declaration(block: Node*) {
 }
 
 function Parser.parse_program(): Node* {
-	var program = new_node(NodeType::PROGRAM, this.current);
+	var program = new Node(NodeType::PROGRAM, this.current);
 	program.block.children = new Vector();
 
 	this.advance();

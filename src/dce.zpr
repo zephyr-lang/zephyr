@@ -80,6 +80,12 @@ function Parser.dce_expression(expr: Node*) {
 				mallocFunc.funktion.dced = true;
 				this.dce_function(mallocFunc);
 			}
+			if(expr.constructor.arguments != null) {
+				for(var i = 0; i < expr.constructor.arguments.size; ++i) {
+					var arg: Node* = expr.constructor.arguments.at(i);
+					this.dce_expression(arg);
+				}
+			}
 			if(expr.constructor.shouldConstruct) {
 				var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
 				var constructorName: Name;
