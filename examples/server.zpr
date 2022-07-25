@@ -40,6 +40,7 @@ function read_content(path: i8*): i8* {
 	}
 	var text = file.slurp(null);
 	file.close();
+	delete file;
 	return text;
 }
 

@@ -372,7 +372,7 @@ function Name.to_string(): i8* {
 		}
 	}
 
-	var str: i8* = malloc(namespaceLength + this.name.length + 1);
+	var str = new i8[namespaceLength + this.name.length + 1];
 	str[0] = 0;
 
 	for(var i = 0; i < parts.size; ++i) {
@@ -507,7 +507,7 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 	if(aliasLength == 0) {
 		var quotesLength = quoted ? 2 : 0;
 
-		str = malloc(quoted + strlen(baseType) + type.indirection + aliasLength + 1);
+		str = new i8[quoted + strlen(baseType) + type.indirection + aliasLength + 1];
 		if(quoted) {
 			str[0] = 39; // '
 			strcpy(&str[1], baseType);
@@ -523,7 +523,7 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 	else {
 		var quotesLength = quoted ? 4 : 2;
 
-		str = malloc(strlen(baseType) + quotesLength + aliasLength + 1);
+		str = new i8[strlen(baseType) + quotesLength + aliasLength + 1];
 
 		if(quoted) {
 			str[0] = 39;
@@ -537,7 +537,7 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 		strcat(str, " (alias of '");
 		strcat(str, baseType);
 		strcat(str, "')");
-		free(aliasName);
+		delete aliasName;
 	}
 
 	return str;

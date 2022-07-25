@@ -237,7 +237,7 @@ function Token.equals(b: Token*): bool {
 }
 
 function synthetic_token(type: TokenType, value: i8*): Token* {
-	var token: Token* = malloc(sizeof(Token));
+	var token: Token* = new Token;
 	token.line = 0;
 	token.type = type;
 	token.start = value;
@@ -246,7 +246,7 @@ function synthetic_token(type: TokenType, value: i8*): Token* {
 }
 
 function Token.name_to_str(): i8* {
-	var name: i8* = malloc(this.length + 1);
+	var name: i8* = new i8[this.length + 1];
 	memcpy(name, this.start, this.length);
 	name[this.length] = 0;
 	return name;

@@ -48,13 +48,16 @@ function Vector.at(index: int): any* {
 function Vector.push(item: any*) {
 	if(this.size == this.capacity) {
 		var newCapacity = this.capacity * 2;
-		var newData = malloc(newCapacity * sizeof(any*));
+		var newData = new any*[newCapacity];
 		memcpy(newData, this.data, this.capacity * sizeof(any*));
+
+		delete[] this.data;
+
 		this.data = newData;
 		this.capacity = newCapacity;
 	}
 	this.data[this.size] = item;
-	this.size = this.size + 1;
+	++this.size;
 }
 
 function Vector.pop(): any* {

@@ -116,6 +116,7 @@ function main(argc: int, argv: i8**): int {
 	var out = fopen(asmFile, 'w');
 	parser.generate_program(ast, out);
 	out.close();
+	delete out;
 
 	// Source was read from a file - free it
 	// If it's from the CLI do nothing

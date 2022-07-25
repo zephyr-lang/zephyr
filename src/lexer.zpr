@@ -12,7 +12,7 @@ struct Lexer {
 }
 
 function new_lexer(filename: i8*, source: i8*): Lexer* {
-	var lexer: Lexer* = malloc(sizeof(Lexer));
+	var lexer = new Lexer;
 	lexer.start = source;
 	lexer.current = source;
 	lexer.line = 1;
@@ -50,7 +50,7 @@ function Lexer.match(expected: i8): int {
 }
 
 function Lexer.make_token(type: int): Token* {
-	var token: Token* = malloc(sizeof(Token));
+	var token = new Token;
 	token.type = type;
 	token.start = this.start;
 	token.length = (this.current as int) - (this.start as int);
@@ -60,7 +60,7 @@ function Lexer.make_token(type: int): Token* {
 }
 
 function Lexer.error_token(message: i8*): Token* {
-	var token: Token* = malloc(sizeof(Token));
+	var token = new Token;
 	token.type = TokenType::ERROR;
 	token.start = message;
 	token.length = strlen(message);

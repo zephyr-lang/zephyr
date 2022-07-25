@@ -20,11 +20,13 @@ function main(argc: int, argv: i8**): int {
 		}
 		var text = file.slurp(null);
 		file.close();
+		delete file;
 		
 		puts(filename);
 		putsln(":");
 
 		putsln(text);
+		delete text;
 	}
 
 	return 0;
