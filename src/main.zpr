@@ -121,7 +121,7 @@ function main(argc: int, argv: i8**): int {
 	// Source was read from a file - free it
 	// If it's from the CLI do nothing
 	if(m_cliSource == null)
-		free(source);
+		delete source;
 
 	var objectFile: i8[1024];
 	strcpy(objectFile, m_outFile);

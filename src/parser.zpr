@@ -546,8 +546,8 @@ function Parser.parse_value(): Node* {
 			return literalNode;
 		}
 
-		free(buf);
-		free(literalNode);
+		delete buf;
+		delete literalNode;
 		return str;
 	}
 	else if(this.match(TokenType::IDENTIFIER)) {

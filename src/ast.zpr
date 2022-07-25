@@ -384,11 +384,11 @@ function Name.to_string(): i8* {
 
 	var name = this.name.name_to_str();
 	strcat(str, name);
-	free(name);
+	delete name;
 
 	for(var i = 0; i < parts.size; ++i) {
 		var part = parts.at(i);
-		free(part);
+		delete part;
 	}
 
 	return str;
