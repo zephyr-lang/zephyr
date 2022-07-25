@@ -1,5 +1,29 @@
 import "src/ast.zpr";
 
+var __allTypes: Vector* = null;
+
+function Type.constructor() {
+	if(__allTypes == null) {
+		__allTypes = new Vector;
+	}
+	__allTypes.push(this);
+	this.fields = null;
+	this.methods = null;
+}
+
+function free_types() {
+	if(__allTypes == null) return;
+	for(var i = 0; i < __allTypes.size; ++i) {
+		var type: Type* = __allTypes.at(i);
+		if(type.fields != null)
+			delete type.fields;
+		if(type.methods != null)
+			delete type.methods;
+		delete type;
+	}
+	delete __allTypes;
+}
+
 var INT_TYPE: Type*;
 var UINT_TYPE: Type*;
 var I8_TYPE: Type*;

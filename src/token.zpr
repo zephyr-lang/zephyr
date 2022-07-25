@@ -100,12 +100,29 @@ enum TokenType {
 	EOF
 }
 
+var __allTokens: Vector* = null;
+
 struct Token {
 	type: TokenType;
 	start: i8*;
 	length: int;
 	line: int;
 	filename: i8*;
+}
+
+function Token.constructor() {
+	if(__allTokens == null) {
+		__allTokens = new Vector;
+	}
+	__allTokens.push(this);
+}
+
+function free_tokens() {
+	if(__allTokens == null) return;
+	for(var i = 0; i < __allTokens.size; ++i) {
+		delete __allTokens.at(i);
+	}
+	delete __allTokens;
 }
 
 function token_type_to_string(type: TokenType): i8* {

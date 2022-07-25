@@ -292,6 +292,83 @@ struct Node {
 	};
 }
 
+var __allNodes: Vector* = null;
+
+function free_nodes() {
+	if(__allNodes == null) return;
+	for(var i = 0; i < __allNodes.size; ++i) {
+		delete (__allNodes.at(i) as Node*);
+	}
+	delete __allNodes;
+}
+
+function Node.constructor() {
+	if(__allNodes == null) {
+		__allNodes = new Vector;
+	}
+	__allNodes.push(this);
+}
+
+function Node.deconstructor() {
+	if(this.temporaries != null) {
+		delete this.temporaries;
+	}
+	
+	when(this.type) {
+		NodeType::FLOAT_LITERAL -> {
+			delete this.literal.az.float.str;
+		}
+		NodeType::STRING -> {
+			delete this.literal.az.string.chars;
+		}
+		NodeType::CALL -> {
+			delete this.funktion.arguments;
+			delete this.funktion.argTypes;
+		}
+		NodeType::CALL_METHOD -> {
+			delete this.funktion.arguments;
+			delete this.funktion.argTypes;
+		}
+		NodeType::DEFINE_VAR, NodeType::DEFINE_GLOBAL_VAR -> {
+			if(this.variable.arguments != null)
+				delete this.variable.arguments;
+			if(this.variable.argTypes != null)
+				delete this.variable.argTypes;
+		}
+		NodeType::ARRAY_INIT -> {
+			delete this.block.children;
+		}
+		NodeType::NEW -> {
+			if(this.constructor.argTypes != null)
+				delete this.constructor.argTypes;
+			if(this.constructor.arguments != null)
+				delete this.constructor.arguments;
+		}
+		NodeType::WHEN -> {
+			delete this.vhen.branches;
+		}
+		NodeType::BRANCH -> {
+			delete this.branch.values;
+		}
+		NodeType::FUNCTION -> {
+			delete this.funktion.arguments;
+			if(this.funktion.argTypes != null)
+				delete this.funktion.argTypes;
+		}
+		NodeType::NAMESPACE -> {
+			delete this.nameSpace.name;
+		}
+		NodeType::BLOCK -> {
+			delete this.block.children;
+			if(this.block.variables != null)
+				delete this.block.variables;
+		}
+		NodeType::PROGRAM -> {
+			delete this.block.children;
+		}
+	}
+}
+
 struct Namespace {
 	parts: Vector*; // Vector*<Token*>
 }

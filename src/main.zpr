@@ -123,6 +123,10 @@ function main(argc: int, argv: i8**): int {
 	if(m_cliSource == null)
 		delete source;
 
+	free_tokens();
+	free_types();
+	free_nodes();
+
 	var objectFile: i8[1024];
 	strcpy(objectFile, m_outFile);
 	strcat(objectFile, ".o");
