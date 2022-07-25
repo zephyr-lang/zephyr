@@ -292,6 +292,96 @@ struct Node {
 	};
 }
 
+var __allNodes: Vector* = null;
+
+function free_nodes() {
+	if(__allNodes == null) return;
+	for(var i = 0; i < __allNodes.size; ++i) {
+		delete (__allNodes.at(i) as Node*);
+	}
+	delete __allNodes;
+}
+
+function Node.constructor(type: int, position: Token*) {
+	this.type = type;
+	this.position = position;
+
+	if(__allNodes == null) {
+		__allNodes = new Vector;
+	}
+	__allNodes.push(this);
+}
+
+function Node.deconstructor() {
+	if(this.temporaries != null) {
+		delete this.temporaries;
+	}
+	
+	when(this.type) {
+		NodeType::FLOAT_LITERAL -> {
+			delete this.literal.az.float.str;
+		}
+		NodeType::STRING -> {
+			delete this.literal.az.string.chars;
+		}
+		NodeType::CALL -> {
+			this.funktion.name.deconstructor();
+			delete this.funktion.arguments;
+			delete this.funktion.argTypes;
+		}
+		NodeType::CALL_METHOD -> {
+			this.funktion.name.deconstructor();
+			delete this.funktion.arguments;
+			delete this.funktion.argTypes;
+		}
+		NodeType::DEFINE_VAR, NodeType::DEFINE_GLOBAL_VAR -> {
+			this.variable.name.deconstructor();
+			if(this.variable.arguments != null)
+				delete this.variable.arguments;
+			if(this.variable.argTypes != null)
+				delete this.variable.argTypes;
+		}
+		NodeType::ACCESS_VAR, NodeType::ACCESS_GLOBAL_VAR -> {
+			this.variable.name.deconstructor();
+		}
+		NodeType::DEFINE_CONST -> {
+			this.constant.name.deconstructor();
+		}
+		NodeType::ARRAY_INIT -> {
+			delete this.block.children;
+		}
+		NodeType::NEW -> {
+			if(this.constructor.argTypes != null)
+				delete this.constructor.argTypes;
+			if(this.constructor.arguments != null)
+				delete this.constructor.arguments;
+		}
+		NodeType::WHEN -> {
+			delete this.vhen.branches;
+		}
+		NodeType::BRANCH -> {
+			delete this.branch.values;
+		}
+		NodeType::FUNCTION -> {
+			this.funktion.name.deconstructor();
+			delete this.funktion.arguments;
+			if(this.funktion.argTypes != null)
+				delete this.funktion.argTypes;
+		}
+		NodeType::NAMESPACE -> {
+			delete this.nameSpace.name;
+		}
+		NodeType::BLOCK -> {
+			delete this.block.children;
+			if(this.block.variables != null)
+				delete this.block.variables;
+		}
+		NodeType::PROGRAM -> {
+			delete this.block.children;
+		}
+	}
+}
+
 struct Namespace {
 	parts: Vector*; // Vector*<Token*>
 }
@@ -304,6 +394,16 @@ struct Name {
 function Name.init(namespaceName: Namespace*, name: Token*) {
 	this.namespaceName = namespaceName;
 	this.name = name;
+}
+
+function Name.deconstructor() {
+	if(this.namespaceName != null)
+		delete this.namespaceName;
+}
+
+function Namespace.deconstructor() {
+	if(this.parts != null)
+		delete this.parts;
 }
 
 function Name.fput(fd: int) {
@@ -361,7 +461,7 @@ function File.put_name(name: Name*) {
 
 function Name.to_string(): i8* {
 	var namespaceLength = 0;
-	var parts = new_vector();
+	var parts: Vector;
 
 	if(this.namespaceName != null) {
 		for(var i = 0; i < this.namespaceName.parts.size; ++i) {
@@ -372,7 +472,7 @@ function Name.to_string(): i8* {
 		}
 	}
 
-	var str: i8* = malloc(namespaceLength + this.name.length + 1);
+	var str = new i8[namespaceLength + this.name.length + 1];
 	str[0] = 0;
 
 	for(var i = 0; i < parts.size; ++i) {
@@ -384,31 +484,26 @@ function Name.to_string(): i8* {
 
 	var name = this.name.name_to_str();
 	strcat(str, name);
-	free(name);
+	delete name;
 
 	for(var i = 0; i < parts.size; ++i) {
 		var part = parts.at(i);
-		free(part);
+		delete part;
 	}
-
-	free(parts);
 
 	return str;
 }
 
-function new_namespace(name: Token*, parent: Namespace*): Namespace* {
-	var namespaceName: Namespace* = malloc(sizeof(Namespace));
-	namespaceName.parts = new_vector();
+function Namespace.constructor(name: Token*, parent: Namespace*) {
+	this.parts = new Vector;
 
 	if(parent != null) {
 		for(var i = 0; i < parent.parts.size; ++i) {
-			namespaceName.parts.push(parent.parts.at(i));
+			this.parts.push(parent.parts.at(i));
 		}
 	}
 
-	if(name != null) namespaceName.parts.push(name);
-
-	return namespaceName;
+	if(name != null) this.parts.push(name);
 }
 
 function Namespace.fput(fd: int) {
@@ -444,10 +539,11 @@ function Type.add_method(method: Node*) {
 		list.push(method);
 	}
 	else {
-		list = new_vector();
+		list = new Vector();
 		list.push(method);
 		this.methods.set(nameStr, list);
 	}
+	delete nameStr;
 }
 
 function Type.get_method(name: Name*, found: bool*): Vector* {
@@ -455,6 +551,7 @@ function Type.get_method(name: Name*, found: bool*): Vector* {
 
 	var list = this.methods.get(nameStr, found) as Vector*;
 
+	delete nameStr;
 	return list;
 }
 
@@ -509,7 +606,7 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 	if(aliasLength == 0) {
 		var quotesLength = quoted ? 2 : 0;
 
-		str = malloc(quoted + strlen(baseType) + type.indirection + aliasLength + 1);
+		str = new i8[quoted + strlen(baseType) + type.indirection + aliasLength + 1];
 		if(quoted) {
 			str[0] = 39; // '
 			strcpy(&str[1], baseType);
@@ -525,7 +622,7 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 	else {
 		var quotesLength = quoted ? 4 : 2;
 
-		str = malloc(strlen(baseType) + quotesLength + aliasLength + 1);
+		str = new i8[strlen(baseType) + quotesLength + aliasLength + 1];
 
 		if(quoted) {
 			str[0] = 39;
@@ -539,7 +636,7 @@ function __type_to_string(type: Type*, quoted: bool): i8* {
 		strcat(str, " (alias of '");
 		strcat(str, baseType);
 		strcat(str, "')");
-		free(aliasName);
+		delete aliasName;
 	}
 
 	return str;

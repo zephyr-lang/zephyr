@@ -7,17 +7,30 @@ struct Vector {
 	data: any**;
 }
 
-function new_vector_sized(capacity: int): Vector* {
-	var vec: Vector* = malloc(sizeof(Vector));
-	vec.size = 0;
-	vec.capacity = capacity;
-	vec.data = malloc(capacity * sizeof(any*));
-	return vec;
+function Vector.constructor() {
+	this.size = 0;
+	this.capacity = 8;
+	this.data = new any*[this.capacity];
 }
 
-function new_vector(): Vector* {
-	// Initial capacity
-	return new_vector_sized(8);
+function Vector.constructor(initialCapacity: uint) {
+	this.size = 0;
+	this.capacity = initialCapacity;
+	this.data = new any*[this.capacity];
+}
+
+function Vector.copy(other: Vector*) {
+	this.size = other.size;
+	this.capacity = other.capacity;
+	this.data = new any*[this.capacity];
+
+	for(var i = 0; i < this.capacity; ++i) {
+		this.data[i] = other.data[i];
+	}
+}
+
+function Vector.deconstructor() {
+	delete[] this.data;
 }
 
 function Vector.empty(): bool {
@@ -35,13 +48,16 @@ function Vector.at(index: int): any* {
 function Vector.push(item: any*) {
 	if(this.size == this.capacity) {
 		var newCapacity = this.capacity * 2;
-		var newData = malloc(newCapacity * sizeof(any*));
+		var newData = new any*[newCapacity];
 		memcpy(newData, this.data, this.capacity * sizeof(any*));
+
+		delete[] this.data;
+
 		this.data = newData;
 		this.capacity = newCapacity;
 	}
 	this.data[this.size] = item;
-	this.size = this.size + 1;
+	++this.size;
 }
 
 function Vector.pop(): any* {

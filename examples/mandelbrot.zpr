@@ -40,7 +40,7 @@ function main(argc: int, argv: i8**): int {
 	var pixelWidth = (cxmax-cxmin)/ixmax;
 	var pixelHeight = (cymax-cymin)/iymax;
 
-	var img = std::image::new_ppm_img(ixmax, iymax);
+	var img: std::image::PPMImage(ixmax, iymax);
 
 	for(var iy = 0; iy < iymax; ++iy) {
 		var cy = cymin + iy*pixelHeight;

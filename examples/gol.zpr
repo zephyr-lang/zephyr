@@ -7,34 +7,34 @@ const COLUMNS = 20;
 
 enum State {
 	DEAD,
-	LIVE
+	ALIVE
 }
 
 function row_col_idx(row: int, col: int): int {
 	return col * ROWS + row;
 }
 
-function cell_is_live(row: int, col: int, board: i8*): bool {
-	return board[row_col_idx(row, col)] == State::LIVE;
+function cell_is_alive(row: int, col: int, board: i8*): bool {
+	return board[row_col_idx(row, col)] == State::ALIVE;
 }
 
 function count_neighbours(row: int, col: int, board: i8*): int {
 	var neighbours = 0;
 	if(row != 0) {
-		neighbours += cell_is_live(row - 1, col, board);
-		if(col != 0) neighbours += cell_is_live(row - 1, col - 1, board);
-		if(col != COLUMNS - 1) neighbours += cell_is_live(row - 1, col + 1, board);
+		neighbours += cell_is_alive(row - 1, col, board);
+		if(col != 0) neighbours += cell_is_alive(row - 1, col - 1, board);
+		if(col != COLUMNS - 1) neighbours += cell_is_alive(row - 1, col + 1, board);
 	}
 	if(row != ROWS - 1) {
-		neighbours += cell_is_live(row + 1, col, board);
-		if(col != 0) neighbours += cell_is_live(row + 1, col - 1, board);
-		if(col != COLUMNS - 1) neighbours += cell_is_live(row + 1, col + 1, board);
+		neighbours += cell_is_alive(row + 1, col, board);
+		if(col != 0) neighbours += cell_is_alive(row + 1, col - 1, board);
+		if(col != COLUMNS - 1) neighbours += cell_is_alive(row + 1, col + 1, board);
 	}
 	if(col != 0) {
-		neighbours += cell_is_live(row, col - 1, board);
+		neighbours += cell_is_alive(row, col - 1, board);
 	}
 	if(col != COLUMNS - 1) {
-		neighbours += cell_is_live(row, col + 1, board);
+		neighbours += cell_is_alive(row, col + 1, board);
 	}
 
 	return neighbours;
@@ -45,12 +45,12 @@ function poll_new_state(row: int, col: int, board: i8*, scratchBoard: i8*) {
 
 	var idx = row_col_idx(row, col);
 
-	if(cell_is_live(row, col, board)) {
+	if(cell_is_alive(row, col, board)) {
 		if(liveNeighbours < 2) {
 			scratchBoard[idx] = State::DEAD;
 		}
 		else if(liveNeighbours == 2 || liveNeighbours == 3) {
-			scratchBoard[idx] = State::LIVE;
+			scratchBoard[idx] = State::ALIVE;
 		}
 		else {
 			scratchBoard[idx] = State::DEAD;
@@ -58,7 +58,7 @@ function poll_new_state(row: int, col: int, board: i8*, scratchBoard: i8*) {
 	}
 	else {
 		if(liveNeighbours == 3) {
-			scratchBoard[idx] = State::LIVE;
+			scratchBoard[idx] = State::ALIVE;
 		}
 	}
 }
@@ -85,7 +85,7 @@ function swap_boards(board: i8*, scratchBoard: i8*) {
 function print_board(board: i8*) {
 	for(var row = 0; row < ROWS; ++row) {
 		for(var col = 0; col < COLUMNS; ++col) {
-			putc(cell_is_live(row, col, board) ? '#' : ' ');
+			putc(cell_is_alive(row, col, board) ? '#' : ' ');
 		}
 		putln();
 	}
@@ -97,17 +97,17 @@ function move_cursor_start() {
 }
 
 function set_blinker(board: i8*) {
-	board[row_col_idx(5, 5)] = State::LIVE;
-	board[row_col_idx(6, 5)] = State::LIVE;
-	board[row_col_idx(7, 5)] = State::LIVE;
+	board[row_col_idx(5, 5)] = State::ALIVE;
+	board[row_col_idx(6, 5)] = State::ALIVE;
+	board[row_col_idx(7, 5)] = State::ALIVE;
 }
 
 function set_glider(board: i8*) {
-	board[row_col_idx(2, 0)] = State::LIVE;
-	board[row_col_idx(3, 1)] = State::LIVE;
-	board[row_col_idx(1, 2)] = State::LIVE;
-	board[row_col_idx(2, 2)] = State::LIVE;
-	board[row_col_idx(3, 2)] = State::LIVE;
+	board[row_col_idx(2, 0)] = State::ALIVE;
+	board[row_col_idx(3, 1)] = State::ALIVE;
+	board[row_col_idx(1, 2)] = State::ALIVE;
+	board[row_col_idx(2, 2)] = State::ALIVE;
+	board[row_col_idx(3, 2)] = State::ALIVE;
 }
 
 function main(): int {

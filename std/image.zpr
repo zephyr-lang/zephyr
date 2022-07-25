@@ -14,12 +14,23 @@ namespace std::image {
 		data: Color8*;
 	}
 
-	function new_ppm_img(width: u32, height: u32): PPMImage* {
-		var img: PPMImage* = malloc(sizeof(PPMImage));
-		img.width = width;
-		img.height = height;
-		img.data = malloc(width * height * sizeof(Color8));
-		return img;
+	function PPMImage.constructor(width: u32, height: u32) {
+		this.width = width;
+		this.height = height;
+		this.data = new Color8[width * height];
+	}
+
+	function PPMImage.copy(other: PPMImage*) {
+		this.width = other.width;
+		this.height = other.height;
+		this.data = new Color8[this.width * this.height];
+		for(var i = 0; i < this.width * this.height; ++i) {
+			this.data[i] = other.data[i];
+		}
+	}
+
+	function PPMImage.deconstructor() {
+		delete[] this.data;
 	}
 
 	function PPMImage.set_pixel(x: u32, y: u32, color: Color8*) {

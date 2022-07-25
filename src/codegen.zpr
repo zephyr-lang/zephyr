@@ -681,10 +681,10 @@ function generate_assign(expr: Node*, out: File*) {
 		out.putsln("    mov rsi, rax");
 		out.putsln("    mov rax, QWORD [rsp]");
 
-		var args = new_vector();
+		var args: Vector;
 		args.push(expr.assignment.rhs.overload.rhsType);
 
-		generate_method_call(null, expr.assignment.rhs.overload.lhsType, Typecheck::get_name_from_overload(expr.assignment.rhs.overload.op), null, args, null, 0, out);
+		generate_method_call(null, expr.assignment.rhs.overload.lhsType, Typecheck::get_name_from_overload(expr.assignment.rhs.overload.op), null, &args, null, 0, out);
 		out.putsln("    pop rax");
 		return;
 	}
@@ -1103,14 +1103,14 @@ function generate_define_var(stmt: Node*, out: File*) {
 				var copyName: Name;
 				parser.bind_name(&copyName, copyTok);
 
-				var args = new_vector();
+				var args: Vector;
 				var typePtr = copy_type(stmt.variable.type);
 				typePtr.indirection = 1;
 				args.push(typePtr);
 
 				out.puts("    lea rdi, [rbp-"); out.putd(stmt.variable.stackOffset); out.putsln("]");
 				out.putsln("    mov rsi, rax");
-				out.puts("    call _M"); out.put_arguments(args);
+				out.puts("    call _M"); out.put_arguments(&args);
 				out.put_name(&stmt.variable.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
 			}
 			else {
@@ -1239,7 +1239,7 @@ function generate_return(stmt: Node*, out: File*) {
 			var copyName: Name;
 			parser.bind_name(&copyName, copyTok);
 
-			var args = new_vector();
+			var args: Vector;
 			var typePtr = copy_type(stmt.ret.type);
 			typePtr.indirection = 1;
 			args.push(typePtr);
@@ -1247,7 +1247,7 @@ function generate_return(stmt: Node*, out: File*) {
 			out.putsln("    push rcx");
 			out.putsln("    mov rdi, rcx");
 			out.putsln("    mov rsi, rax");
-			out.puts("    call _M"); out.put_arguments(args);
+			out.puts("    call _M"); out.put_arguments(&args);
 			out.put_name(&stmt.ret.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
 			out.putsln("    pop rax");
 		}
@@ -1429,14 +1429,14 @@ function generate_function(funktion: Node*, out: File*) {
 				var copyName: Name;
 				parser.bind_name(&copyName, copyTok);
 
-				var args = new_vector();
+				var args: Vector;
 				var typePtr = copy_type(arg.variable.type);
 				typePtr.indirection = 1;
 				args.push(typePtr);
 
 				out.putsln("    mov rdi, rcx");
 				out.putsln("    mov rsi, rax");
-				out.puts("    call _M"); out.put_arguments(args);
+				out.puts("    call _M"); out.put_arguments(&args);
 				out.put_name(&arg.variable.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
 			}
 			else {
@@ -1593,14 +1593,14 @@ function Parser.generate_program(ast: Node*, out: File*) {
 					var copyName: Name;
 					parser.bind_name(&copyName, copyTok);
 
-					var args = new_vector();
+					var args: Vector;
 					var typePtr = copy_type(variable.variable.type);
 					typePtr.indirection = 1;
 					args.push(typePtr);
 
 					out.puts("    lea rdi, [_G"); out.put_name(&variable.variable.name); out.putsln("]");
 					out.putsln("    mov rsi, rax");
-					out.puts("    call _M"); out.put_arguments(args);
+					out.puts("    call _M"); out.put_arguments(&args);
 					out.put_name(&variable.variable.type.name); out.puts("_"); out.put_name(&copyName); out.putln();
 				}
 				else {

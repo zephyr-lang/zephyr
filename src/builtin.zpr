@@ -5,13 +5,13 @@ var builtinFunctions: Vector*;
 
 function add_implicit_printu_function(): Node* {
 	var name = synthetic_token(TokenType::IDENTIFIER, "printu");
-	var funktion = new_node(NodeType::FUNCTION, name);
+	var funktion = new Node(NodeType::FUNCTION, name);
 	funktion.funktion.name.name = name;
 
-	funktion.funktion.arguments = new_vector();
+	funktion.funktion.arguments = new Vector();
 
 	var valTok = synthetic_token(TokenType::IDENTIFIER, "value");
-	var val = new_node(NodeType::DEFINE_VAR, valTok);
+	var val = new Node(NodeType::DEFINE_VAR, valTok);
 	val.variable.name.name = valTok;
 	val.variable.type = UINT_TYPE;
 	funktion.funktion.arguments.push(val);
@@ -25,12 +25,12 @@ function add_implicit_printu_function(): Node* {
 
 function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
 	var name = synthetic_token(TokenType::IDENTIFIER, sysName);
-	var funktion = new_node(NodeType::FUNCTION, name);
+	var funktion = new Node(NodeType::FUNCTION, name);
 	funktion.funktion.name.name = name;
-	funktion.funktion.arguments = new_vector();
+	funktion.funktion.arguments = new Vector();
 
 	var nrTok = synthetic_token(TokenType::IDENTIFIER, "nr");
-	var nr = new_node(NodeType::DEFINE_VAR, nrTok);
+	var nr = new Node(NodeType::DEFINE_VAR, nrTok);
 	nr.variable.name.name = nrTok;
 	nr.variable.type = INT_TYPE;
 	
@@ -38,7 +38,7 @@ function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
 
 	for(var i = 0; i < argCount; ++i) {
 		var argTok = synthetic_token(TokenType::IDENTIFIER, "arg");
-		var arg = new_node(NodeType::DEFINE_VAR, argTok);
+		var arg = new Node(NodeType::DEFINE_VAR, argTok);
 		arg.variable.name.name = argTok;
 		arg.variable.type = ANY_TYPE;
 
@@ -53,7 +53,7 @@ function add_implicit_syscall_function(sysName: i8*, argCount: int): Node* {
 }
 
 function parser_builtin_functions(): Vector* {
-	var functions = new_vector();
+	var functions = new Vector();
 
 	functions.push(add_implicit_printu_function());
 	functions.push(add_implicit_syscall_function("syscall0", 0));

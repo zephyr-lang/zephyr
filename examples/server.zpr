@@ -12,21 +12,20 @@ const PORT = 8080;
 
 function respond(body: i8*): i8* {
 	var start = "HTTP/1.1 200 OK";
-	var newline: i8[3] = [13, 10, 0];
 
 	// Calculate size
 	var length = strlen(body);
 	var lenBuf: i8[20];
 	itoa(length, lenBuf, 10);
 
-	var response = malloc(256 + length);
+	var response = new i8[256 + length];
 
-	memcpy(response, start, strlen(start) + 1);                     strcat(response, newline);
-	strcat(response, "Server: Zephyr PL Server/0.1.1");             strcat(response, newline);
-	strcat(response, "Connection: Closed");                         strcat(response, newline);
-	strcat(response, "Content-Type: text/html");                    strcat(response, newline);
-	strcat(response, "Content-Length: "); strcat(response, lenBuf); strcat(response, newline);
-	strcat(response, newline);
+	memcpy(response, start, strlen(start) + 1);                     strcat(response, "\r\n");
+	strcat(response, "Server: Zephyr PL Server/0.1.1");             strcat(response, "\r\n");
+	strcat(response, "Connection: Closed");                         strcat(response, "\r\n");
+	strcat(response, "Content-Type: text/html");                    strcat(response, "\r\n");
+	strcat(response, "Content-Length: "); strcat(response, lenBuf); strcat(response, "\r\n");
+	strcat(response, "\r\n");
 	strcat(response, body);
 
 	return response;
@@ -41,6 +40,7 @@ function read_content(path: i8*): i8* {
 	}
 	var text = file.slurp(null);
 	file.close();
+	delete file;
 	return text;
 }
 
@@ -122,6 +122,8 @@ function main(): int {
 
 		close(newSocket);
 	}
+
+	delete[] response;
 
 	close(serverFd);
 	return 0;

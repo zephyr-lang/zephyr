@@ -80,6 +80,12 @@ function Parser.dce_expression(expr: Node*) {
 				mallocFunc.funktion.dced = true;
 				this.dce_function(mallocFunc);
 			}
+			if(expr.constructor.arguments != null) {
+				for(var i = 0; i < expr.constructor.arguments.size; ++i) {
+					var arg: Node* = expr.constructor.arguments.at(i);
+					this.dce_expression(arg);
+				}
+			}
 			if(expr.constructor.shouldConstruct) {
 				var constructorTok = synthetic_token(TokenType::IDENTIFIER, "constructor");
 				var constructorName: Name;
@@ -105,8 +111,8 @@ function Parser.dce_expression(expr: Node*) {
 				var constructorName: Name;
 				this.bind_name(&constructorName, constructorTok);
 
-				var argTypes = new_vector();
-				var constructor = expr.constructor.type.lookup_method_with_arguments(&constructorName, argTypes);
+				var argTypes: Vector;
+				var constructor = expr.constructor.type.lookup_method_with_arguments(&constructorName, &argTypes);
 				if(!constructor.funktion.dced) {
 					constructor.funktion.dced = true;
 					this.dce_function(constructor);
@@ -146,8 +152,8 @@ function Parser.dce_block(block: Node*) {
 		var deconstructorName: Name;
 		this.bind_name(&deconstructorName, deconstructorTok);
 
-		var argTypes = new_vector();
-		var deconstructor = variable.variable.type.lookup_method_with_arguments(&deconstructorName, argTypes);
+		var argTypes: Vector;
+		var deconstructor = variable.variable.type.lookup_method_with_arguments(&deconstructorName, &argTypes);
 
 		if(deconstructor != null && !deconstructor.funktion.dced) {
 			deconstructor.funktion.dced = true;
@@ -192,12 +198,12 @@ function Parser.dce_statement(stmt: Node*) {
 					var copyName: Name;
 					this.bind_name(&copyName, copyTok);
 
-					var args = new_vector();
+					var args: Vector;
 					var typePtr = copy_type(stmt.variable.type);
 					typePtr.indirection = 1;
 					args.push(typePtr);
 
-					var copy = stmt.variable.type.lookup_method_with_arguments(&copyName, args);
+					var copy = stmt.variable.type.lookup_method_with_arguments(&copyName, &args);
 					if(!copy.funktion.dced) {
 						this.dce_function(copy);
 					}
@@ -234,12 +240,12 @@ function Parser.dce_statement(stmt: Node*) {
 				var copyName: Name;
 				this.bind_name(&copyName, copyTok);
 
-				var args = new_vector();
+				var args: Vector;
 				var typePtr = copy_type(stmt.ret.type);
 				typePtr.indirection = 1;
 				args.push(typePtr);
 
-				var copy = stmt.ret.type.lookup_method_with_arguments(&copyName, args);
+				var copy = stmt.ret.type.lookup_method_with_arguments(&copyName, &args);
 
 				if(!copy.funktion.dced) {
 					this.dce_function(copy);
@@ -260,8 +266,8 @@ function Parser.dce_statement(stmt: Node*) {
 				var deconstructorName: Name;
 				this.bind_name(&deconstructorName, deconstructorTok);
 
-				var argTypes = new_vector();
-				var deconstructor = stmt.unary.computedType.lookup_method_with_arguments(&deconstructorName, argTypes);
+				var argTypes: Vector;
+				var deconstructor = stmt.unary.computedType.lookup_method_with_arguments(&deconstructorName, &argTypes);
 
 				if(deconstructor != null && !deconstructor.funktion.dced) {
 					deconstructor.funktion.dced = true;
@@ -288,8 +294,8 @@ function Parser.dce_statement(stmt: Node*) {
 				var deconstructorName: Name;
 				this.bind_name(&deconstructorName, deconstructorTok);
 
-				var argTypes = new_vector();
-				var deconstructor = stmt.unary.computedType.lookup_method_with_arguments(&deconstructorName, argTypes);
+				var argTypes: Vector;
+				var deconstructor = stmt.unary.computedType.lookup_method_with_arguments(&deconstructorName, &argTypes);
 
 				if(deconstructor != null && !deconstructor.funktion.dced) {
 					deconstructor.funktion.dced = true;
@@ -313,8 +319,8 @@ function Parser.dce_statement(stmt: Node*) {
 			var deconstructorName: Name;
 			this.bind_name(&deconstructorName, deconstructorTok);
 
-			var argTypes = new_vector();
-			var deconstructor = temp.computedType.lookup_method_with_arguments(&deconstructorName, argTypes);
+			var argTypes: Vector;
+			var deconstructor = temp.computedType.lookup_method_with_arguments(&deconstructorName, &argTypes);
 
 			if(deconstructor != null && !deconstructor.funktion.dced) {
 				deconstructor.funktion.dced = true;
@@ -333,12 +339,12 @@ function Parser.dce_function(funktion: Node*) {
 			var copyName: Name;
 			this.bind_name(&copyName, copyTok);
 
-			var args = new_vector();
+			var args: Vector;
 			var typePtr = copy_type(arg.variable.type);
 			typePtr.indirection = 1;
 			args.push(typePtr);
 
-			var copy = arg.variable.type.lookup_method_with_arguments(&copyName, args);
+			var copy = arg.variable.type.lookup_method_with_arguments(&copyName, &args);
 			if(!copy.funktion.dced) {
 				this.dce_function(copy);
 			}
@@ -390,12 +396,12 @@ function Parser.dce() {
 				var copyName: Name;
 				this.bind_name(&copyName, copyTok);
 
-				var args = new_vector();
+				var args: Vector;
 				var typePtr = copy_type(gvar.variable.type);
 				typePtr.indirection = 1;
 				args.push(typePtr);
 
-				var copy = gvar.variable.type.lookup_method_with_arguments(&copyName, args);
+				var copy = gvar.variable.type.lookup_method_with_arguments(&copyName, &args);
 				if(!copy.funktion.dced) {
 					this.dce_function(copy);
 				}

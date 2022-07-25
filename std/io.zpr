@@ -164,11 +164,11 @@ function fopen(name: i8*, mode: i8): File* {
 	else if(mode == 'r') openMode = O_RDONLY;
 	else return null;
 
-	var f: File* = malloc(sizeof(File));
+	var f: File* = new File;
 	f.name = name;
 	f.fd = open(name, openMode, 438); // 0o666
 	if(f.fd < 0) {
-		free(f);
+		delete f;
 		return null;
 	}
 	return f;
@@ -291,7 +291,7 @@ function File.size(): int {
 
 function File.slurp(sizeptr: int*): i8* {
 	var size = this.size();
-	var text: i8* = malloc(size + 1);
+	var text: i8* = new i8[size + 1];
 	this.read(text, size);
 	text[size] = 0;
 	if(sizeptr as int) *sizeptr = size;

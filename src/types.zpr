@@ -1,5 +1,29 @@
 import "src/ast.zpr";
 
+var __allTypes: Vector* = null;
+
+function Type.constructor() {
+	if(__allTypes == null) {
+		__allTypes = new Vector;
+	}
+	__allTypes.push(this);
+	this.fields = null;
+	this.methods = null;
+}
+
+function free_types() {
+	if(__allTypes == null) return;
+	for(var i = 0; i < __allTypes.size; ++i) {
+		var type: Type* = __allTypes.at(i);
+		if(type.fields != null)
+			delete type.fields;
+		if(type.methods != null)
+			delete type.methods;
+		delete type;
+	}
+	delete __allTypes;
+}
+
 var INT_TYPE: Type*;
 var UINT_TYPE: Type*;
 var I8_TYPE: Type*;
@@ -9,14 +33,8 @@ var VOID_TYPE: Type*;
 var ANY_TYPE: Type*;
 var ANYP_TYPE: Type*;
 
-function new_type(): Type* {
-	var type: Type* = malloc(sizeof(Type));
-
-	return type;
-}
-
 function copy_type(a: Type*): Type* {
-	var copy: Type* = malloc(sizeof(Type));
+	var copy = new Type;
 	copy.type = a.type;
 	copy.indirection = a.indirection;
 	copy.name = a.name;
@@ -26,29 +44,29 @@ function copy_type(a: Type*): Type* {
 }
 
 function build_types() {
-	INT_TYPE = new_type();
+	INT_TYPE = new Type;
 	INT_TYPE.type = DataType::INT;
 
-	UINT_TYPE = new_type();
+	UINT_TYPE = new Type;
 	UINT_TYPE.type = DataType::UINT;
 
-	I8_TYPE = new_type();
+	I8_TYPE = new Type;
 	I8_TYPE.type = DataType::I8;
 
-	STR_TYPE = new_type();
+	STR_TYPE = new Type;
 	STR_TYPE.type = DataType::I8;
 	STR_TYPE.indirection = 1;
 
-	F64_TYPE = new_type();
+	F64_TYPE = new Type;
 	F64_TYPE.type = DataType::F64;
 
-	VOID_TYPE = new_type();
+	VOID_TYPE = new Type;
 	VOID_TYPE.type = DataType::VOID;
 
-	ANY_TYPE = new_type();
+	ANY_TYPE = new Type;
 	ANY_TYPE.type = DataType::ANY;
 
-	ANYP_TYPE = new_type();
+	ANYP_TYPE = new Type;
 	ANYP_TYPE.type = DataType::ANY;
 	ANYP_TYPE.indirection = 1;
 }
