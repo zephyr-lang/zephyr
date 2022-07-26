@@ -2074,6 +2074,68 @@ union X {
 function main(): int { return 0; }
 "
 
+assert_stdout "10
+15
+15
+15" "
+import \"std/io.zpr\";
+
+struct X {
+	x: int;
+	y: int;
+	z: int;
+}
+
+function X.constructor() {
+	this.x = 15;
+	this.y = this.x;
+	this.z = this.y;
+}
+
+function y(a: int, b: X*) {
+	putd(a); putln();
+	putd(b.x); putln();
+	putd(b.y); putln();
+	putd(b.z); putln();
+	delete b;
+}
+
+function main() {
+	y(10, new X());
+}
+"
+
+assert_stdout "10
+15
+15
+15" "
+import \"std/io.zpr\";
+
+struct X {
+	x: int;
+	y: int;
+	z: int;
+}
+
+function X.constructor() {
+	this.x = 15;
+	this.y = this.x;
+	this.z = this.y;
+}
+
+function y(a: int, b: X*) {
+	putd(a); putln();
+	putd(b.x); putln();
+	putd(b.y); putln();
+	putd(b.z); putln();
+	delete[] b;
+}
+
+function main() {
+	y(10, new X[1]);
+}
+"
+
 echo " Done"
 
 echo -n "Stack Construct/Deconstruct: "
