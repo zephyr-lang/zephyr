@@ -740,6 +740,15 @@ function generate_post_decrement(expr: Node*, out: File*) {
 }
 
 function generate_new(expr: Node*, out: File*) {
+	// Preserve in-use registers
+	for(var i = 0; i < intRegistersInUse; ++i) {
+		out.puts("    push "); out.putsln(INT_ARG_REGISTERS[i]);
+	}
+	for(var i = 0; i < floatRegistersInUse; ++i) {
+		out.putsln("    sub rsp, 8");
+		out.puts("    movsd [rsp], "); out.putsln(FLOAT_ARG_REGISTERS[i]);
+	}
+
 	// Typecheck should verify that malloc exists with the correct signature
 	out.puts("    mov rdi, "); out.putu(expr.constructor.type.size()); out.putln();
 	out.putsln("    call _FUZmalloc");
@@ -753,9 +762,27 @@ function generate_new(expr: Node*, out: File*) {
 		generate_method_call(null, expr.constructor.type, &constructorName, expr.constructor.arguments, expr.constructor.argTypes, null, 0, out);
 		out.putsln("    pop rax");
 	}
+
+	for(var i = 0; i < intRegistersInUse; ++i) {
+		out.puts("    pop "); out.putsln(INT_ARG_REGISTERS[intRegistersInUse - i - 1]);
+	}
+
+	for(var i = 0; i < floatRegistersInUse; ++i) {
+		out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
+		out.putsln("    add rsp, 8");
+	}
 }
 
 function generate_new_array(expr: Node*, out: File*) {
+	// Preserve in-use registers
+	for(var i = 0; i < intRegistersInUse; ++i) {
+		out.puts("    push "); out.putsln(INT_ARG_REGISTERS[i]);
+	}
+	for(var i = 0; i < floatRegistersInUse; ++i) {
+		out.putsln("    sub rsp, 8");
+		out.puts("    movsd [rsp], "); out.putsln(FLOAT_ARG_REGISTERS[i]);
+	}
+
 	// Typecheck should verify that malloc exists with the correct signature
 	generate_expr(expr.constructor.array.length, out);
 	if(expr.constructor.shouldConstruct) {
@@ -816,6 +843,15 @@ function generate_new_array(expr: Node*, out: File*) {
 		// then pop the values from the stack
 		out.putsln("    mov rax, [rsp+8]");
 		out.putsln("    add rsp, 32");
+	}
+
+	for(var i = 0; i < intRegistersInUse; ++i) {
+		out.puts("    pop "); out.putsln(INT_ARG_REGISTERS[intRegistersInUse - i - 1]);
+	}
+
+	for(var i = 0; i < floatRegistersInUse; ++i) {
+		out.puts("    movsd "); out.puts(FLOAT_ARG_REGISTERS[floatRegistersInUse - i - 1]); out.putsln(", [rsp]");
+		out.putsln("    add rsp, 8");
 	}
 }
 

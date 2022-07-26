@@ -1881,8 +1881,7 @@ function Parser.type_check_statement(stmt: Node*) {
 }
 
 function Parser.type_check_block(block: Node*) {
-	var vec = new Vector();
-	this.type_check_block(block, vec);
+	this.type_check_block(block, new Vector());
 }
 
 function Parser.type_check_block(block: Node*, variables: Vector*) {
