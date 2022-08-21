@@ -1175,7 +1175,13 @@ function generate_define_var(stmt: Node*, out: File*) {
 }
 
 function generate_delete(stmt: Node*, out: File*) {
+	var nullLabel = ++labelCount;
+
 	generate_expr(stmt.deconstructor.value, out);
+
+	out.putsln("    test rax, rax");
+	out.puts("    jz .l"); out.putd(nullLabel); out.putln();
+
 	out.putsln("    mov rdi, rax");
 	out.putsln("    call _FAPZfree");
 
@@ -1190,6 +1196,8 @@ function generate_delete(stmt: Node*, out: File*) {
 			out.puts("    call _M"); out.put_name(&stmt.unary.computedType.name); out.puts("_"); out.put_name(&deconstructorName); out.putln();
 		}
 	}
+
+	out.puts(".l"); out.putd(nullLabel); out.putsln(":");
 }
 
 function generate_delete_array(stmt: Node*, out: File*) {
