@@ -29,9 +29,7 @@ namespace std::map {
 	function HashMap.deconstructor() {
 		for(var i = 0; i < this.capacity; ++i) {
 			var item = this.items[i];
-			if(item.key != null) {
-				delete item.key;
-			}
+			delete item.key;
 		}
 		delete[] this.items;
 	}

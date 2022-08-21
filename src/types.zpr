@@ -15,10 +15,8 @@ function free_types() {
 	if(__allTypes == null) return;
 	for(var i = 0; i < __allTypes.size; ++i) {
 		var type: Type* = __allTypes.at(i);
-		if(type.fields != null)
-			delete type.fields;
-		if(type.methods != null)
-			delete type.methods;
+		delete type.fields;
+		delete type.methods;
 		delete type;
 	}
 	delete __allTypes;

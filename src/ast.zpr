@@ -313,9 +313,7 @@ function Node.constructor(type: int, position: Token*) {
 }
 
 function Node.deconstructor() {
-	if(this.temporaries != null) {
-		delete this.temporaries;
-	}
+	delete this.temporaries;
 	
 	when(this.type) {
 		NodeType::FLOAT_LITERAL -> {
@@ -336,10 +334,8 @@ function Node.deconstructor() {
 		}
 		NodeType::DEFINE_VAR, NodeType::DEFINE_GLOBAL_VAR -> {
 			this.variable.name.deconstructor();
-			if(this.variable.arguments != null)
-				delete this.variable.arguments;
-			if(this.variable.argTypes != null)
-				delete this.variable.argTypes;
+			delete this.variable.arguments;
+			delete this.variable.argTypes;
 		}
 		NodeType::ACCESS_VAR, NodeType::ACCESS_GLOBAL_VAR -> {
 			this.variable.name.deconstructor();
@@ -351,10 +347,8 @@ function Node.deconstructor() {
 			delete this.block.children;
 		}
 		NodeType::NEW -> {
-			if(this.constructor.argTypes != null)
-				delete this.constructor.argTypes;
-			if(this.constructor.arguments != null)
-				delete this.constructor.arguments;
+			delete this.constructor.argTypes;
+			delete this.constructor.arguments;
 		}
 		NodeType::WHEN -> {
 			delete this.vhen.branches;
@@ -365,16 +359,14 @@ function Node.deconstructor() {
 		NodeType::FUNCTION -> {
 			this.funktion.name.deconstructor();
 			delete this.funktion.arguments;
-			if(this.funktion.argTypes != null)
-				delete this.funktion.argTypes;
+			delete this.funktion.argTypes;
 		}
 		NodeType::NAMESPACE -> {
 			delete this.nameSpace.name;
 		}
 		NodeType::BLOCK -> {
 			delete this.block.children;
-			if(this.block.variables != null)
-				delete this.block.variables;
+			delete this.block.variables;
 		}
 		NodeType::PROGRAM -> {
 			delete this.block.children;
@@ -397,13 +389,11 @@ function Name.init(namespaceName: Namespace*, name: Token*) {
 }
 
 function Name.deconstructor() {
-	if(this.namespaceName != null)
-		delete this.namespaceName;
+	delete this.namespaceName;
 }
 
 function Namespace.deconstructor() {
-	if(this.parts != null)
-		delete this.parts;
+	delete this.parts;
 }
 
 function Name.fput(fd: int) {
